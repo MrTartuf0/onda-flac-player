@@ -178,7 +178,20 @@ const drflac_allocation_callbacks kFlAlloc = {nullptr, fl_malloc, fl_realloc, fl
 
 // ----------------------------------------------------- callback dr_flac ----
 uint64_t s_io_us = 0;   // tempo passato a leggere dalla SD
+TickType_t s_last_yield = 0;
+
+// Il task di decodifica non deve mai occupare la CPU per secondi di fila (watchdog):
+// oltre che nel ciclo principale, cede la CPU anche qui, cosi' sono coperte anche
+// le operazioni lunghe dentro dr_flac (apertura, seek).
+void maybe_yield() {
+  if (xTaskGetTickCount() - s_last_yield >= pdMS_TO_TICKS(30)) {
+    vTaskDelay(1);
+    s_last_yield = xTaskGetTickCount();
+  }
+}
+
 size_t cb_read(void *u, void *out, size_t n) {
+  maybe_yield();
   int64_t t = esp_timer_get_time();
   size_t r = fread(out, 1, n, (FILE *)u);
   s_io_us += esp_timer_get_time() - t;
@@ -420,6 +433,9 @@ void seek_to(uint32_t ms) {
   ring_flush();
   uint64_t f = (uint64_t)ms * s_src_rate / 1000;
   if (f >= s_fl->totalPCMFrameCount) f = s_fl->totalPCMFrameCount ? s_fl->totalPCMFrameCount - 1 : 0;
+  char d[16];
+  snprintf(d, sizeof d, "%u s", (unsigned)(ms / 1000));
+  plat_mark(2, "player: seek", d);
   drflac_seek_to_pcm_frame(s_fl, f);
   Lock l;
   s_st.pos_ms = ms;
@@ -561,7 +577,7 @@ bool decode_block() {
 }
 
 void decoder_task(void *) {
-  TickType_t last_yield = xTaskGetTickCount();
+  s_last_yield = xTaskGetTickCount();
   for (;;) {
     Cmd c;
     // con il buffer pieno (o niente da decodificare) si dorme sulla coda comandi
@@ -577,10 +593,7 @@ void decoder_task(void *) {
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
-    if (xTaskGetTickCount() - last_yield >= pdMS_TO_TICKS(30)) {
-      vTaskDelay(1);   // lascia respirare gli altri task (watchdog)
-      last_yield = xTaskGetTickCount();
-    }
+    maybe_yield();   // lascia respirare gli altri task (watchdog)
     if (!decode_block()) {
       bool one;
       {
