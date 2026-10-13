@@ -48,7 +48,7 @@ int jout(JDEC *jd, void *bmp, JRECT *r) {
 // almeno min_side pixel sul lato corto. Ritorna buffer RGB565 da liberare con plat_free.
 uint16_t *decode_jpeg(FILE *f, uint32_t off, uint32_t len, int min_side, int *ow, int *oh) {
   if (fseek(f, off, SEEK_SET) != 0) return nullptr;
-  void *work = plat_alloc_fast(kWork);
+  void *work = plat_alloc_big(kWork);   // PSRAM: la RAM interna serve al DMA della SD
   if (!work) return nullptr;
   JDEC jd;
   memset(&jd, 0, sizeof jd);
