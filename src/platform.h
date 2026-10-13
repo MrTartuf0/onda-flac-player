@@ -24,3 +24,4 @@ const char *plat_panic_text();   // motivo + backtrace dell'ultimo crash (o "")
 uint32_t plat_boot_check(const char **reason);
 void plat_boot_ok();   // l'avvio è andato bene: azzera il contatore
 void plat_heap_check(); // registra il minimo di RAM interna libera (da chiamare spesso)
+void plat_monitor_start(); // sorveglia il core 0 dal core 1 (diagnostica watchdog)

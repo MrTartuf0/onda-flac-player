@@ -122,6 +122,7 @@ void setup() {
   uint32_t crashes = plat_boot_check(&reason);
   Serial.printf("Motivo dell'ultimo riavvio: %s\n", reason);
   if (crashes > 0) safe_mode(crashes, reason);
+  plat_monitor_start();
 
   BOOT_STEP("I2C");
   Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL, I2C_HZ);
