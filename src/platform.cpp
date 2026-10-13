@@ -43,6 +43,7 @@ int32_t plat_kv_get(const char *key, int32_t def) { return prefs().getInt(key, d
 
 #include <esp_system.h>
 #include <esp_attr.h>
+#include <esp_task_wdt.h>
 struct BootCrumbs {
   uint32_t magic;
   uint32_t crashes;
@@ -52,10 +53,11 @@ struct BootCrumbs {
   uint32_t bt_len;
   uint32_t bt[12];
   uint32_t min_internal;
+  char wdt_tasks[48];   // task in esecuzione sui due core quando scatta il watchdog
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4441;
+constexpr uint32_t kMagic = 0x4F4E4442;
 
 void plat_mark(int slot, const char *what, const char *detail) {
   if (slot < 0 || slot > 2) return;
@@ -78,6 +80,22 @@ static void panic_hook(arduino_panic_info_t *info, void *) {
 }
 
 const char *plat_panic_text() { return s_panic_text; }
+
+// Chiamata dall'interrupt del watchdog dei task, prima del riavvio: annota quale
+// task stava occupando ciascun core (il colpevole è quello sul core bloccato).
+static void wdt_copy(char *&d, const char *end, const char *s) {
+  while (s && *s && d < end) *d++ = *s++;
+}
+extern "C" void esp_task_wdt_isr_user_handler(void) {
+  char *d = s_bc.wdt_tasks;
+  const char *end = s_bc.wdt_tasks + sizeof s_bc.wdt_tasks - 1;
+  for (int c = 0; c < 2; c++) {
+    TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(c);
+    wdt_copy(d, end, c == 0 ? "core0=" : " core1=");
+    wdt_copy(d, end, t ? pcTaskGetName(t) : "-");
+  }
+  *d = 0;
+}
 
 uint32_t plat_boot_check(const char **reason) {
   esp_reset_reason_t r = esp_reset_reason();
@@ -108,6 +126,12 @@ uint32_t plat_boot_check(const char **reason) {
     for (uint32_t k = 0; k < s_bc.bt_len && n < (int)sizeof s_panic_text - 12; k++)
       n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%08lx ", (unsigned long)s_bc.bt[k]);
   }
+  if (crash && s_bc.wdt_tasks[0] && r == ESP_RST_TASK_WDT) {
+    s_bc.wdt_tasks[sizeof s_bc.wdt_tasks - 1] = 0;
+    size_t n = strlen(s_panic_text);
+    snprintf(s_panic_text + n, sizeof s_panic_text - n, "Task attivi: %s", s_bc.wdt_tasks);
+  }
+  s_bc.wdt_tasks[0] = 0;
   s_bc.bt_len = 0;
   s_bc.panic_reason[0] = 0;
   s_bc.min_internal = 0;

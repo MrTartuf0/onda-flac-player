@@ -39,7 +39,7 @@ SET_LOOP_TASK_STACK_SIZE(32 * 1024);
 static void safe_mode(uint32_t crashes, const char *reason) {
   char msg[768];
   snprintf(msg, sizeof msg,
-           "Riavvio dopo: %s (x%u)\n%s\n\n"
+           "Riavvio dopo: %s (x%u)\nFirmware del " __DATE__ " " __TIME__ "\n%s\n\n"
            "Interfaccia:\n%s\n\nScansione SD:\n%s\n\nPlayer:\n%s",
            reason, (unsigned)crashes, plat_panic_text(),
            plat_mark_get(0)[0] ? plat_mark_get(0) : "-",
@@ -111,7 +111,7 @@ void setup() {
   // bloccare il programma (di default aspetterebbero fino a 100 ms ciascuna).
   Serial.setTxTimeoutMs(0);
   delay(1500);   // tempo per aprire il monitor seriale USB
-  Serial.println("\n== " APP_NAME " - lettore FLAC ==");
+  Serial.println("\n== " APP_NAME " - lettore FLAC (firmware del " __DATE__ " " __TIME__ ") ==");
   Serial.printf("PSRAM: %u KB liberi\n", (unsigned)(ESP.getFreePsram() / 1024));
 
   // Le allocazioni piccole (oggetti LVGL, indice della libreria, stringhe...) vanno
