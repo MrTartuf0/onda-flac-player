@@ -54,10 +54,12 @@ struct BootCrumbs {
   uint32_t bt[12];
   uint32_t min_internal;
   char wdt_tasks[48];   // task in esecuzione sui due core quando scatta il watchdog
+  char stall[96];       // ultimo blocco del core 0 visto dal monitor (core 1)
+  char nvs[24];         // scrittura NVS (flash) in corso, vuoto se nessuna
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4442;
+constexpr uint32_t kMagic = 0x4F4E4443;
 
 void plat_mark(int slot, const char *what, const char *detail) {
   if (slot < 0 || slot > 2) return;
@@ -68,7 +70,7 @@ void plat_mark(int slot, const char *what, const char *detail) {
 const char *plat_mark_get(int slot) { return s_prev[slot]; }
 
 // Chiamata dal gestore di panic di Arduino: salva motivo e backtrace in RTC.
-static char s_panic_text[220];
+static char s_panic_text[420];
 static void panic_hook(arduino_panic_info_t *info, void *) {
   const char *r = info->reason ? info->reason : "?";
   size_t i = 0;
@@ -131,6 +133,16 @@ uint32_t plat_boot_check(const char **reason) {
     size_t n = strlen(s_panic_text);
     snprintf(s_panic_text + n, sizeof s_panic_text - n, "Task attivi: %s", s_bc.wdt_tasks);
   }
+  if (crash) {
+    s_bc.stall[sizeof s_bc.stall - 1] = 0;
+    s_bc.nvs[sizeof s_bc.nvs - 1] = 0;
+    size_t n = strlen(s_panic_text);
+    if (s_bc.stall[0]) n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sMonitor: %s", n ? "\n" : "", s_bc.stall);
+    if (n < sizeof s_panic_text && s_bc.nvs[0])
+      snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sScrittura flash in corso: %s", n ? "\n" : "", s_bc.nvs);
+  }
+  s_bc.stall[0] = 0;
+  s_bc.nvs[0] = 0;
   s_bc.wdt_tasks[0] = 0;
   s_bc.bt_len = 0;
   s_bc.panic_reason[0] = 0;
@@ -161,7 +173,62 @@ void plat_heap_check() {
   }
 }
 void plat_kv_set(const char *key, int32_t v) {
-  if (prefs().getInt(key, v ^ 1) != v) prefs().putInt(key, v);
+  if (prefs().getInt(key, v ^ 1) == v) return;
+  snprintf(s_bc.nvs, sizeof s_bc.nvs, "%s", key);   // traccia: scrittura in flash in corso
+  prefs().putInt(key, v);
+  s_bc.nvs[0] = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Monitor del core 0: gira sul core 1 e controlla che il task idle del core 0
+// riesca a girare (è quello che sorveglia il watchdog). Se il core 0 resta
+// occupato per più di 1 s annota chi lo sta occupando e lo stato dei task
+// del player: se poi il watchdog riavvia la scheda, lo si legge al riavvio.
+// ---------------------------------------------------------------------------
+#include <esp_freertos_hooks.h>
+static volatile uint32_t s_idle0 = 0;
+static bool idle0_hook() {
+  s_idle0 = s_idle0 + 1;
+  return true;
+}
+static char task_state(const char *name) {
+  TaskHandle_t h = xTaskGetHandle(name);
+  if (!h) return '-';
+  switch (eTaskGetState(h)) {
+    case eRunning: return 'X';
+    case eReady: return 'R';
+    case eBlocked: return 'B';
+    case eSuspended: return 'S';
+    default: return '?';
+  }
+}
+static void stall_monitor(void *) {
+  uint32_t last = s_idle0, since = millis(), reported = 0;
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    uint32_t c = s_idle0, now = millis();
+    if (c != last) {
+      if (reported) Serial.printf("[monitor] core 0 di nuovo libero dopo %u ms\n", (unsigned)reported);
+      last = c;
+      since = now;
+      reported = 0;
+      continue;
+    }
+    uint32_t ms = now - since;
+    if (ms < 1000) continue;
+    TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(0);
+    snprintf(s_bc.stall, sizeof s_bc.stall, "core0 fermo %u ms, gira: %s (i2s %c flac %c scan %c)%s%s", (unsigned)ms,
+             t ? pcTaskGetName(t) : "-", task_state("i2s"), task_state("flac"), task_state("scan"),
+             s_bc.nvs[0] ? " nvs:" : "", s_bc.nvs);
+    if (ms - reported >= 1000 || !reported) {
+      reported = ms;
+      Serial.printf("[monitor] %s\n", s_bc.stall);
+    }
+  }
+}
+void plat_monitor_start() {
+  esp_register_freertos_idle_hook_for_cpu(idle0_hook, 0);
+  xTaskCreatePinnedToCore(stall_monitor, "monitor", 3072, nullptr, configMAX_PRIORITIES - 2, nullptr, 1);
 }
 
 #else  // ---------------------------------------------------------- host ----
@@ -200,4 +267,5 @@ int32_t plat_kv_get(const char *key, int32_t def) {
   return it == s_kv.end() ? def : it->second;
 }
 void plat_kv_set(const char *key, int32_t v) { s_kv[key] = v; }
+void plat_monitor_start() {}
 #endif
