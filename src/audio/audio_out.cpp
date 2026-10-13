@@ -12,6 +12,12 @@
 namespace {
 
 i2s_chan_handle_t s_tx = nullptr;
+volatile uint32_t s_underruns = 0;
+
+bool IRAM_ATTR on_underrun(i2s_chan_handle_t, i2s_event_data_t *, void *) {
+  s_underruns++;
+  return false;
+}
 uint32_t s_rate = 0;
 volatile OutputMode s_mode = OUT_AUTO;
 volatile OutputDev s_active = DEV_SPEAKER;
@@ -99,6 +105,9 @@ bool audio_out_begin() {
   cc.dma_frame_num = 511;       // 511 frame * 8 byte = 4088 byte per descrittore
   cc.auto_clear = true;         // silenzio in caso di underrun / pausa
   if (i2s_new_channel(&cc, &s_tx, nullptr) != ESP_OK) return false;
+  i2s_event_callbacks_t cbs = {};
+  cbs.on_send_q_ovf = on_underrun;
+  i2s_channel_register_event_callback(s_tx, &cbs, nullptr);
 
   s_rate = 44100;
   i2s_std_config_t sc = {
@@ -132,6 +141,7 @@ bool audio_out_begin() {
 }
 
 uint32_t audio_out_rate() { return s_rate; }
+uint32_t audio_out_underruns() { return s_underruns; }
 uint32_t audio_out_max_rate() { return 96000; }
 
 bool audio_out_set_rate(uint32_t rate) {

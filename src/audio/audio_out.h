@@ -16,6 +16,7 @@ enum : uint32_t {
 bool audio_out_begin();
 bool audio_out_set_rate(uint32_t sample_rate);   // riconfigura I2S + ES8311 se cambia
 uint32_t audio_out_rate();
+uint32_t audio_out_underruns();      // quante volte il buffer I2S si è svuotato
 uint32_t audio_out_max_rate();                     // massimo fs gestito senza decimare
 size_t audio_out_write(const int32_t *frames, size_t n_frames, uint32_t timeout_ms);
 

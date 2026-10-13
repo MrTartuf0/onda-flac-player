@@ -106,6 +106,9 @@ static void request_rescan(bool force) { s_scan_req = force ? 2 : 1; }
 
 void setup() {
   Serial.begin(115200);
+  // Se il Mac/PC non sta leggendo la porta, le stampe vengono scartate invece di
+  // bloccare il programma (di default aspetterebbero fino a 100 ms ciascuna).
+  Serial.setTxTimeoutMs(0);
   delay(1500);   // tempo per aprire il monitor seriale USB
   Serial.println("\n== " APP_NAME " - lettore FLAC ==");
   Serial.printf("PSRAM: %u KB liberi\n", (unsigned)(ESP.getFreePsram() / 1024));
@@ -157,5 +160,10 @@ void loop() {
   }
   audio_out_poll();
   plat_heap_check();
+  static uint32_t last_perf = 0;
+  if (millis() - last_perf > 3000) {
+    last_perf = millis();
+    if (player_status().playing) Serial.printf("[player] %s\n", player_perf_text());
+  }
   delay(4);
 }

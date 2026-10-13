@@ -77,7 +77,13 @@ void send(CmdType t, int32_t a = 0, uint32_t b = 0) {
 }
 
 // ----------------------------------------------------- callback dr_flac ----
-size_t cb_read(void *u, void *out, size_t n) { return fread(out, 1, n, (FILE *)u); }
+uint64_t s_io_us = 0;   // tempo passato a leggere dalla SD
+size_t cb_read(void *u, void *out, size_t n) {
+  int64_t t = esp_timer_get_time();
+  size_t r = fread(out, 1, n, (FILE *)u);
+  s_io_us += esp_timer_get_time() - t;
+  return r;
+}
 drflac_bool32 cb_seek(void *u, int off, drflac_seek_origin o) {
   int wh = o == DRFLAC_SEEK_SET ? SEEK_SET : (o == DRFLAC_SEEK_CUR ? SEEK_CUR : SEEK_END);
   return fseek((FILE *)u, off, wh) == 0;
@@ -362,21 +368,26 @@ void handle(const Cmd &c) {
 }
 
 // Statistiche: tempo di decodifica rispetto alla durata audio prodotta.
-uint64_t s_cpu_us = 0, s_audio_us = 0;
-uint32_t s_cpu_last_log = 0;
-void note_cpu(uint32_t dec_us, uint32_t frames) {
+// Il testo viene solo preparato qui: lo stampa/mostra l'interfaccia (mai Serial
+// dal task audio: se nessuno legge la USB la stampa può bloccare per 100 ms).
+uint64_t s_cpu_us = 0, s_audio_us = 0, s_wait_us = 0;
+uint32_t s_cpu_last = 0, s_gaps_last = 0;
+char s_perf[96] = "";
+void note_cpu(uint32_t dec_us, uint32_t wait_us, uint32_t frames) {
   s_cpu_us += dec_us;
+  s_wait_us += wait_us;
   s_audio_us += (uint64_t)frames * 1000000ULL / (s_src_rate ? s_src_rate : 44100);
   uint32_t now = millis();
-  if (now - s_cpu_last_log >= 3000 && s_audio_us > 0) {
-    s_cpu_last_log = now;
-    unsigned pct = (unsigned)(s_cpu_us * 100 / s_audio_us);
-    char d[48];
-    snprintf(d, sizeof d, "CPU %u%% (%u Hz, %u bit, %u ch)", pct, (unsigned)s_src_rate,
-             (unsigned)s_fl->bitsPerSample, (unsigned)s_fl->channels);
-    plat_mark(2, "player: decodifica", d);
-    Serial.printf("[player] decodifica: %s\n", d);
-    s_cpu_us = s_audio_us = 0;
+  if (now - s_cpu_last >= 2000 && s_audio_us > 0) {
+    s_cpu_last = now;
+    uint64_t io = s_io_us < s_cpu_us ? s_io_us : s_cpu_us;
+    unsigned dec = (unsigned)((s_cpu_us - io) * 100 / s_audio_us);
+    unsigned sd = (unsigned)(io * 100 / s_audio_us);
+    uint32_t gaps = audio_out_underruns();
+    snprintf(s_perf, sizeof s_perf, "dec %u%%  SD %u%%  buchi %u", dec, sd, (unsigned)(gaps - s_gaps_last));
+    s_gaps_last = gaps;
+    plat_mark(2, "player", s_perf);
+    s_cpu_us = s_audio_us = s_wait_us = s_io_us = 0;
   }
 }
 
@@ -423,7 +434,7 @@ bool decode_block() {
   }
   const uint32_t t_dec = (uint32_t)esp_timer_get_time() - t_start;
   audio_out_write(s_out, outn, 1000);
-  note_cpu(t_dec, got);
+  note_cpu(t_dec, (uint32_t)esp_timer_get_time() - t_start - t_dec, got);
 
   {
     Lock l;
@@ -533,6 +544,8 @@ PlayContext player_context() {
   Lock l;
   return s_ctx;
 }
+
+const char *player_perf_text() { return s_perf; }
 
 uint32_t player_take_events() {
   portENTER_CRITICAL(&s_evmux);

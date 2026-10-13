@@ -48,5 +48,6 @@ void player_stop();
 PlayerStatus player_status();
 PlayContext player_context();
 uint32_t player_take_events();
+const char *player_perf_text();   // misure di decodifica/SD/buchi audio (diagnostica)
 // Brani successivi: prima quelli aggiunti manualmente, poi il resto del contesto.
 void player_upcoming(std::vector<uint16_t> &out, size_t max_items, size_t *manual_count);
