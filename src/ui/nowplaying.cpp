@@ -371,7 +371,7 @@ void ui_nowplaying_tick() {
   const char *perf = player_perf_text();
   if (perf[0] && strcmp(perf, last_perf) != 0 && s.bits) {
     strncpy(last_perf, perf, sizeof last_perf - 1);
-    lv_label_set_text_fmt(np_fmt, "%u/%u  %s", s.bits, (unsigned)(s.sample_rate / 1000), perf);
+    lv_label_set_text(np_fmt, perf);
   }
   char b[16];
   fmt_duration(s.pos_ms, b, sizeof b);
