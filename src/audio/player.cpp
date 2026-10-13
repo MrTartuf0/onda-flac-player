@@ -164,15 +164,14 @@ void ring_drain(uint32_t max_ms) {
 }
 
 // ---------------------------------------------- allocazioni di dr_flac ----
-// Lo stato del decoder (cache di lettura + campioni del blocco) è usato a ogni
-// campione: in RAM interna se c'è spazio, altrimenti in PSRAM.
+// Lo stato del decoder (cache di lettura + campioni del blocco, 40-130 KB per i
+// file hi-res) va in PSRAM: la RAM interna serve al driver della SD per i
+// trasferimenti DMA e, se finisce, le letture falliscono e il sistema si blocca.
 void *fl_malloc(size_t sz, void *) {
-  void *p = nullptr;
-  if (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) > sz + 48 * 1024)
-    p = heap_caps_malloc(sz, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  return p ? p : heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  void *p = heap_caps_malloc(sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p ? p : heap_caps_malloc(sz, MALLOC_CAP_8BIT);
 }
-void *fl_realloc(void *p, size_t sz, void *) { return heap_caps_realloc(p, sz, MALLOC_CAP_8BIT); }
+void *fl_realloc(void *p, size_t sz, void *) { return heap_caps_realloc(p, sz, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT); }
 void fl_free(void *p, void *) { heap_caps_free(p); }
 const drflac_allocation_callbacks kFlAlloc = {nullptr, fl_malloc, fl_realloc, fl_free};
 

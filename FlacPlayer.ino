@@ -143,7 +143,10 @@ void setup() {
 
   BOOT_STEP("player");
   player_begin(lib_track_path);
-  xTaskCreatePinnedToCore(scan_task, "scan", 24 * 1024, nullptr, 2, nullptr, 0);
+  // Lo stack della scansione (24 KB) sta in PSRAM: la RAM interna serve a DMA e driver.
+  if (xTaskCreatePinnedToCoreWithCaps(scan_task, "scan", 24 * 1024, nullptr, 2, nullptr, 0,
+                                      MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS)
+    xTaskCreatePinnedToCore(scan_task, "scan", 24 * 1024, nullptr, 2, nullptr, 0);
   BOOT_STEP("setup completato");
 }
 
