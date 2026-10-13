@@ -3,9 +3,9 @@
 #ifndef DR_FLAC_NO_OGG
 #define DR_FLAC_NO_OGG
 #endif
-#ifndef DR_FLAC_NO_CRC
-#define DR_FLAC_NO_CRC
-#endif
+// CRC attivo: costa ~1% di CPU ma abilita la ricerca binaria nel seek. Senza CRC
+// dr_flac, se il file non ha una seektable, per spostarsi decodifica tutto il
+// brano dall'inizio fino al punto richiesto (secondi di blocco -> watchdog).
 #ifndef DR_FLAC_NO_WCHAR
 #define DR_FLAC_NO_WCHAR
 #endif
