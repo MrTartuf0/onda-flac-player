@@ -36,11 +36,11 @@ SET_LOOP_TASK_STACK_SIZE(32 * 1024);
 // invece di ripartire in loop mostriamo sullo schermo dove si è fermato.
 // ---------------------------------------------------------------------------
 static void safe_mode(uint32_t crashes, const char *reason) {
-  char msg[768];
+  static char msg[1600];
   snprintf(msg, sizeof msg,
-           "Riavvio dopo: %s (x%u)\nFirmware del " __DATE__ " " __TIME__ "\n%s\n\n"
-           "Interfaccia:\n%s\n\nScansione SD:\n%s\n\nPlayer:\n%s",
-           reason, (unsigned)crashes, plat_panic_text(),
+           "Riavvio dopo: %s (x%u)\nFirmware del " __DATE__ " " __TIME__ "\n%s\n%s\n"
+           "Interfaccia: %s\nScansione SD: %s\nPlayer: %s",
+           reason, (unsigned)crashes, plat_panic_text(), plat_blackbox_text(),
            plat_mark_get(0)[0] ? plat_mark_get(0) : "-",
            plat_mark_get(1)[0] ? plat_mark_get(1) : "-",
            plat_mark_get(2)[0] ? plat_mark_get(2) : "-");
@@ -153,6 +153,7 @@ void loop() {
   static uint32_t t0 = millis();
   static uint8_t stage = 0;
   if (stage == 0) BOOT_STEP("loop: prima schermata");
+  plat_beat(0);
   lv_timer_handler();
   if (stage == 0) {
     stage = 1;

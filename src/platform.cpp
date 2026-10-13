@@ -39,7 +39,6 @@ void plat_log(const char *fmt, ...) {
   va_end(ap);
   Serial.println(buf);
 }
-int32_t plat_kv_get(const char *key, int32_t def) { return prefs().getInt(key, def); }
 
 #include <esp_system.h>
 #include <esp_attr.h>
@@ -55,11 +54,51 @@ struct BootCrumbs {
   uint32_t min_internal;
   char wdt_tasks[48];   // task in esecuzione sui due core quando scatta il watchdog
   char stall[96];       // ultimo blocco del core 0 visto dal monitor (core 1)
-  char nvs[24];         // scrittura NVS (flash) in corso, vuoto se nessuna
+  char nvs[24];         // operazione NVS (flash) in corso, vuoto se nessuna
+  // "scatola nera": ultimi eventi con l'istante (ms dall'avvio)
+  struct Ev {
+    uint32_t t;
+    char s[28];
+  } ev[12];
+  uint32_t ev_n;        // eventi scritti in totale
+  uint32_t beat[4];     // ultimo "battito" di: interfaccia, uscita audio, decoder, monitor
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4443;
+constexpr uint32_t kMagic = 0x4F4E4444;
+
+static portMUX_TYPE s_evmux = portMUX_INITIALIZER_UNLOCKED;
+static char s_blackbox[700];
+
+void plat_event(const char *what, const char *detail) {
+  char tmp[28];
+  if (detail) snprintf(tmp, sizeof tmp, "%s %s", what, detail);
+  else snprintf(tmp, sizeof tmp, "%s", what);
+  uint32_t t = millis();
+  portENTER_CRITICAL(&s_evmux);
+  BootCrumbs::Ev &e = s_bc.ev[s_bc.ev_n % 12];
+  e.t = t;
+  memcpy(e.s, tmp, sizeof e.s);
+  s_bc.ev_n++;
+  portEXIT_CRITICAL(&s_evmux);
+}
+
+void plat_beat(int who) {
+  if (who >= 0 && who < 4) s_bc.beat[who] = millis();
+}
+
+const char *plat_blackbox_text() { return s_blackbox; }
+
+static void build_blackbox() {
+  int n = snprintf(s_blackbox, sizeof s_blackbox, "Ultimi segni di vita (ms): ui %u, audio %u, decoder %u, monitor %u\n",
+                   (unsigned)s_bc.beat[0], (unsigned)s_bc.beat[1], (unsigned)s_bc.beat[2], (unsigned)s_bc.beat[3]);
+  uint32_t cnt = s_bc.ev_n < 12 ? s_bc.ev_n : 12;
+  for (uint32_t k = s_bc.ev_n - cnt; k < s_bc.ev_n && n < (int)sizeof s_blackbox - 40; k++) {
+    BootCrumbs::Ev &e = s_bc.ev[k % 12];
+    e.s[sizeof e.s - 1] = 0;
+    n += snprintf(s_blackbox + n, sizeof s_blackbox - n, "%u %s\n", (unsigned)e.t, e.s);
+  }
+}
 
 void plat_mark(int slot, const char *what, const char *detail) {
   if (slot < 0 || slot > 2) return;
@@ -141,6 +180,10 @@ uint32_t plat_boot_check(const char **reason) {
     if (n < sizeof s_panic_text && s_bc.nvs[0])
       snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sScrittura flash in corso: %s", n ? "\n" : "", s_bc.nvs);
   }
+  s_blackbox[0] = 0;
+  if (crash) build_blackbox();
+  s_bc.ev_n = 0;
+  memset(s_bc.beat, 0, sizeof s_bc.beat);
   s_bc.stall[0] = 0;
   s_bc.nvs[0] = 0;
   s_bc.wdt_tasks[0] = 0;
@@ -172,9 +215,17 @@ void plat_heap_check() {
                   (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
   }
 }
+int32_t plat_kv_get(const char *key, int32_t def) {
+  snprintf(s_bc.nvs, sizeof s_bc.nvs, "lettura %s", key);
+  int32_t v = prefs().getInt(key, def);
+  s_bc.nvs[0] = 0;
+  return v;
+}
+
 void plat_kv_set(const char *key, int32_t v) {
-  if (prefs().getInt(key, v ^ 1) == v) return;
-  snprintf(s_bc.nvs, sizeof s_bc.nvs, "%s", key);   // traccia: scrittura in flash in corso
+  if (plat_kv_get(key, v ^ 1) == v) return;
+  plat_event("nvs scrive", key);
+  snprintf(s_bc.nvs, sizeof s_bc.nvs, "scrittura %s", key);   // traccia: operazione in flash in corso
   prefs().putInt(key, v);
   s_bc.nvs[0] = 0;
 }
@@ -206,6 +257,7 @@ static void stall_monitor(void *) {
   uint32_t last = s_idle0, since = millis(), reported = 0;
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(100));
+    plat_beat(3);
     uint32_t c = s_idle0, now = millis();
     if (c != last) {
       if (reported) Serial.printf("[monitor] core 0 di nuovo libero dopo %u ms\n", (unsigned)reported);
@@ -217,6 +269,7 @@ static void stall_monitor(void *) {
     uint32_t ms = now - since;
     if (ms < 1000) continue;
     TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(0);
+    if (!reported) plat_event("core0 fermo");
     snprintf(s_bc.stall, sizeof s_bc.stall, "core0 fermo %u ms, gira: %s (i2s %c flac %c scan %c)%s%s", (unsigned)ms,
              t ? pcTaskGetName(t) : "-", task_state("i2s"), task_state("flac"), task_state("scan"),
              s_bc.nvs[0] ? " nvs:" : "", s_bc.nvs);
@@ -268,4 +321,7 @@ int32_t plat_kv_get(const char *key, int32_t def) {
 }
 void plat_kv_set(const char *key, int32_t v) { s_kv[key] = v; }
 void plat_monitor_start() {}
+void plat_event(const char *, const char *) {}
+void plat_beat(int) {}
+const char *plat_blackbox_text() { return ""; }
 #endif

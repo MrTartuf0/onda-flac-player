@@ -39,6 +39,7 @@ LibState s_last_lib = LIB_IDLE;
 
 // ------------------------------------------------------------- sessione ----
 void save_session(bool with_pos) {
+  plat_event("salva sessione");
   PlayContext c = player_context();
   plat_kv_set("ctx_t", c.type);
   plat_kv_set("ctx_k", (int32_t)c.key);
@@ -576,13 +577,15 @@ void ui_tick() {
   ui_nowplaying_tick();
 
   // ---- salvataggi periodici ----
+  // Durante la riproduzione niente scritture (né SD né flash): si salva in pausa
+  // e al cambio brano. Le scritture in flash fermano entrambi i core per qualche
+  // ms e sono tra i sospettati dei blocchi.
   uint32_t now = plat_millis();
-  if (now - s_last_save > 30000) {
+  if (!s_ps.playing && now - s_last_save > 30000) {
     s_last_save = now;
+    plat_event("sd salva libreria");
     lib_save_dirty();
+    plat_event("sd ok");
   }
-  if (s_ps.playing && now - s_last_pos_save > 20000) {
-    s_last_pos_save = now;
-    save_session(true);
-  }
+  (void)s_last_pos_save;
 }

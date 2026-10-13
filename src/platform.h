@@ -25,3 +25,7 @@ uint32_t plat_boot_check(const char **reason);
 void plat_boot_ok();   // l'avvio è andato bene: azzera il contatore
 void plat_heap_check(); // registra il minimo di RAM interna libera (da chiamare spesso)
 void plat_monitor_start(); // sorveglia il core 0 dal core 1 (diagnostica watchdog)
+// Scatola nera (sopravvive al riavvio): ultimi eventi e ultimo "battito" di ogni task.
+void plat_event(const char *what, const char *detail = nullptr);
+void plat_beat(int who);   // 0 interfaccia, 1 uscita audio, 2 decoder, 3 monitor
+const char *plat_blackbox_text();

@@ -238,6 +238,10 @@ bool open_track(int track, bool deferred = false, int manual = -1) {
   close_track();
   const char *path = s_resolve ? s_resolve(track) : nullptr;
   plat_mark(2, "player: apertura", path ? path : "?");
+  if (path) {
+    const char *b = strrchr(path, '/');
+    plat_event("apre", b ? b + 1 : path);
+  }
   bool ok = false;
   if (path) {
     s_fp = fopen(path, "rb");
@@ -435,6 +439,7 @@ void seek_to(uint32_t ms) {
   char d[16];
   snprintf(d, sizeof d, "%u s", (unsigned)(ms / 1000));
   plat_mark(2, "player: seek", d);
+  plat_event("seek", d);
   drflac_seek_to_pcm_frame(s_fl, f);
   Lock l;
   s_st.pos_ms = ms;
@@ -443,6 +448,9 @@ void seek_to(uint32_t ms) {
 }
 
 void handle(const Cmd &c) {
+  static const char *const kNames[] = {"play", "toggle", "pausa", "riprendi", "succ", "prec", "seek",
+                                       "shuffle", "repeat", "salta", "stop"};
+  if ((unsigned)c.t < sizeof kNames / sizeof kNames[0]) plat_event("cmd", kNames[c.t]);
   switch (c.t) {
     case C_PLAY: {
       bool paused = c.a & 1;
@@ -578,6 +586,7 @@ bool decode_block() {
 void decoder_task(void *) {
   s_last_yield = xTaskGetTickCount();
   for (;;) {
+    plat_beat(2);
     Cmd c;
     // con il buffer pieno (o niente da decodificare) si dorme sulla coda comandi
     bool can_decode = s_fl && ring_free() >= (uint32_t)kFrames;
@@ -605,6 +614,7 @@ void decoder_task(void *) {
         Marker m{s_wr, s_st.track, s_st.dur_ms, s_src_rate, 0, s_st.bits, s_st.channels, s_play_pos, -1};
         s_markers.push_back(m);
       } else {
+        plat_event("fine brano");
         go_next(false);
       }
     }
@@ -616,6 +626,7 @@ void output_task(void *) {
   int32_t gain = 0;
   uint32_t last_gen = s_gen;
   for (;;) {
+    plat_beat(1);
     bool playing;
     {
       Lock l;
