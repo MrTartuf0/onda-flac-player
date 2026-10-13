@@ -27,12 +27,12 @@ bool fits(const char *txt, const lv_font_t *f, int w) {
     memcpy(word, p, n);
     word[n] = 0;
     lv_point_t sz;
-    lv_txt_get_size(&sz, word, f, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    lv_text_get_size(&sz, word, f, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
     if (sz.x > w) return false;
     p += n;
   }
   lv_point_t all;
-  lv_txt_get_size(&all, txt, f, 0, -1, w, LV_TEXT_FLAG_NONE);
+  lv_text_get_size(&all, txt, f, 0, -1, w, LV_TEXT_FLAG_NONE);
   return all.y <= 2 * lv_font_get_line_height(f);
 }
 
@@ -69,7 +69,7 @@ class HomePage : public Page {
 
   static void ctx_click_cb(lv_event_t *e) {
     HomePage *self = (HomePage *)lv_event_get_user_data(e);
-    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target(e));
+    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target_obj(e));
     if (i >= 0 && i < (int)self->card_ctx.size()) ui_open_context(self->card_ctx[i]);
   }
 
@@ -279,7 +279,7 @@ class HomePage : public Page {
       lv_obj_t *eq = lv_obj_get_child(tiles[i], 2);
       lv_obj_t *lbl = lv_obj_get_child(tiles[i], 1);
       bool cur = ui_context_is_current(tiles_ctx[i]);
-      if (cur) lv_obj_clear_flag(eq, LV_OBJ_FLAG_HIDDEN);
+      if (cur) lv_obj_remove_flag(eq, LV_OBJ_FLAG_HIDDEN);
       else lv_obj_add_flag(eq, LV_OBJ_FLAG_HIDDEN);
       lv_obj_set_style_text_color(lbl, cur ? C_GREEN : C_TEXT, 0);
     }

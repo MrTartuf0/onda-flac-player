@@ -2,7 +2,7 @@
 #pragma once
 #include <functional>
 #include <vector>
-#include "lvgl.h"
+#include "../lvgl/lvgl.h"
 #include "../fonts/fonts.h"
 #include "../types.h"
 #include "../config.h"
@@ -89,7 +89,7 @@ class Page {
  public:
   lv_obj_t *root = nullptr;
   virtual ~Page() {
-    if (root) lv_obj_del(root);
+    if (root) lv_obj_delete(root);
   }
   virtual void refresh(uint32_t what) { (void)what; }
   virtual void on_show() {}

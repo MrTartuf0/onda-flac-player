@@ -28,7 +28,7 @@ class ArtistPage : public Page {
   }
   static void pop_cb(lv_event_t *e) {
     ArtistPage *p = (ArtistPage *)lv_event_get_user_data(e);
-    int i = ui_row_index(lv_event_get_current_target(e));
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
     // riproduce l'intera discografia partendo dal brano scelto
     std::vector<uint16_t> all;
     lib_context_tracks(p->ctx, all);
@@ -38,10 +38,10 @@ class ArtistPage : public Page {
   static void pop_more_cb(lv_event_t *e) {
     ArtistPage *p = (ArtistPage *)lv_event_get_user_data(e);
     lv_event_stop_bubbling(e);
-    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target(e)));
+    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target_obj(e)));
     ui_track_menu(p->popular[i]);
   }
-  static void album_cb(lv_event_t *e) { ui_open_album(ui_row_index(lv_event_get_current_target(e))); }
+  static void album_cb(lv_event_t *e) { ui_open_album(ui_row_index(lv_event_get_current_target_obj(e))); }
   static void all_cb(lv_event_t *e) {
     ArtistPage *p = (ArtistPage *)lv_event_get_user_data(e);
     ui_push(page_collection_create(p->ctx));
@@ -73,7 +73,7 @@ class ArtistPage : public Page {
     lv_obj_set_pos(cv, (SCR_W - 120) / 2, 36);
 
     lv_obj_t *name = ui_label(r, &font_b26, C_TEXT, A.name);
-    lv_label_set_long_mode(name, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(name, SCR_W - 24);
     lv_obj_set_pos(name, 12, 166);
     lv_obj_update_layout(name);

@@ -9,13 +9,14 @@
  *  Impostazioni Arduino IDE (core esp32 3.x, testato con 3.2.0):
  *    Scheda: ESP32S3 Dev Module   PSRAM: OPI PSRAM   Flash: 4MB o più
  *    Partition Scheme: Huge APP (3MB No OTA/1MB SPIFFS)   USB CDC On Boot: Enabled
- *  Librerie: lvgl 8.4.0 (quella del pacchetto Freenove, con il suo lv_conf.h)
+ *  Librerie: nessuna da installare. LVGL 9.5 è incluso nello sketch (src/lvgl,
+ *  configurazione in src/lv_conf.h) e non va in conflitto con una LVGL 8 installata.
  */
 #include <Arduino.h>
 #include <Wire.h>
 #include <SD_MMC.h>
 #include <esp_heap_caps.h>
-#include "lvgl.h"
+#include "src/lvgl/lvgl.h"
 #include "src/config.h"
 #include "src/platform.h"
 #include "src/hal/display.h"
@@ -46,7 +47,7 @@ static void safe_mode(uint32_t crashes, const char *reason) {
            plat_mark_get(2)[0] ? plat_mark_get(2) : "-");
   bool lcd = crashes < 4 && strncmp(plat_mark_get(0), "display", 7) != 0;
   if (lcd && display_begin()) {
-    lv_obj_t *scr = lv_scr_act();
+    lv_obj_t *scr = lv_screen_active();
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x121212), 0);
     lv_obj_t *t = lv_label_create(scr);
     lv_obj_set_style_text_font(t, &font_b16, 0);
@@ -56,7 +57,7 @@ static void safe_mode(uint32_t crashes, const char *reason) {
     lv_obj_t *l = lv_label_create(scr);
     lv_obj_set_style_text_font(l, &font_r10, 0);
     lv_obj_set_style_text_color(l, lv_color_hex(0xFFFFFF), 0);
-    lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(l, LCD_W - 20);
     lv_label_set_text(l, msg);
     lv_obj_set_pos(l, 10, 34);

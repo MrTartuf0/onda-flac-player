@@ -28,14 +28,14 @@ void anim_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
 void anim_hide_cb(lv_anim_t *a) { lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN); }
 
 void slide(lv_obj_t *o, bool in) {
-  lv_anim_del(o, anim_y_cb);
-  if (in) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+  lv_anim_delete(o, anim_y_cb);
+  if (in) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, o);
   lv_anim_set_exec_cb(&a, anim_y_cb);
   lv_anim_set_values(&a, in ? SCR_H : lv_obj_get_y(o), in ? 0 : SCR_H);
-  lv_anim_set_time(&a, in ? 260 : 220);
+  lv_anim_set_duration(&a, in ? 260 : 220);
   lv_anim_set_path_cb(&a, in ? lv_anim_path_ease_out : lv_anim_path_ease_in);
   if (!in) lv_anim_set_ready_cb(&a, anim_hide_cb);
   lv_anim_start(&a);
@@ -74,7 +74,7 @@ void more_cb(lv_event_t *) {
   if (t >= 0) ui_track_menu(t);
 }
 void gesture_cb(lv_event_t *) {
-  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_active());
   if (d == LV_DIR_BOTTOM) ui_nowplaying_close();
   else if (d == LV_DIR_LEFT) player_next();
   else if (d == LV_DIR_RIGHT) player_prev();
@@ -108,7 +108,7 @@ lv_obj_t *ctrl(lv_obj_t *p, const lv_font_t *f, const char *ic, lv_event_cb_t cb
 // ---------------------------------------------------------------- coda ----
 void q_close_cb(lv_event_t *) { slide(q_view, false); }
 void q_row_cb(lv_event_t *e) {
-  int i = ui_row_index(lv_event_get_current_target(e));
+  int i = ui_row_index(lv_event_get_current_target_obj(e));
   if (i >= 0 && i < (int)q_items.size()) player_jump(i);
 }
 
@@ -137,12 +137,12 @@ void q_rebuild() {
   lv_label_set_text_fmt(q_head_ctx, "Successivi da: %s", c.name);
   // la coda manuale (se presente) viene prima: la mostriamo con la sua intestazione
   if (q_manual) {
-    lv_obj_clear_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text_fmt(q_head_next, "Prossimi in coda (%u), poi da %s", (unsigned)q_manual, c.name);
   } else {
     lv_obj_add_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
   }
   q_list.set_count(q_items.size());
 }
@@ -220,7 +220,7 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_add_flag(np_cover, LV_OBJ_FLAG_CLICKABLE);
 
   np_title = ui_label(np, &font_b16, C_TEXT, "");
-  lv_label_set_long_mode(np_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
+  lv_label_set_long_mode(np_title, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
   lv_obj_set_width(np_title, SCR_W - 24 - 34);
   lv_obj_set_pos(np_title, 12, 188);
   lv_obj_add_flag(np_title, LV_OBJ_FLAG_CLICKABLE);
@@ -245,8 +245,8 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_set_style_bg_color(np_slider, C_TEXT, LV_PART_KNOB);
   lv_obj_set_style_pad_all(np_slider, 4, LV_PART_KNOB);
   lv_obj_set_style_bg_color(np_slider, C_GREEN, LV_PART_INDICATOR | LV_STATE_PRESSED);
-  lv_obj_set_style_anim_time(np_slider, 0, 0);
-  lv_obj_clear_flag(np_slider, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_set_style_anim_duration(np_slider, 0, 0);
+  lv_obj_remove_flag(np_slider, LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(np_slider, slider_cb, LV_EVENT_ALL, nullptr);
   np_t_pos = ui_label(np, &font_r10, C_SUB, "0:00");
   lv_obj_set_pos(np_t_pos, 14, 243);
@@ -264,7 +264,7 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_set_style_bg_opa(np_play, LV_OPA_COVER, 0);
   lv_obj_align(np_play, LV_ALIGN_TOP_MID, 0, 252);
   lv_obj_add_flag(np_play, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_transform_zoom(np_play, 235, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_scale(np_play, 235, LV_STATE_PRESSED);
   lv_obj_set_style_transform_pivot_x(np_play, 23, 0);
   lv_obj_set_style_transform_pivot_y(np_play, 23, 0);
   lv_obj_add_event_cb(np_play, play_cb, LV_EVENT_CLICKED, nullptr);
@@ -300,7 +300,7 @@ void ui_nowplaying_open() {
   np_open = true;
   np_track = -2;
   ui_nowplaying_refresh(RF_ALL);
-  lv_obj_move_foreground(np);
+  lv_obj_move_to_index(np, -1);
   slide(np, true);
 }
 
@@ -313,7 +313,7 @@ void ui_nowplaying_close() {
 
 void ui_queue_open() {
   q_rebuild();
-  lv_obj_move_foreground(q_view);
+  lv_obj_move_to_index(q_view, -1);
   slide(q_view, true);
 }
 
@@ -352,7 +352,7 @@ void ui_nowplaying_refresh(uint32_t what) {
   lv_obj_set_style_translate_x(lv_obj_get_child(np_play, 0), s.playing ? 0 : 2, 0);
   lv_obj_set_style_text_color(np_shuffle, s.shuffle ? C_GREEN : C_TEXT, 0);
   lv_obj_set_style_text_color(np_repeat, s.repeat != REPEAT_OFF ? C_GREEN : C_TEXT, 0);
-  if (s.repeat == REPEAT_ONE) lv_obj_clear_flag(np_repeat_one, LV_OBJ_FLAG_HIDDEN);
+  if (s.repeat == REPEAT_ONE) lv_obj_remove_flag(np_repeat_one, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(np_repeat_one, LV_OBJ_FLAG_HIDDEN);
   bool hp = audio_out_active() == DEV_HEADPHONES;
   lv_label_set_text(np_dev_icon, hp ? IC_HEADPHONES : IC_SPEAKER);

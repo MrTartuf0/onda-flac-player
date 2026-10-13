@@ -1,6 +1,6 @@
 // Font generati con tools/gen_fonts.sh (Figtree + Font Awesome Free 6)
 #pragma once
-#include "lvgl.h"
+#include "../lvgl/lvgl.h"
 
 LV_FONT_DECLARE(font_r10);
 LV_FONT_DECLARE(font_r12);

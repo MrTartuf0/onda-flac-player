@@ -2,11 +2,7 @@
 #include "../lib/library.h"
 #include "../lib/artwork.h"
 
-lv_color_t col565(uint16_t c) {
-  lv_color_t k;
-  k.full = c;
-  return k;
-}
+lv_color_t col565(uint16_t c) { return lv_color_make((c >> 8) & 0xF8, (c >> 3) & 0xFC, (c << 3) & 0xF8); }
 
 lv_color_t col_darken(lv_color_t c, uint8_t keep) { return lv_color_mix(c, C_BLACK, keep); }
 
@@ -19,7 +15,7 @@ lv_color_t album_color(int album) {
 lv_obj_t *ui_box(lv_obj_t *parent) {
   lv_obj_t *o = lv_obj_create(parent);
   lv_obj_remove_style_all(o);
-  lv_obj_clear_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
   return o;
 }
 
@@ -36,7 +32,7 @@ lv_obj_t *ui_icon(lv_obj_t *parent, const lv_font_t *f, const char *ic, lv_color
 }
 
 void ui_dot(lv_obj_t *l) {
-  lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+  lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
   const lv_font_t *f = lv_obj_get_style_text_font(l, LV_PART_MAIN);
   lv_obj_set_height(l, lv_font_get_line_height(f));
 }
@@ -53,7 +49,7 @@ lv_obj_t *ui_icon_btn(lv_obj_t *parent, const lv_font_t *f, const char *ic, lv_c
   lv_obj_add_flag(l, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_ext_click_area(l, 10);
   lv_obj_set_style_opa(l, LV_OPA_60, LV_STATE_PRESSED);
-  lv_obj_set_style_transform_zoom(l, 230, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_scale(l, 230, LV_STATE_PRESSED);
   if (cb) lv_obj_add_event_cb(l, cb, LV_EVENT_CLICKED, ud);
   return l;
 }
@@ -64,7 +60,7 @@ lv_obj_t *ui_play_btn(lv_obj_t *parent, int size, lv_event_cb_t cb, void *ud) {
   lv_obj_set_style_radius(b, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_color(b, C_GREEN, 0);
   lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
-  lv_obj_set_style_transform_zoom(b, 240, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_scale(b, 240, LV_STATE_PRESSED);
   lv_obj_set_style_transform_pivot_x(b, size / 2, 0);
   lv_obj_set_style_transform_pivot_y(b, size / 2, 0);
   lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
@@ -107,7 +103,7 @@ void ui_chip_set(lv_obj_t *chip, bool on) {
 namespace {
 struct CoverData {
   int size;
-  const lv_img_dsc_t *dsc;
+  const lv_image_dsc_t *dsc;
   int8_t kind;
   int index;
 };
@@ -134,7 +130,7 @@ lv_obj_t *ui_cover(lv_obj_t *parent, int size, int radius) {
   lv_obj_set_style_clip_corner(c, radius > 0, 0);
   lv_obj_set_style_bg_color(c, C_ELEV, 0);
   lv_obj_set_style_bg_opa(c, LV_OPA_COVER, 0);
-  lv_obj_t *img = lv_img_create(c);
+  lv_obj_t *img = lv_image_create(c);
   lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
   lv_obj_t *ic = ui_icon(c, size >= 100 ? &icons_28 : (size >= 44 ? &icons_18 : &icons_14), IC_MUSIC, C_DIM);
   lv_obj_center(ic);
@@ -151,7 +147,7 @@ void ui_cover_set(lv_obj_t *c, CoverKind kind, int index) {
   d->index = index;
   lv_obj_t *img = lv_obj_get_child(c, 0);
   lv_obj_t *ic = lv_obj_get_child(c, 1);
-  const lv_img_dsc_t *nd = nullptr;
+  const lv_image_dsc_t *nd = nullptr;
   int album = -1;
   if (kind == COVER_ALBUM) album = index;
   else if (kind == COVER_ARTIST && index >= 0 && index < (int)lib_artists().size() && !lib_artists()[index].albums.empty())
@@ -166,13 +162,13 @@ void ui_cover_set(lv_obj_t *c, CoverKind kind, int index) {
   lv_obj_set_style_text_font(ic, f, 0);
   lv_obj_set_style_text_color(ic, C_DIM, 0);
   if (nd) {
-    lv_img_set_src(img, nd);
-    lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
+    lv_image_set_src(img, nd);
+    lv_obj_remove_flag(img, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(ic, LV_OBJ_FLAG_HIDDEN);
     return;
   }
   lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_clear_flag(ic, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(ic, LV_OBJ_FLAG_HIDDEN);
   switch (kind) {
     case COVER_LIKED:
       lv_obj_set_style_bg_color(c, lv_color_hex(0x4A1BE0), 0);
@@ -317,7 +313,7 @@ void VList::refresh(bool force) {
     used[free_i] = true;
     bound[free_i] = idx;
     lv_obj_set_y(r, y0 + idx * row_h);
-    lv_obj_clear_flag(r, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(r, LV_OBJ_FLAG_HIDDEN);
     ui_row_set_index(r, idx);
     bind(r, idx);
   }

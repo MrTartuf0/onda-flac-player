@@ -14,7 +14,7 @@ struct RItem {
   int index;
 };
 
-void img_release_cb(lv_event_t *e) { art_release((const lv_img_dsc_t *)lv_event_get_user_data(e)); }
+void img_release_cb(lv_event_t *e) { art_release((const lv_image_dsc_t *)lv_event_get_user_data(e)); }
 
 class SearchPage : public Page {
  public:
@@ -28,7 +28,7 @@ class SearchPage : public Page {
 
   SearchPage() { build(); }
   ~SearchPage() override {
-    if (debounce) lv_timer_del(debounce);
+    if (debounce) lv_timer_delete(debounce);
     ui_set_chrome_visible(true);
   }
 
@@ -36,7 +36,7 @@ class SearchPage : public Page {
   static void box_cb(lv_event_t *e) { ((SearchPage *)lv_event_get_user_data(e))->enter(); }
   static void tile_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
-    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target(e));
+    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target_obj(e));
     ui_open_context(p->tiles[i]);
   }
 
@@ -48,23 +48,23 @@ class SearchPage : public Page {
     lv_obj_set_style_bg_color(t, col, 0);
     lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
     lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_transform_zoom(t, 245, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_scale(t, 245, LV_STATE_PRESSED);
     lv_obj_set_user_data(t, (void *)(intptr_t)tiles.size());
     tiles.push_back(c);
     lv_obj_add_event_cb(t, tile_cb, LV_EVENT_CLICKED, this);
     if (album >= 0) {
-      const lv_img_dsc_t *d = art_acquire(album, 48);
+      const lv_image_dsc_t *d = art_acquire(album, 48);
       if (d) {
-        lv_obj_t *img = lv_img_create(t);
-        lv_img_set_src(img, d);
-        lv_img_set_pivot(img, 24, 24);
-        lv_img_set_angle(img, 250);
+        lv_obj_t *img = lv_image_create(t);
+        lv_image_set_src(img, d);
+        lv_image_set_pivot(img, 24, 24);
+        lv_image_set_rotation(img, 250);
         lv_obj_set_pos(img, (SCR_W - 32) / 2 - 36, 26);
         lv_obj_add_event_cb(img, img_release_cb, LV_EVENT_DELETE, (void *)d);
       }
     }
     lv_obj_t *l = ui_label(t, &font_b14, C_TEXT, c.name);
-    lv_label_set_long_mode(l, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(l, (SCR_W - 32) / 2 - 14);
     lv_obj_set_pos(l, 8, 6);
   }
@@ -131,7 +131,7 @@ class SearchPage : public Page {
     }
   }
   static void debounce_cb(lv_timer_t *t) {
-    SearchPage *p = (SearchPage *)t->user_data;
+    SearchPage *p = (SearchPage *)lv_timer_get_user_data(t);
     p->debounce = nullptr;   // timer a ripetizione singola: viene eliminato da LVGL
     p->run();
   }
@@ -141,7 +141,7 @@ class SearchPage : public Page {
   }
   static void row_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
-    int i = ui_row_index(lv_event_get_current_target(e));
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
     if (i < 0 || i >= (int)p->items.size()) return;
     const RItem &it = p->items[i];
     p->show_kb(false);
@@ -165,7 +165,7 @@ class SearchPage : public Page {
   static void more_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
     lv_event_stop_bubbling(e);
-    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target(e)));
+    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target_obj(e)));
     if (i >= 0 && i < (int)p->items.size() && p->items[i].kind == R_TRACK) ui_track_menu(p->items[i].index);
   }
 
@@ -281,7 +281,7 @@ class SearchPage : public Page {
         lv_label_set_text(p.title, t.title);
         snprintf(sub, sizeof sub, "Brano \xE2\x80\xA2 %s", t.artist);
         lv_label_set_text(p.sub, sub);
-        lv_obj_clear_flag(p.more, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(p.more, LV_OBJ_FLAG_HIDDEN);
         if (ui_current_track() == it.index) lv_obj_set_style_text_color(p.title, C_GREEN, 0);
         break;
       }
@@ -298,10 +298,10 @@ class SearchPage : public Page {
     for (auto t : res.tracks) items.push_back({R_TRACK, t});
     if (q[0] && items.empty()) {
       lv_label_set_text_fmt(hint, "Nessun risultato per\n\"%s\"", q);
-      lv_obj_clear_flag(hint, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
     } else if (!q[0]) {
       lv_label_set_text(hint, "Cerca brani, album e artisti\nsulla tua scheda SD.");
-      lv_obj_clear_flag(hint, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
     } else {
       lv_obj_add_flag(hint, LV_OBJ_FLAG_HIDDEN);
     }
@@ -320,11 +320,11 @@ class SearchPage : public Page {
     if (on == kb_visible && !lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN)) return;
     kb_visible = on;
     if (on) {
-      lv_obj_clear_flag(kb, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
       lv_obj_add_state(ta, LV_STATE_FOCUSED);
     } else {
       lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_clear_state(ta, LV_STATE_FOCUSED);
+      lv_obj_remove_state(ta, LV_STATE_FOCUSED);
     }
     ui_set_chrome_visible(!on);
     layout();
@@ -332,7 +332,7 @@ class SearchPage : public Page {
 
   void enter() {
     lv_obj_add_flag(browse, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(view, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(view, LV_OBJ_FLAG_HIDDEN);
     show_kb(true);
   }
 
@@ -342,7 +342,7 @@ class SearchPage : public Page {
     list.set_count(0);
     show_kb(false);
     lv_obj_add_flag(view, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(browse, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(browse, LV_OBJ_FLAG_HIDDEN);
     run();
   }
 

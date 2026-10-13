@@ -12,12 +12,12 @@ TXT="0x20-0x7E,0xA0-0x17F,0x2013-0x2014,0x2018-0x201E,0x2022,0x2026,0x20AC"
 ICONS="0xf015,0xf002,0xe51e,0xf04b,0xf04c,0xf048,0xf051,0xf074,0xf363,0xf004,0xf025,0xf028,0xf027,0xf141,0xf078,0xf053,0xf054,0xf03a,0xf001,0xf51f,0xf007,0xf013,0xf2f1,0xf00d,0xf00c,0xf160,0xf067,0xf7c2,0xf1de,0xf017,0xf060,0xf550,0xf185,0xf058,0xf6a9"
 gen_txt() { # nome file dimensione
   lv_font_conv --font "$F/$2" -r "$TXT" --size $3 --bpp 4 --format lvgl --no-compress \
-    --lv-include lvgl.h --lv-font-name "$1" -o "$OUT/$1.c"
+    --lv-include ../lvgl/lvgl.h --lv-font-name "$1" -o "$OUT/$1.c"
 }
 gen_ico() { # nome dimensione
   lv_font_conv --font "$F/fa-solid-900.ttf" -r "$ICONS" \
     --font "$F/fa-regular-400.ttf" -r "0xf004=>0xe004" \
-    --size $2 --bpp 4 --format lvgl --no-compress --lv-include lvgl.h --lv-font-name "$1" -o "$OUT/$1.c"
+    --size $2 --bpp 4 --format lvgl --no-compress --lv-include ../lvgl/lvgl.h --lv-font-name "$1" -o "$OUT/$1.c"
 }
 mkdir -p $OUT
 gen_txt font_r10 Figtree-Regular.ttf 10

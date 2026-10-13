@@ -18,17 +18,17 @@ class SettingsPage : public Page {
   static void out_cb(lv_event_t *) { ui_device_sheet(); }
   static void rescan_cb(lv_event_t *) { ui_request_rescan(); }
   static void pause_cb(lv_event_t *e) {
-    bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
     audio_out_set_pause_on_unplug(on);
     plat_kv_set("p_unpl", on);
   }
   static void invert_cb(lv_event_t *e) {
-    bool on = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+    bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
     audio_out_set_detect_inverted(on);
     plat_kv_set("hp_inv", on);
   }
   static void bright_cb(lv_event_t *e) {
-    lv_obj_t *s = lv_event_get_target(e);
+    lv_obj_t *s = lv_event_get_target_obj(e);
     ui_set_brightness(lv_slider_get_value(s));
   }
 
