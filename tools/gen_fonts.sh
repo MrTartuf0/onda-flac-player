@@ -23,6 +23,9 @@ mkdir -p $OUT
 gen_txt font_r10 Figtree-Regular.ttf 10
 gen_txt font_r12 Figtree-Regular.ttf 12
 gen_txt font_r14 Figtree-Regular.ttf 14
+# 8 px solo ASCII (intestazione "IN RIPRODUZIONE DA ...")
+lv_font_conv --font "$F/Figtree-Bold.ttf" -r "0x20-0x7E" --size 8 --bpp 4 --format lvgl --no-compress \
+  --lv-include ../lvgl/lvgl.h --lv-font-name font_b8 -o "$OUT/font_b8.c"
 gen_txt font_b10 Figtree-Bold.ttf 10
 gen_txt font_b12 Figtree-Bold.ttf 12
 gen_txt font_b14 Figtree-Bold.ttf 14

@@ -36,11 +36,15 @@ lv_obj_t *q_shuffle, *q_repeat;   // pulsanti in fondo alla coda (come Spotify)
 // al rilascio sparisce. Se invece lasci il dito senza muoverlo il cursore resta
 // aperto e si usa toccandolo (si chiude da solo o toccando fuori).
 // Un tocco breve sul pulsante apre il foglio dei dispositivi.
-constexpr int VP_W = 52, VP_H = 196, VP_TRACK = 140;
-constexpr int VP_Y = Y_CTRL - 12 - VP_H;            // posizione del riquadro
-constexpr int VP_TRACK_BOT = VP_Y + 29 + VP_TRACK;  // fondo della barra (volume 0), in coordinate schermo
+// Stile Spotify: scheda scura, barra sottile verde con pallino bianco; alta quasi
+// tutto lo schermo per scegliere la percentuale con precisione (~1,8 px per 1%).
+constexpr int VP_W = 48, VP_Y = 44, VP_H = Y_CTRL - 14 - VP_Y;
+constexpr int VP_TOP = 30;                             // spazio per la percentuale
+constexpr int VP_TRACK = VP_H - VP_TOP - 30;           // lunghezza della barra
+constexpr int VP_TRACK_BOT = VP_Y + VP_TOP + VP_TRACK; // fondo della barra (volume 0), coordinate schermo
+constexpr int VP_KNOB = 14;
 enum VpMode : uint8_t { VP_OFF, VP_HOLD, VP_OPEN };
-lv_obj_t *vp, *vp_fill, *vp_pct, *vp_icon, *vp_shield;
+lv_obj_t *vp, *vp_fill, *vp_knob, *vp_pct, *vp_icon, *vp_shield;
 lv_timer_t *vp_timer = nullptr;
 VpMode vp_mode = VP_OFF;
 bool vp_moved = false;
@@ -83,8 +87,10 @@ const char *audio_icon(OutputDev d, int v) {
 
 void vp_set(int v) {
   OutputDev d = audio_out_active();
-  lv_obj_set_height(vp_fill, v * VP_TRACK / 100);
-  lv_label_set_text_fmt(vp_pct, "%d", v);
+  int h = v * VP_TRACK / 100;
+  lv_obj_set_height(vp_fill, h);
+  lv_obj_set_y(vp_knob, VP_TOP + VP_TRACK - h - VP_KNOB / 2);
+  lv_label_set_text_fmt(vp_pct, "%d%%", v);
   lv_label_set_text(vp_icon, audio_icon(d, v));
   lv_label_set_text(np_audio, audio_icon(d, v));
 }
@@ -202,30 +208,37 @@ void build_volume_popup() {
 
   vp = ui_box(np);
   lv_obj_set_size(vp, VP_W, VP_H);
-  lv_obj_set_pos(vp, SCR_W - VP_W - 2, VP_Y);
-  lv_obj_set_style_radius(vp, 16, 0);
-  lv_obj_set_style_bg_color(vp, lv_color_hex(0x242424), 0);
+  lv_obj_set_pos(vp, SCR_W - VP_W - 6, VP_Y);
+  lv_obj_set_style_radius(vp, 10, 0);
+  lv_obj_set_style_bg_color(vp, lv_color_hex(0x282828), 0);
   lv_obj_set_style_bg_opa(vp, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_color(vp, lv_color_hex(0x444444), 0);
+  lv_obj_set_style_border_color(vp, lv_color_hex(0x3E3E3E), 0);
   lv_obj_set_style_border_width(vp, 1, 0);
-  vp_pct = ui_label(vp, &font_b14, C_TEXT, "0");
-  lv_obj_align(vp_pct, LV_ALIGN_TOP_MID, 0, 7);
+  vp_pct = ui_label(vp, &font_b12, C_TEXT, "0%");
+  lv_obj_align(vp_pct, LV_ALIGN_TOP_MID, 0, 9);
   lv_obj_t *track = ui_box(vp);
-  lv_obj_set_size(track, 28, VP_TRACK);
-  lv_obj_align(track, LV_ALIGN_TOP_MID, 0, 29);
-  lv_obj_set_style_radius(track, 14, 0);
+  lv_obj_set_size(track, 4, VP_TRACK);
+  lv_obj_align(track, LV_ALIGN_TOP_MID, 0, VP_TOP);
+  lv_obj_set_style_radius(track, 2, 0);
   lv_obj_set_style_clip_corner(track, true, 0);
-  lv_obj_set_style_bg_color(track, lv_color_hex(0x4A4A4A), 0);
+  lv_obj_set_style_bg_color(track, lv_color_hex(0x4D4D4D), 0);
   lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
   lv_obj_remove_flag(track, LV_OBJ_FLAG_CLICKABLE);   // i tocchi vanno al riquadro
   vp_fill = ui_box(track);
   lv_obj_remove_flag(vp_fill, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(vp_fill, 28, 0);
+  lv_obj_set_size(vp_fill, 4, 0);
   lv_obj_align(vp_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_set_style_bg_color(vp_fill, C_TEXT, 0);
+  lv_obj_set_style_bg_color(vp_fill, C_GREEN, 0);
   lv_obj_set_style_bg_opa(vp_fill, LV_OPA_COVER, 0);
+  vp_knob = ui_box(vp);
+  lv_obj_remove_flag(vp_knob, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(vp_knob, VP_KNOB, VP_KNOB);
+  lv_obj_set_x(vp_knob, (VP_W - VP_KNOB) / 2 - 1);
+  lv_obj_set_style_radius(vp_knob, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(vp_knob, C_TEXT, 0);
+  lv_obj_set_style_bg_opa(vp_knob, LV_OPA_COVER, 0);
   vp_icon = ui_icon(vp, &icons_14, IC_SPEAKER, C_SUB);
-  lv_obj_align(vp_icon, LV_ALIGN_BOTTOM_MID, 0, -7);
+  lv_obj_align(vp_icon, LV_ALIGN_BOTTOM_MID, 0, -8);
   lv_obj_add_flag(vp, LV_OBJ_FLAG_CLICKABLE);   // usato solo quando è aperto (VP_OPEN)
   lv_obj_add_flag(vp, LV_OBJ_FLAG_PRESS_LOCK);
   lv_obj_remove_flag(vp, LV_OBJ_FLAG_GESTURE_BUBBLE);
@@ -413,9 +426,9 @@ void ui_nowplaying_build(lv_obj_t *scr) {
 
   lv_obj_t *dn = ui_icon_btn(np, &icons_18, IC_DOWN, C_TEXT, close_cb);
   lv_obj_set_pos(dn, 14, 10);
-  np_ctx_type = ui_label(np, &font_b10, C_TEXT, "");
+  np_ctx_type = ui_label(np, &font_b8, C_SUB, "");
   lv_obj_set_style_text_letter_space(np_ctx_type, 1, 0);
-  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 5);
+  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 7);
   np_ctx_name = ui_label(np, &font_b12, C_TEXT, "");
   ui_dot(np_ctx_name);
   lv_obj_set_width(np_ctx_name, SCR_W - 96);
@@ -430,20 +443,20 @@ void ui_nowplaying_build(lv_obj_t *scr) {
 
   np_title = ui_label(np, &font_b16, C_TEXT, "");
   lv_label_set_long_mode(np_title, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
-  lv_obj_set_width(np_title, SCR_W - 24 - 64);
+  lv_obj_set_width(np_title, SCR_W - 24 - 34);
   lv_obj_set_pos(np_title, 12, Y_TITLE);
   lv_obj_add_flag(np_title, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(np_title, title_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_add_event_cb(np_title, title_cb, LV_EVENT_SHORT_CLICKED, nullptr);   // non dopo la pressione lunga
   np_artist = ui_label(np, &font_r12, C_SUB, "");
   ui_dot(np_artist);
-  lv_obj_set_width(np_artist, SCR_W - 24 - 64);
+  lv_obj_set_width(np_artist, SCR_W - 24 - 34);
   lv_obj_set_pos(np_artist, 12, Y_TITLE + 21);
   lv_obj_add_flag(np_artist, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(np_artist, artist_cb, LV_EVENT_CLICKED, nullptr);
   np_heart = ui_icon_btn(np, &icons_18, IC_HEART_O, C_TEXT, heart_cb);
-  lv_obj_set_pos(np_heart, SCR_W - 12 - 52, Y_TITLE + 8);
-  lv_obj_t *more = ui_icon_btn(np, &icons_18, IC_MORE, C_TEXT, more_cb);
-  lv_obj_set_pos(more, SCR_W - 12 - 18, Y_TITLE + 8);
+  lv_obj_set_pos(np_heart, SCR_W - 12 - 20, Y_TITLE + 8);
+  // menu del brano (vai all'album/artista, info): pressione lunga sul titolo
+  lv_obj_add_event_cb(np_title, more_cb, LV_EVENT_LONG_PRESSED, nullptr);
 
   np_slider = lv_slider_create(np);
   lv_obj_set_size(np_slider, SCR_W - 28, 4);

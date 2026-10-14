@@ -5,6 +5,7 @@
 LV_FONT_DECLARE(font_r10);
 LV_FONT_DECLARE(font_r12);
 LV_FONT_DECLARE(font_r14);
+LV_FONT_DECLARE(font_b8);    // solo ASCII: intestazioni piccole in maiuscolo
 LV_FONT_DECLARE(font_b10);
 LV_FONT_DECLARE(font_b12);
 LV_FONT_DECLARE(font_b14);
