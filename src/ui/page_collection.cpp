@@ -52,7 +52,7 @@ class CollectionPage : public Page {
   }
   static void row_cb(lv_event_t *e) {
     CollectionPage *p = (CollectionPage *)lv_event_get_user_data(e);
-    int i = ui_row_index(lv_event_get_current_target(e));
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
     if (i < 0 || i >= (int)p->tracks.size()) return;
     if (ui_context_is_current(p->ctx) && ui_current_track() == p->tracks[i]) {
       player_toggle();
@@ -63,12 +63,12 @@ class CollectionPage : public Page {
   static void more_cb(lv_event_t *e) {
     CollectionPage *p = (CollectionPage *)lv_event_get_user_data(e);
     lv_event_stop_bubbling(e);
-    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target(e)));
+    int i = ui_row_index(lv_obj_get_parent(lv_event_get_target_obj(e)));
     if (i >= 0 && i < (int)p->tracks.size()) ui_track_menu(p->tracks[i]);
   }
   static void long_cb(lv_event_t *e) {
     CollectionPage *p = (CollectionPage *)lv_event_get_user_data(e);
-    int i = ui_row_index(lv_event_get_current_target(e));
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
     if (i >= 0 && i < (int)p->tracks.size()) ui_track_menu(p->tracks[i]);
   }
   static void scroll_cb(lv_event_t *e) {
@@ -116,7 +116,7 @@ class CollectionPage : public Page {
     y += COVER + 12;
 
     lv_obj_t *title = ui_label(r, &font_b20, C_TEXT, ctx.name);
-    lv_label_set_long_mode(title, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(title, SCR_W - 24);
     lv_obj_set_pos(title, 12, y);
     lv_obj_update_layout(title);
@@ -216,7 +216,7 @@ class CollectionPage : public Page {
     lv_obj_set_style_text_color(p.title, cur ? C_GREEN : C_TEXT, 0);
     int tx = show_covers ? 12 + 44 + 10 : 12;
     if (cur) {
-      lv_obj_clear_flag(p.eq, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(p.eq, LV_OBJ_FLAG_HIDDEN);
       lv_obj_set_x(p.title, tx + 20);
       lv_obj_set_width(p.title, SCR_W - tx - 20 - 36);
     } else {
@@ -231,7 +231,7 @@ class CollectionPage : public Page {
     if (what & RF_LIKED && ctx.type == CTX_LIKED) {
       lib_context_tracks(ctx, tracks);
       list.set_count(tracks.size());
-      lv_obj_move_foreground(topbar);
+      lv_obj_move_to_index(topbar, -1);
     }
     bool cur = ui_context_is_current(ctx);
     ui_play_btn_set(play_btn, cur && ui_is_playing());

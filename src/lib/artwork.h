@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
-#include "lvgl.h"
+#include "../lvgl/lvgl.h"
 
 constexpr int ART_LARGE = 160;
 constexpr int ART_SMALL = 64;
@@ -19,8 +19,8 @@ void art_cache_path(uint32_t key, int size, char *out, size_t cap);
 
 // Immagine dell'album alla misura richiesta (quadrata). nullptr = nessuna copertina.
 // Ogni acquire va bilanciato da un release (gestito dai widget dell'interfaccia).
-const lv_img_dsc_t *art_acquire(int album, int size);
-void art_release(const lv_img_dsc_t *img);
+const lv_image_dsc_t *art_acquire(int album, int size);
+void art_release(const lv_image_dsc_t *img);
 void art_flush_unused();
 
 // Ridimensionamento a media d'area (RGB565)

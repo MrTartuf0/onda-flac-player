@@ -15,7 +15,7 @@ lv_obj_t *s_sheet = nullptr;
 void sheet_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
 void backdrop_opa_cb(void *o, int32_t v) { lv_obj_set_style_bg_opa((lv_obj_t *)o, v, 0); }
 void sheet_deleted_cb(lv_anim_t *a) {
-  lv_obj_del((lv_obj_t *)a->var);   // elimina il backdrop (e con lui il foglio)
+  lv_obj_delete((lv_obj_t *)a->var);   // elimina il backdrop (e con lui il foglio)
 }
 
 void sheet_close() {
@@ -23,30 +23,30 @@ void sheet_close() {
   lv_obj_t *b = s_backdrop;
   lv_obj_t *sh = s_sheet;
   s_backdrop = s_sheet = nullptr;
-  lv_obj_clear_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(b, LV_OBJ_FLAG_CLICKABLE);
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, sh);
   lv_anim_set_exec_cb(&a, sheet_y_cb);
   lv_anim_set_values(&a, lv_obj_get_y(sh), SCR_H);
-  lv_anim_set_time(&a, 180);
+  lv_anim_set_duration(&a, 180);
   lv_anim_start(&a);
   lv_anim_t f;
   lv_anim_init(&f);
   lv_anim_set_var(&f, b);
   lv_anim_set_exec_cb(&f, backdrop_opa_cb);
   lv_anim_set_values(&f, LV_OPA_50, 0);
-  lv_anim_set_time(&f, 190);
+  lv_anim_set_duration(&f, 190);
   lv_anim_set_ready_cb(&f, sheet_deleted_cb);
   lv_anim_start(&f);
 }
 
 void backdrop_cb(lv_event_t *e) {
-  if (lv_event_get_target(e) == s_backdrop) sheet_close();
+  if (lv_event_get_target_obj(e) == s_backdrop) sheet_close();
 }
 
 lv_obj_t *sheet_open() {
-  if (s_backdrop) lv_obj_del(s_backdrop);
+  if (s_backdrop) lv_obj_delete(s_backdrop);
   s_backdrop = ui_box(lv_layer_top());
   lv_obj_set_size(s_backdrop, SCR_W, SCR_H);
   lv_obj_set_style_bg_color(s_backdrop, C_BLACK, 0);
@@ -82,7 +82,7 @@ void sheet_show() {
   lv_anim_set_var(&a, s_sheet);
   lv_anim_set_exec_cb(&a, sheet_y_cb);
   lv_anim_set_values(&a, SCR_H, SCR_H - h + 12);
-  lv_anim_set_time(&a, 240);
+  lv_anim_set_duration(&a, 240);
   lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
   lv_anim_start(&a);
   lv_anim_t f;
@@ -90,7 +90,7 @@ void sheet_show() {
   lv_anim_set_var(&f, s_backdrop);
   lv_anim_set_exec_cb(&f, backdrop_opa_cb);
   lv_anim_set_values(&f, 0, LV_OPA_50);
-  lv_anim_set_time(&f, 200);
+  lv_anim_set_duration(&f, 200);
   lv_anim_start(&f);
 }
 
@@ -132,7 +132,7 @@ void mode_cb(lv_event_t *e) {
 }
 
 void vol_cb(lv_event_t *e) {
-  lv_obj_t *s = lv_event_get_target(e);
+  lv_obj_t *s = lv_event_get_target_obj(e);
   OutputDev d = audio_out_active();
   audio_out_set_volume(d, lv_slider_get_value(s));
   if (lv_event_get_code(e) == LV_EVENT_RELEASED)
@@ -188,7 +188,7 @@ void device_fill(lv_obj_t *sh) {
 void device_build() {
   if (!s_sheet) return;
   // svuota tutto tranne la maniglia (primo figlio)
-  while (lv_obj_get_child_cnt(s_sheet) > 1) lv_obj_del(lv_obj_get_child(s_sheet, 1));
+  while (lv_obj_get_child_count(s_sheet) > 1) lv_obj_delete(lv_obj_get_child(s_sheet, 1));
   device_fill(s_sheet);
 }
 
@@ -227,6 +227,12 @@ void menu_artist_cb(lv_event_t *) {
 }
 
 }  // namespace
+
+bool ui_sheet_close() {
+  if (!s_backdrop) return false;
+  sheet_close();
+  return true;
+}
 
 void ui_device_sheet() {
   lv_obj_t *sh = sheet_open();
@@ -270,7 +276,7 @@ void ui_track_menu(int track) {
   snprintf(info, sizeof info, "FLAC %u bit \xE2\x80\xA2 %u.%u kHz \xE2\x80\xA2 %s", t.bits,
            (unsigned)(t.sample_rate / 1000), (unsigned)(t.sample_rate % 1000 / 100), d);
   lv_obj_t *ir = option_row(sh, IC_SLIDERS, info, nullptr, false, nullptr, nullptr);
-  lv_obj_clear_flag(ir, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(ir, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_text_color(lv_obj_get_child(ir, 1), C_SUB, 0);
   sheet_show();
 }

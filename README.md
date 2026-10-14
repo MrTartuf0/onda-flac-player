@@ -3,7 +3,7 @@
 Lettore di file **FLAC** dalla microSD integrata, con uscita sullo **speaker integrato**
 oppure sulle **cuffie** tramite un DAC **PCM5102** (I2S). Quando inserisci il jack delle cuffie
 l'uscita passa da sola alle cuffie; quando lo togli torna allo speaker (e la musica va in pausa,
-come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 8.4.
+come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (inclusa nel progetto).
 
 ![Schermate](docs/screenshots.png)
 
@@ -69,8 +69,8 @@ dal selettore dispositivo (icona altoparlante/cuffie nel mini player).
 ## Compilazione (Arduino IDE)
 
 1. Core **esp32 di Espressif 3.x** (testato con **3.2.0**, quello indicato nel tutorial Freenove).
-2. Libreria **lvgl 8.4.0**: installa lo zip del pacchetto Freenove
-   (`Libraries/FNK0104AB/lvgl_v8.4.0.zip`), che include già un `lv_conf.h` adatto.
+2. Nessuna libreria da installare: **LVGL 9.5** è dentro lo sketch (`src/lvgl`, configurazione
+   in `src/lv_conf.h`). Se hai già una LVGL 8 installata nell'IDE non dà fastidio, non viene usata.
    TFT_eSPI e FT6336U **non** servono: display e touch sono gestiti direttamente dallo sketch.
 3. Apri `FlacPlayer/FlacPlayer.ino` e imposta in *Strumenti*:
    - Scheda: **ESP32S3 Dev Module**
@@ -79,10 +79,8 @@ dal selettore dispositivo (icona altoparlante/cuffie nel mini player).
    - USB CDC On Boot: **Enabled**
 4. Carica. Il firmware occupa circa 1 MB.
 
-Se usi una LVGL 8.4 installata dal Library Manager, il tuo `lv_conf.h` deve avere:
-`LV_COLOR_DEPTH 16`, `LV_COLOR_16_SWAP 0`, `LV_MEM_CUSTOM 1`, `LV_TICK_CUSTOM 1` (con `millis()`),
-`LV_FONT_MONTSERRAT_14 1` (serve per i simboli della tastiera) e i widget slider, switch,
-textarea e keyboard abilitati.
+La prima compilazione dura qualche minuto in più (compila anche LVGL); le successive sono veloci.
+La versione precedente con LVGL 8.4 esterna è sul branch `main`.
 
 ## La scheda microSD
 
@@ -107,6 +105,8 @@ FlacPlayer/
   src/lib/                scansione SD, tag FLAC, indice, ricerca, preferiti, copertine (TJpgDec)
   src/ui/                 pagine LVGL (Home, Cerca, Libreria, Album, Artista, In riproduzione...)
   src/fonts/              font generati (Figtree + icone Font Awesome)
+  src/lvgl/               LVGL 9.5.0 (solo i file necessari, licenza MIT)
+  src/lv_conf.h           configurazione LVGL
 tools/gen_fonts.sh        rigenera i font con lv_font_conv
 ```
 

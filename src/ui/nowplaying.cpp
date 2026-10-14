@@ -8,11 +8,16 @@
 
 namespace {
 
-constexpr int CV = 140;
+// Disposizione verticale (240x320): copertina grande, comandi in basso.
+constexpr int CV = 156;           // lato copertina
+constexpr int Y_COVER = 38;
+constexpr int Y_TITLE = Y_COVER + CV + 8;
+constexpr int Y_SLIDER = Y_TITLE + 46;
+constexpr int Y_TIME = Y_SLIDER + 9;
+constexpr int Y_CTRL = Y_TIME + 39;   // centro della riga dei comandi
 
 lv_obj_t *np, *np_ctx_type, *np_ctx_name, *np_cover, *np_title, *np_artist, *np_heart, *np_slider,
-    *np_t_pos, *np_t_dur, *np_play, *np_shuffle, *np_repeat, *np_repeat_one, *np_dev_icon, *np_dev_lbl,
-    *np_fmt;
+    *np_t_pos, *np_t_dur, *np_play, *np_shuffle, *np_audio, *np_fmt, *np_rep_ind, *np_rep_one;
 bool np_open = false;
 bool np_dragging = false;
 int np_track = -2;
@@ -23,19 +28,20 @@ std::vector<uint16_t> q_items;
 size_t q_manual = 0;
 uint32_t q_ver = 0;
 lv_obj_t *q_now_row, *q_head_next, *q_head_ctx;
+lv_obj_t *q_shuffle, *q_repeat;   // pulsanti in fondo alla coda (come Spotify)
 
 void anim_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
 void anim_hide_cb(lv_anim_t *a) { lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN); }
 
 void slide(lv_obj_t *o, bool in) {
-  lv_anim_del(o, anim_y_cb);
-  if (in) lv_obj_clear_flag(o, LV_OBJ_FLAG_HIDDEN);
+  lv_anim_delete(o, anim_y_cb);
+  if (in) lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, o);
   lv_anim_set_exec_cb(&a, anim_y_cb);
   lv_anim_set_values(&a, in ? SCR_H : lv_obj_get_y(o), in ? 0 : SCR_H);
-  lv_anim_set_time(&a, in ? 260 : 220);
+  lv_anim_set_duration(&a, in ? 260 : 220);
   lv_anim_set_path_cb(&a, in ? lv_anim_path_ease_out : lv_anim_path_ease_in);
   if (!in) lv_anim_set_ready_cb(&a, anim_hide_cb);
   lv_anim_start(&a);
@@ -49,7 +55,9 @@ void prev_cb(lv_event_t *) { player_prev(); }
 void shuffle_cb(lv_event_t *) { player_set_shuffle(!player_status().shuffle); }
 void repeat_cb(lv_event_t *) {
   RepeatMode r = player_status().repeat;
-  player_set_repeat((RepeatMode)((r + 1) % 3));
+  r = (RepeatMode)((r + 1) % 3);
+  player_set_repeat(r);
+  ui_toast(r == REPEAT_OFF ? "Ripetizione disattivata" : r == REPEAT_ALL ? "Ripeti tutto" : "Ripeti il brano");
 }
 void dev_cb(lv_event_t *) { ui_device_sheet(); }
 void queue_cb(lv_event_t *) { ui_queue_open(); }
@@ -74,8 +82,9 @@ void more_cb(lv_event_t *) {
   if (t >= 0) ui_track_menu(t);
 }
 void gesture_cb(lv_event_t *) {
-  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_active());
   if (d == LV_DIR_BOTTOM) ui_nowplaying_close();
+  else if (d == LV_DIR_TOP) ui_queue_open();
   else if (d == LV_DIR_LEFT) player_next();
   else if (d == LV_DIR_RIGHT) player_prev();
 }
@@ -108,7 +117,7 @@ lv_obj_t *ctrl(lv_obj_t *p, const lv_font_t *f, const char *ic, lv_event_cb_t cb
 // ---------------------------------------------------------------- coda ----
 void q_close_cb(lv_event_t *) { slide(q_view, false); }
 void q_row_cb(lv_event_t *e) {
-  int i = ui_row_index(lv_event_get_current_target(e));
+  int i = ui_row_index(lv_event_get_current_target_obj(e));
   if (i >= 0 && i < (int)q_items.size()) player_jump(i);
 }
 
@@ -137,12 +146,12 @@ void q_rebuild() {
   lv_label_set_text_fmt(q_head_ctx, "Successivi da: %s", c.name);
   // la coda manuale (se presente) viene prima: la mostriamo con la sua intestazione
   if (q_manual) {
-    lv_obj_clear_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text_fmt(q_head_next, "Prossimi in coda (%u), poi da %s", (unsigned)q_manual, c.name);
   } else {
     lv_obj_add_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
   }
   q_list.set_count(q_items.size());
 }
@@ -159,8 +168,9 @@ void build_queue(lv_obj_t *scr) {
   lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, "Coda");
   lv_obj_center(t);
 
+  constexpr int FOOT = 46;
   lv_obj_t *sc = ui_box(q_view);
-  lv_obj_set_size(sc, SCR_W, SCR_H - 44);
+  lv_obj_set_size(sc, SCR_W, SCR_H - 44 - FOOT);
   lv_obj_set_y(sc, 44);
   lv_obj_add_flag(sc, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_scroll_dir(sc, LV_DIR_VER);
@@ -185,12 +195,39 @@ void build_queue(lv_obj_t *scr) {
   };
   q_list.bind = q_bind;
   q_list.init(sc, 118, 56);
+
+  // in fondo: casuale e ripeti (la ripetizione sta qui, il suo posto nei comandi
+  // della schermata "In riproduzione" ora è dell'uscita audio)
+  lv_obj_t *ft = ui_box(q_view);
+  lv_obj_set_size(ft, SCR_W, FOOT);
+  lv_obj_set_y(ft, SCR_H - FOOT);
+  lv_obj_set_style_bg_color(ft, C_BG2, 0);
+  lv_obj_set_style_bg_opa(ft, LV_OPA_COVER, 0);
+  auto mk = [&](const char *ic, const char *txt, lv_event_cb_t cb, int x) {
+    lv_obj_t *b = ui_box(ft);
+    lv_obj_set_size(b, SCR_W / 2 - 8, FOOT - 10);
+    lv_obj_align(b, LV_ALIGN_LEFT_MID, x, 0);
+    lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_radius(b, 6, 0);
+    lv_obj_set_style_bg_color(b, C_PRESS, LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t *i = ui_icon(b, &icons_18, ic, C_TEXT);
+    lv_obj_align(i, LV_ALIGN_LEFT_MID, 8, 0);
+    lv_obj_t *l = ui_label(b, &font_b12, C_TEXT, txt);
+    lv_obj_align(l, LV_ALIGN_LEFT_MID, 33, 0);
+    return b;
+  };
+  q_shuffle = mk(IC_SHUFFLE, "Casuale", shuffle_cb, 4);
+  q_repeat = mk(IC_REPEAT, "Ripeti", repeat_cb, SCR_W / 2 + 4);
   lv_obj_add_flag(q_view, LV_OBJ_FLAG_HIDDEN);
 }
 
 }  // namespace
 
 // ================================================================= API ==
+
+static void q_footer_update();
 
 void ui_nowplaying_build(lv_obj_t *scr) {
   np = ui_box(scr);
@@ -212,31 +249,33 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_set_width(np_ctx_name, SCR_W - 96);
   lv_obj_set_style_text_align(np_ctx_name, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(np_ctx_name, LV_ALIGN_TOP_MID, 0, 18);
-  lv_obj_t *more = ui_icon_btn(np, &icons_18, IC_MORE, C_TEXT, more_cb);
-  lv_obj_align(more, LV_ALIGN_TOP_RIGHT, -14, 10);
+  lv_obj_t *qb = ui_icon_btn(np, &icons_18, IC_QUEUE, C_TEXT, queue_cb);
+  lv_obj_align(qb, LV_ALIGN_TOP_RIGHT, -14, 10);
 
   np_cover = ui_cover(np, CV, 4);
-  lv_obj_align(np_cover, LV_ALIGN_TOP_MID, 0, 40);
+  lv_obj_align(np_cover, LV_ALIGN_TOP_MID, 0, Y_COVER);
   lv_obj_add_flag(np_cover, LV_OBJ_FLAG_CLICKABLE);
 
   np_title = ui_label(np, &font_b16, C_TEXT, "");
-  lv_label_set_long_mode(np_title, LV_LABEL_LONG_SCROLL_CIRCULAR);
-  lv_obj_set_width(np_title, SCR_W - 24 - 34);
-  lv_obj_set_pos(np_title, 12, 188);
+  lv_label_set_long_mode(np_title, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
+  lv_obj_set_width(np_title, SCR_W - 24 - 64);
+  lv_obj_set_pos(np_title, 12, Y_TITLE);
   lv_obj_add_flag(np_title, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(np_title, title_cb, LV_EVENT_CLICKED, nullptr);
   np_artist = ui_label(np, &font_r12, C_SUB, "");
   ui_dot(np_artist);
-  lv_obj_set_width(np_artist, SCR_W - 24 - 34);
-  lv_obj_set_pos(np_artist, 12, 209);
+  lv_obj_set_width(np_artist, SCR_W - 24 - 64);
+  lv_obj_set_pos(np_artist, 12, Y_TITLE + 21);
   lv_obj_add_flag(np_artist, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(np_artist, artist_cb, LV_EVENT_CLICKED, nullptr);
   np_heart = ui_icon_btn(np, &icons_18, IC_HEART_O, C_TEXT, heart_cb);
-  lv_obj_set_pos(np_heart, SCR_W - 12 - 20, 194);
+  lv_obj_set_pos(np_heart, SCR_W - 12 - 52, Y_TITLE + 8);
+  lv_obj_t *more = ui_icon_btn(np, &icons_18, IC_MORE, C_TEXT, more_cb);
+  lv_obj_set_pos(more, SCR_W - 12 - 18, Y_TITLE + 8);
 
   np_slider = lv_slider_create(np);
   lv_obj_set_size(np_slider, SCR_W - 28, 4);
-  lv_obj_set_pos(np_slider, 14, 234);
+  lv_obj_set_pos(np_slider, 14, Y_SLIDER);
   lv_slider_set_range(np_slider, 0, 1000);
   lv_obj_set_ext_click_area(np_slider, 12);
   lv_obj_set_style_bg_color(np_slider, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
@@ -245,49 +284,40 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_set_style_bg_color(np_slider, C_TEXT, LV_PART_KNOB);
   lv_obj_set_style_pad_all(np_slider, 4, LV_PART_KNOB);
   lv_obj_set_style_bg_color(np_slider, C_GREEN, LV_PART_INDICATOR | LV_STATE_PRESSED);
-  lv_obj_set_style_anim_time(np_slider, 0, 0);
-  lv_obj_clear_flag(np_slider, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_set_style_anim_duration(np_slider, 0, 0);
+  lv_obj_remove_flag(np_slider, LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(np_slider, slider_cb, LV_EVENT_ALL, nullptr);
   np_t_pos = ui_label(np, &font_r10, C_SUB, "0:00");
-  lv_obj_set_pos(np_t_pos, 14, 243);
+  lv_obj_set_pos(np_t_pos, 14, Y_TIME);
   np_t_dur = ui_label(np, &font_r10, C_SUB, "0:00");
-  lv_obj_align(np_t_dur, LV_ALIGN_TOP_RIGHT, -14, 243);
+  lv_obj_align(np_t_dur, LV_ALIGN_TOP_RIGHT, -14, Y_TIME);
   np_fmt = ui_label(np, &font_r10, C_DIM, "");
-  lv_obj_align(np_fmt, LV_ALIGN_TOP_MID, 0, 243);
+  lv_obj_align(np_fmt, LV_ALIGN_TOP_MID, 0, Y_TIME);
+  // promemoria: ripetizione attiva (il pulsante è nella coda)
+  np_rep_ind = ui_icon(np, &icons_14, IC_REPEAT, C_GREEN);
+  lv_obj_set_pos(np_rep_ind, 44, Y_TIME - 2);
+  np_rep_one = ui_label(np, &font_b10, C_GREEN, "1");
+  lv_obj_set_pos(np_rep_one, 60, Y_TIME - 6);
 
-  np_shuffle = ctrl(np, &icons_18, IC_SHUFFLE, shuffle_cb, -96, 266);
-  ctrl(np, &icons_22, IC_PREV, prev_cb, -50, 264);
+  // comandi: casuale | precedente | play | successivo | uscita audio
+  np_shuffle = ctrl(np, &icons_18, IC_SHUFFLE, shuffle_cb, -96, Y_CTRL - 9);
+  ctrl(np, &icons_22, IC_PREV, prev_cb, -50, Y_CTRL - 11);
   np_play = ui_box(np);
   lv_obj_set_size(np_play, 46, 46);
   lv_obj_set_style_radius(np_play, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_color(np_play, C_TEXT, 0);
   lv_obj_set_style_bg_opa(np_play, LV_OPA_COVER, 0);
-  lv_obj_align(np_play, LV_ALIGN_TOP_MID, 0, 252);
+  lv_obj_align(np_play, LV_ALIGN_TOP_MID, 0, Y_CTRL - 23);
   lv_obj_add_flag(np_play, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_transform_zoom(np_play, 235, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_scale(np_play, 235, LV_STATE_PRESSED);
   lv_obj_set_style_transform_pivot_x(np_play, 23, 0);
   lv_obj_set_style_transform_pivot_y(np_play, 23, 0);
   lv_obj_add_event_cb(np_play, play_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *pi = ui_icon(np_play, &icons_22, IC_PLAY, C_BLACK);
   lv_obj_center(pi);
-  ctrl(np, &icons_22, IC_NEXT, next_cb, 50, 264);
-  np_repeat = ctrl(np, &icons_18, IC_REPEAT, repeat_cb, 96, 266);
-  np_repeat_one = ui_label(np, &font_b10, C_GREEN, "1");
-  lv_obj_align_to(np_repeat_one, np_repeat, LV_ALIGN_OUT_RIGHT_TOP, -2, -6);
-
-  // riga dispositivo (in basso) + coda
-  lv_obj_t *dev = ui_box(np);
-  lv_obj_set_size(dev, 160, 18);
-  lv_obj_set_pos(dev, 12, SCR_H - 19);
-  lv_obj_add_flag(dev, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_opa(dev, LV_OPA_60, LV_STATE_PRESSED);
-  lv_obj_add_event_cb(dev, dev_cb, LV_EVENT_CLICKED, nullptr);
-  np_dev_icon = ui_icon(dev, &icons_14, IC_SPEAKER, C_SUB);
-  lv_obj_align(np_dev_icon, LV_ALIGN_LEFT_MID, 2, 0);
-  np_dev_lbl = ui_label(dev, &font_b10, C_SUB, "");
-  lv_obj_align(np_dev_lbl, LV_ALIGN_LEFT_MID, 22, 0);
-  lv_obj_t *qb = ui_icon_btn(np, &icons_14, IC_QUEUE, C_SUB, queue_cb);
-  lv_obj_align(qb, LV_ALIGN_BOTTOM_RIGHT, -14, -3);
+  ctrl(np, &icons_22, IC_NEXT, next_cb, 50, Y_CTRL - 11);
+  // uscita audio: altoparlante / cuffie (verde se cuffie); apre dispositivo + volume
+  np_audio = ctrl(np, &icons_18, IC_SPEAKER, dev_cb, 96, Y_CTRL - 9);
 
   lv_obj_add_flag(np, LV_OBJ_FLAG_HIDDEN);
   build_queue(scr);
@@ -295,12 +325,24 @@ void ui_nowplaying_build(lv_obj_t *scr) {
 
 bool ui_nowplaying_visible() { return np_open; }
 
+bool ui_queue_visible() { return q_view && !lv_obj_has_flag(q_view, LV_OBJ_FLAG_HIDDEN); }
+
+void ui_queue_close() {
+  if (ui_queue_visible()) slide(q_view, false);
+}
+
+// Sulla barra di avanzamento il bordo sinistro serve per trascinare il cursore
+bool ui_nowplaying_blocks_edge(int x, int y) {
+  (void)x;
+  return np_open && !ui_queue_visible() && y > Y_SLIDER - 18 && y < Y_SLIDER + 22;
+}
+
 void ui_nowplaying_open() {
   if (ui_current_track() < 0) return;
   np_open = true;
   np_track = -2;
   ui_nowplaying_refresh(RF_ALL);
-  lv_obj_move_foreground(np);
+  lv_obj_move_to_index(np, -1);
   slide(np, true);
 }
 
@@ -313,12 +355,27 @@ void ui_nowplaying_close() {
 
 void ui_queue_open() {
   q_rebuild();
-  lv_obj_move_foreground(q_view);
+  q_footer_update();
+  lv_obj_move_to_index(q_view, -1);
   slide(q_view, true);
 }
 
+static void q_footer_update() {
+  PlayerStatus s = player_status();
+  lv_color_t sc = s.shuffle ? C_GREEN : C_TEXT;
+  lv_obj_set_style_text_color(lv_obj_get_child(q_shuffle, 0), sc, 0);
+  lv_obj_set_style_text_color(lv_obj_get_child(q_shuffle, 1), sc, 0);
+  lv_color_t rc = s.repeat != REPEAT_OFF ? C_GREEN : C_TEXT;
+  lv_obj_set_style_text_color(lv_obj_get_child(q_repeat, 0), rc, 0);
+  lv_obj_set_style_text_color(lv_obj_get_child(q_repeat, 1), rc, 0);
+  lv_label_set_text(lv_obj_get_child(q_repeat, 1), s.repeat == REPEAT_ONE ? "Ripeti brano" : "Ripeti");
+}
+
 void ui_nowplaying_refresh(uint32_t what) {
-  if (q_view && !lv_obj_has_flag(q_view, LV_OBJ_FLAG_HIDDEN) && player_status().queue_version != q_ver) q_rebuild();
+  if (ui_queue_visible()) {
+    if (player_status().queue_version != q_ver) q_rebuild();
+    q_footer_update();
+  }
   if (!np_open) return;
   PlayerStatus s = player_status();
   auto &T = lib_tracks();
@@ -351,14 +408,13 @@ void ui_nowplaying_refresh(uint32_t what) {
   ui_play_btn_set(np_play, s.playing);
   lv_obj_set_style_translate_x(lv_obj_get_child(np_play, 0), s.playing ? 0 : 2, 0);
   lv_obj_set_style_text_color(np_shuffle, s.shuffle ? C_GREEN : C_TEXT, 0);
-  lv_obj_set_style_text_color(np_repeat, s.repeat != REPEAT_OFF ? C_GREEN : C_TEXT, 0);
-  if (s.repeat == REPEAT_ONE) lv_obj_clear_flag(np_repeat_one, LV_OBJ_FLAG_HIDDEN);
-  else lv_obj_add_flag(np_repeat_one, LV_OBJ_FLAG_HIDDEN);
+  if (s.repeat != REPEAT_OFF) lv_obj_remove_flag(np_rep_ind, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(np_rep_ind, LV_OBJ_FLAG_HIDDEN);
+  if (s.repeat == REPEAT_ONE) lv_obj_remove_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
   bool hp = audio_out_active() == DEV_HEADPHONES;
-  lv_label_set_text(np_dev_icon, hp ? IC_HEADPHONES : IC_SPEAKER);
-  lv_obj_set_style_text_color(np_dev_icon, hp ? C_GREEN : C_SUB, 0);
-  lv_label_set_text(np_dev_lbl, hp ? "CUFFIE (PCM5102)" : "ALTOPARLANTE INTEGRATO");
-  lv_obj_set_style_text_color(np_dev_lbl, hp ? C_GREEN : C_SUB, 0);
+  lv_label_set_text(np_audio, hp ? IC_HEADPHONES : IC_SPEAKER);
+  lv_obj_set_style_text_color(np_audio, hp ? C_GREEN : C_TEXT, 0);
   (void)what;
   ui_nowplaying_tick();
 }
@@ -366,13 +422,6 @@ void ui_nowplaying_refresh(uint32_t what) {
 void ui_nowplaying_tick() {
   if (!np_open || np_dragging) return;
   PlayerStatus s = player_status();
-  // diagnostica temporanea: formato + carico di decodifica/SD + buchi audio
-  static char last_perf[96] = "";
-  const char *perf = player_perf_text();
-  if (perf[0] && strcmp(perf, last_perf) != 0 && s.bits) {
-    strncpy(last_perf, perf, sizeof last_perf - 1);
-    lv_label_set_text(np_fmt, perf);
-  }
   char b[16];
   fmt_duration(s.pos_ms, b, sizeof b);
   lv_label_set_text(np_t_pos, b);

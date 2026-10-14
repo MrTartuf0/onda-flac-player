@@ -1,6 +1,7 @@
 // "La tua libreria": filtri a chip (Playlist / Album / Artisti / Generi),
 // ordinamento (recenti / alfabetico), lista virtualizzata.
 #include "ui_internal.h"
+#include <string.h>
 #include <stdio.h>
 #include <algorithm>
 #include "../lib/library.h"
@@ -31,7 +32,7 @@ class LibraryPage : public Page {
 
   static void chip_cb(lv_event_t *e) {
     LibraryPage *p = (LibraryPage *)lv_event_get_user_data(e);
-    lv_obj_t *c = lv_event_get_current_target(e);
+    lv_obj_t *c = lv_event_get_current_target_obj(e);
     for (int i = 0; i < 4; i++)
       if (p->chips[i] == c) p->filter = p->filter == i ? F_NONE : (Filter)i;
     for (int i = 0; i < 4; i++) ui_chip_set(p->chips[i], p->filter == i);
@@ -48,7 +49,7 @@ class LibraryPage : public Page {
 
   static void row_cb(lv_event_t *e) {
     LibraryPage *p = (LibraryPage *)lv_event_get_user_data(e);
-    int i = ui_row_index(lv_event_get_current_target(e));
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
     if (i < 0 || i >= (int)p->items.size()) return;
     ui_open_context(p->ctx_of(p->items[i]));
   }

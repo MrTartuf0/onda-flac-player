@@ -4,16 +4,15 @@
 #include <driver/spi_master.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_heap_caps.h>
-#include "lvgl.h"
+#include "../lvgl/lvgl.h"
 #include "../config.h"
 #include "../platform.h"
+#include "edge_swipe.h"
 
 namespace {
 
 esp_lcd_panel_io_handle_t s_io = nullptr;
-lv_disp_drv_t s_drv;
-lv_disp_draw_buf_t s_buf;
-lv_indev_drv_t s_indev;
+lv_display_t *s_disp = nullptr;
 
 // Sequenza di init ILI9341 (variante "ILI9341_2" usata da Freenove con TFT_eSPI)
 struct InitCmd {
@@ -56,16 +55,17 @@ bool IRAM_ATTR flush_done(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data
   return false;
 }
 
-// LVGL attende la fine del flush chiamando wait_cb: lì segnaliamo "pronto" (fuori dall'ISR)
-void wait_cb(lv_disp_drv_t *drv) {
-  if (!s_dma_busy) lv_disp_flush_ready(drv);
+// LVGL chiama wait_cb solo quando gli serve di nuovo il buffer appena inviato
+// (con due buffer, nel frattempo disegna nell'altro). Deve tornare a DMA finito.
+void wait_cb(lv_display_t *) {
+  while (s_dma_busy) {
+  }
 }
 
-void flush_cb(lv_disp_drv_t *drv, const lv_area_t *a, lv_color_t *px) {
+void flush_cb(lv_display_t *, const lv_area_t *a, uint8_t *px) {
   // LVGL produce RGB565 little-endian, l'ILI9341 vuole big-endian
   uint32_t n = (a->x2 - a->x1 + 1) * (a->y2 - a->y1 + 1);
-  uint16_t *p = (uint16_t *)px;
-  for (uint32_t i = 0; i < n; i++) p[i] = (p[i] >> 8) | (p[i] << 8);
+  lv_draw_sw_rgb565_swap(px, n);
   uint8_t ca[4] = {(uint8_t)(a->x1 >> 8), (uint8_t)a->x1, (uint8_t)(a->x2 >> 8), (uint8_t)a->x2};
   uint8_t ra[4] = {(uint8_t)(a->y1 >> 8), (uint8_t)a->y1, (uint8_t)(a->y2 >> 8), (uint8_t)a->y2};
   esp_lcd_panel_io_tx_param(s_io, 0x2A, ca, 4);
@@ -89,19 +89,18 @@ bool tp_read(uint16_t &x, uint16_t &y) {
   return x < LCD_W && y < LCD_H;
 }
 
-void touch_cb(lv_indev_drv_t *, lv_indev_data_t *data) {
-  static uint16_t lx = 0, ly = 0;
-  uint16_t x, y;
-  if (tp_read(x, y)) {
-    lx = x;
-    ly = y;
-    data->state = LV_INDEV_STATE_PR;
-  } else {
-    data->state = LV_INDEV_STATE_REL;
-  }
-  data->point.x = lx;
-  data->point.y = ly;
+void touch_cb(lv_indev_t *, lv_indev_data_t *data) {
+  uint16_t x = 0, y = 0;
+  bool down = tp_read(x, y);
+  // il filtro intercetta il gesto "indietro" dal bordo sinistro
+  int ox, oy;
+  bool pressed = edge_swipe_filter(down, x, y, &ox, &oy, millis());
+  data->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+  data->point.x = ox;
+  data->point.y = oy;
 }
+
+uint32_t tick_cb() { return millis(); }
 
 }  // namespace
 
@@ -161,9 +160,10 @@ bool display_begin() {
 
   plat_mark(0, "display: init LVGL");
   lv_init();
+  lv_tick_set_cb(tick_cb);
   size_t bsz = LCD_W * LCD_BUF_LINES;
-  lv_color_t *b1 = (lv_color_t *)heap_caps_malloc(bsz * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-  lv_color_t *b2 = (lv_color_t *)heap_caps_malloc(bsz * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  uint8_t *b1 = (uint8_t *)heap_caps_aligned_alloc(4, bsz * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  uint8_t *b2 = (uint8_t *)heap_caps_aligned_alloc(4, bsz * 2, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
   if (!b1 || !b2) return false;
   // Test: schermo grigio scuro + retroilluminazione accesa, prima ancora di LVGL.
   // Se resta nero qui, il problema è display/retroilluminazione, non il firmware.
@@ -178,18 +178,15 @@ bool display_begin() {
   }
   ledcWrite(LCD_PIN_BL, 200);
   Serial.println("[lcd] pannello inizializzato");
-  lv_disp_draw_buf_init(&s_buf, b1, b2, bsz);
-  lv_disp_drv_init(&s_drv);
-  s_drv.hor_res = LCD_W;
-  s_drv.ver_res = LCD_H;
-  s_drv.flush_cb = flush_cb;
-  s_drv.wait_cb = wait_cb;
-  s_drv.draw_buf = &s_buf;
-  lv_disp_drv_register(&s_drv);
+  s_disp = lv_display_create(LCD_W, LCD_H);
+  lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565);
+  lv_display_set_flush_cb(s_disp, flush_cb);
+  lv_display_set_flush_wait_cb(s_disp, wait_cb);
+  lv_display_set_buffers(s_disp, b1, b2, bsz * 2, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-  lv_indev_drv_init(&s_indev);
-  s_indev.type = LV_INDEV_TYPE_POINTER;
-  s_indev.read_cb = touch_cb;
-  lv_indev_drv_register(&s_indev);
+  lv_indev_t *indev = lv_indev_create();
+  lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(indev, touch_cb);
+  lv_indev_set_display(indev, s_disp);
   return true;
 }

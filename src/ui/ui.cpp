@@ -9,6 +9,7 @@
 #include "../audio/player.h"
 #include "../audio/audio_out.h"
 #include "../platform.h"
+#include "../hal/edge_swipe.h"
 
 namespace {
 
@@ -88,7 +89,7 @@ void show_only_top() {
   for (int t = 0; t < 3; t++)
     for (auto p : s_stack[t]) lv_obj_add_flag(p->root, LV_OBJ_FLAG_HIDDEN);
   if (Page *p = top_page()) {
-    lv_obj_clear_flag(p->root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(p->root, LV_OBJ_FLAG_HIDDEN);
     p->refresh(RF_ALL);
     p->on_show();
   }
@@ -129,7 +130,7 @@ void mini_dev_cb(lv_event_t *e) {
   ui_device_sheet();
 }
 void mini_gesture_cb(lv_event_t *) {
-  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+  lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_active());
   if (d == LV_DIR_LEFT) player_next();
   else if (d == LV_DIR_RIGHT) player_prev();
   else if (d == LV_DIR_TOP) ui_nowplaying_open();
@@ -144,7 +145,7 @@ void build_mini() {
   lv_obj_set_style_bg_color(s_mini, lv_color_hex(0x3A3A3A), 0);
   lv_obj_set_style_clip_corner(s_mini, true, 0);
   lv_obj_add_flag(s_mini, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_clear_flag(s_mini, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_remove_flag(s_mini, LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(s_mini, mini_click_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_event_cb(s_mini, mini_gesture_cb, LV_EVENT_GESTURE, nullptr);
 
@@ -183,7 +184,7 @@ void update_mini_track() {
     lv_obj_add_flag(s_mini, LV_OBJ_FLAG_HIDDEN);
     return;
   }
-  lv_obj_clear_flag(s_mini, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(s_mini, LV_OBJ_FLAG_HIDDEN);
   const Track &t = T[s_ps.track];
   lv_label_set_text(s_mini_title, t.title);
   lv_label_set_text(s_mini_artist, t.artist);
@@ -274,7 +275,7 @@ void build_boot() {
   lv_obj_set_style_bg_opa(s_boot_btn, LV_OPA_COVER, 0);
   lv_obj_align(s_boot_btn, LV_ALIGN_CENTER, 0, 100);
   lv_obj_add_flag(s_boot_btn, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_transform_zoom(s_boot_btn, 240, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_scale(s_boot_btn, 240, LV_STATE_PRESSED);
   lv_obj_add_event_cb(s_boot_btn, boot_retry_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *bl = ui_label(s_boot_btn, &font_b14, C_BLACK, "Riprova");
   lv_obj_center(bl);
@@ -289,7 +290,7 @@ void update_boot(const LibProgress &p) {
   if (p.state == LIB_NO_SD) {
     lv_label_set_text(s_boot_lbl, "Inserisci una scheda microSD\ncon i tuoi file .flac");
     lv_obj_set_width(s_boot_bar, 0);
-    lv_obj_clear_flag(s_boot_btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(s_boot_btn, LV_OBJ_FLAG_HIDDEN);
     return;
   }
   if (p.total) {
@@ -335,6 +336,51 @@ void refresh_visible(uint32_t what) {
 
 // ================================================================= API ==
 
+// ------------------------------------------------- gesto "indietro" ----
+// Cerchio con la freccia che esce dal bordo sinistro mentre trascini il dito
+// (come su Android); oltre la soglia diventa bianco e al rilascio torna indietro.
+static lv_obj_t *s_edge = nullptr;
+static lv_obj_t *s_edge_ic = nullptr;
+static bool s_edge_live = false;
+
+static void edge_build() {
+  s_edge = ui_box(lv_layer_top());
+  lv_obj_set_size(s_edge, 38, 38);
+  lv_obj_set_style_radius(s_edge, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(s_edge, LV_OPA_COVER, 0);
+  s_edge_ic = ui_icon(s_edge, &icons_14, IC_BACK, C_TEXT);
+  lv_obj_center(s_edge_ic);
+  lv_obj_add_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void edge_update(int dx, int y) {
+  if (!s_edge || !s_main_built) return;
+  if (!s_edge_live) {
+    s_edge_live = true;
+    lv_obj_move_to_index(s_edge, -1);   // sopra a fogli e schermate
+    lv_obj_remove_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+  }
+  int d = dx < 0 ? 0 : (dx > EDGE_SWIPE_COMMIT ? EDGE_SWIPE_COMMIT : dx);
+  bool armed = dx >= EDGE_SWIPE_COMMIT;
+  int yy = y - 19;
+  if (yy < 4) yy = 4;
+  if (yy > SCR_H - 42) yy = SCR_H - 42;
+  lv_obj_set_pos(s_edge, -38 + d * 46 / EDGE_SWIPE_COMMIT, yy);
+  lv_obj_set_style_bg_color(s_edge, armed ? C_TEXT : lv_color_hex(0x3A3A3A), 0);
+  lv_obj_set_style_text_color(s_edge_ic, armed ? C_BLACK : C_TEXT, 0);
+}
+
+static void edge_back_async(void *) { ui_back(); }
+
+static void edge_end(bool commit) {
+  s_edge_live = false;
+  if (s_edge) lv_obj_add_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+  // fuori dalla lettura del touch: la navigazione può eliminare oggetti
+  if (commit && s_main_built) lv_async_call(edge_back_async, nullptr);
+}
+
+static bool edge_excluded(int x, int y) { return s_main_built && ui_nowplaying_blocks_edge(x, y); }
+
 lv_obj_t *ui_page_root() { return s_pages; }
 
 lv_obj_t *ui_page_scroll(Page *p) {
@@ -362,6 +408,26 @@ void ui_pop() {
   show_only_top();
 }
 
+void ui_back() {
+  if (!s_main_built) return;
+  if (ui_sheet_close()) return;
+  if (ui_queue_visible()) {
+    ui_queue_close();
+    return;
+  }
+  if (ui_nowplaying_visible()) {
+    ui_nowplaying_close();
+    return;
+  }
+  Page *p = top_page();
+  if (p && p->on_back()) return;
+  if (s_stack[s_tab].size() > 1) {
+    ui_pop();
+    return;
+  }
+  if (s_tab != TAB_HOME) ui_switch_tab(TAB_HOME);   // come Android/Spotify: dalla radice si torna a Home
+}
+
 void ui_switch_tab(Tab t) {
   s_tab = t;
   update_nav();
@@ -370,7 +436,7 @@ void ui_switch_tab(Tab t) {
 
 void ui_set_chrome_visible(bool vis) {
   s_chrome = vis;
-  if (vis) lv_obj_clear_flag(s_nav, LV_OBJ_FLAG_HIDDEN);
+  if (vis) lv_obj_remove_flag(s_nav, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(s_nav, LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_height(s_pages, vis ? PAGE_H : SCR_H);
   update_mini_track();
@@ -378,16 +444,16 @@ void ui_set_chrome_visible(bool vis) {
 
 void ui_toast(const char *msg) {
   lv_label_set_text(lv_obj_get_child(s_toast, 0), msg);
-  lv_obj_clear_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_foreground(s_toast);
-  lv_anim_del(s_toast, toast_opa_cb);
+  lv_obj_remove_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_to_index(s_toast, -1);
+  lv_anim_delete(s_toast, toast_opa_cb);
   lv_obj_set_style_opa(s_toast, LV_OPA_COVER, 0);
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, s_toast);
   lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
   lv_anim_set_delay(&a, 1800);
-  lv_anim_set_time(&a, 300);
+  lv_anim_set_duration(&a, 300);
   lv_anim_set_exec_cb(&a, toast_opa_cb);
   lv_anim_set_ready_cb(&a, toast_hide_cb);
   lv_anim_start(&a);
@@ -476,8 +542,8 @@ void ui_request_rescan() {
   ui_nowplaying_close();
   destroy_pages();
   art_flush_unused();
-  lv_obj_clear_flag(s_boot, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_foreground(s_boot);
+  lv_obj_remove_flag(s_boot, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_to_index(s_boot, -1);
   s_rescan_fn(true);
 }
 
@@ -485,15 +551,15 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   plat_mark(0, "interfaccia: init");
   s_rescan_fn = rescan;
   s_bright_fn = bright;
-  lv_disp_t *disp = lv_disp_get_default();
+  lv_display_t *disp = lv_display_get_default();
   lv_theme_t *th = lv_theme_default_init(disp, C_GREEN, lv_color_hex(0x535353), true, &font_r14);
-  lv_disp_set_theme(disp, th);
+  lv_display_set_theme(disp, th);
 
-  s_scr = lv_scr_act();
+  s_scr = lv_screen_active();
   lv_obj_remove_style_all(s_scr);
   lv_obj_set_style_bg_color(s_scr, C_BG, 0);
   lv_obj_set_style_bg_opa(s_scr, LV_OPA_COVER, 0);
-  lv_obj_clear_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_remove_flag(s_scr, LV_OBJ_FLAG_SCROLLABLE);
 
   s_pages = ui_box(s_scr);
   lv_obj_set_size(s_pages, SCR_W, PAGE_H);
@@ -513,6 +579,13 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   lv_obj_set_width(tl, lv_pct(100));
   lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
 
+  edge_build();
+  EdgeSwipeHooks h;
+  h.update = edge_update;
+  h.end = edge_end;
+  h.excluded = edge_excluded;
+  edge_swipe_set_hooks(h);
+
   ui_set_brightness(plat_kv_get("bright", 80));
   lv_timer_create([](lv_timer_t *) { ui_tick(); }, 100, nullptr);
 }
@@ -524,8 +597,8 @@ void ui_tick() {
     if (s_main_built && lp.state == LIB_SCANNING) {
       s_main_built = false;
       destroy_pages();
-      lv_obj_clear_flag(s_boot, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_move_foreground(s_boot);
+      lv_obj_remove_flag(s_boot, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_move_to_index(s_boot, -1);
     }
     update_boot(lp);
     s_last_lib = lp.state;

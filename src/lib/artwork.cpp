@@ -1,4 +1,5 @@
 #include "artwork.h"
+#include "../lvgl/src/misc/cache/instance/lv_image_cache.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -109,7 +110,7 @@ uint16_t *read_cache(uint32_t key, int size) {
 struct Entry {
   uint32_t key;     // chiave album (stabile anche dopo una nuova scansione)
   int size;
-  lv_img_dsc_t dsc;
+  lv_image_dsc_t dsc;
   uint16_t *px;
   int refs;
   uint32_t last;
@@ -124,7 +125,7 @@ void evict() {
     for (auto e : g_cache)
       if (e->refs == 0 && (!victim || e->last < victim->last)) victim = e;
     if (!victim) return;
-    lv_img_cache_invalidate_src(&victim->dsc);
+    lv_image_cache_drop(&victim->dsc);
     g_bytes -= victim->size * victim->size * 2;
     plat_free(victim->px);
     g_cache.erase(std::find(g_cache.begin(), g_cache.end(), victim));
@@ -140,9 +141,11 @@ Entry *add_entry(uint32_t key, int size, uint16_t *px) {
   e->refs = 0;
   e->last = ++g_tick;
   memset(&e->dsc, 0, sizeof e->dsc);
-  e->dsc.header.cf = LV_IMG_CF_TRUE_COLOR;
+  e->dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+  e->dsc.header.cf = LV_COLOR_FORMAT_RGB565;
   e->dsc.header.w = size;
   e->dsc.header.h = size;
+  e->dsc.header.stride = size * 2;
   e->dsc.data_size = size * size * 2;
   e->dsc.data = (const uint8_t *)px;
   g_cache.push_back(e);
@@ -286,7 +289,7 @@ bool art_build(const Album &a, uint16_t *color_out) {
   return false;
 }
 
-const lv_img_dsc_t *art_acquire(int album, int size) {
+const lv_image_dsc_t *art_acquire(int album, int size) {
   auto &albums = lib_albums();
   if (size <= 0 || album < 0 || album >= (int)albums.size()) return nullptr;
   uint32_t key = albums[album].key;
@@ -310,7 +313,7 @@ const lv_img_dsc_t *art_acquire(int album, int size) {
   return &e->dsc;
 }
 
-void art_release(const lv_img_dsc_t *img) {
+void art_release(const lv_image_dsc_t *img) {
   if (!img) return;
   for (auto e : g_cache)
     if (&e->dsc == img) {
@@ -323,7 +326,7 @@ void art_flush_unused() {
   for (size_t i = 0; i < g_cache.size();) {
     Entry *e = g_cache[i];
     if (e->refs == 0) {
-      lv_img_cache_invalidate_src(&e->dsc);
+      lv_image_cache_drop(&e->dsc);
       g_bytes -= e->size * e->size * 2;
       plat_free(e->px);
       g_cache.erase(g_cache.begin() + i);
