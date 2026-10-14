@@ -33,10 +33,17 @@ lv_obj_t *q_shuffle, *q_repeat;   // pulsanti in fondo alla coda (come Spotify)
 
 // Volume "a pressione": tenendo premuto il pulsante dell'uscita audio compare un
 // cursore verticale; trascinando il dito (senza sollevarlo) si regola il volume,
-// al rilascio sparisce. Un tocco breve apre invece il foglio dei dispositivi.
+// al rilascio sparisce. Se invece lasci il dito senza muoverlo il cursore resta
+// aperto e si usa toccandolo (si chiude da solo o toccando fuori).
+// Un tocco breve sul pulsante apre il foglio dei dispositivi.
 constexpr int VP_W = 52, VP_H = 196, VP_TRACK = 140;
-lv_obj_t *vp, *vp_fill, *vp_pct, *vp_icon;
-bool vp_active = false;
+constexpr int VP_Y = Y_CTRL - 12 - VP_H;            // posizione del riquadro
+constexpr int VP_TRACK_BOT = VP_Y + 29 + VP_TRACK;  // fondo della barra (volume 0), in coordinate schermo
+enum VpMode : uint8_t { VP_OFF, VP_HOLD, VP_OPEN };
+lv_obj_t *vp, *vp_fill, *vp_pct, *vp_icon, *vp_shield;
+lv_timer_t *vp_timer = nullptr;
+VpMode vp_mode = VP_OFF;
+bool vp_moved = false;
 int vp_y0 = 0, vp_v0 = 0;
 
 void anim_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
@@ -82,6 +89,43 @@ void vp_set(int v) {
   lv_label_set_text(np_audio, audio_icon(d, v));
 }
 
+void vp_apply(int v) {
+  v = v < 0 ? 0 : v > 100 ? 100 : v;
+  OutputDev d = audio_out_active();
+  if (v != audio_out_volume(d)) {
+    audio_out_set_volume(d, v);
+    vp_set(v);
+  }
+}
+
+void vp_hide() {
+  if (vp_mode == VP_OFF) return;
+  vp_mode = VP_OFF;
+  if (vp_timer) {
+    lv_timer_delete(vp_timer);
+    vp_timer = nullptr;
+  }
+  lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
+  OutputDev d = audio_out_active();
+  plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
+}
+
+void vp_timer_cb(lv_timer_t *) {
+  vp_timer = nullptr;   // timer a esecuzione singola: LVGL lo elimina da solo
+  vp_hide();
+}
+
+void vp_hide_after(uint32_t ms) {
+  if (vp_timer) {
+    lv_timer_set_period(vp_timer, ms);
+    lv_timer_reset(vp_timer);
+    return;
+  }
+  vp_timer = lv_timer_create(vp_timer_cb, ms, nullptr);
+  lv_timer_set_repeat_count(vp_timer, 1);
+}
+
 void audio_btn_cb(lv_event_t *e) {
   lv_event_code_t c = lv_event_get_code(e);
   if (c == LV_EVENT_SHORT_CLICKED) {
@@ -92,7 +136,8 @@ void audio_btn_cb(lv_event_t *e) {
   if (c == LV_EVENT_LONG_PRESSED && in) {
     lv_point_t p;
     lv_indev_get_point(in, &p);
-    vp_active = true;
+    vp_mode = VP_HOLD;
+    vp_moved = false;
     vp_y0 = p.y;
     vp_v0 = audio_out_volume(audio_out_active());
     vp_set(vp_v0);
@@ -100,29 +145,64 @@ void audio_btn_cb(lv_event_t *e) {
     lv_obj_remove_flag(vp, LV_OBJ_FLAG_HIDDEN);
     return;
   }
-  if (!vp_active) return;
+  if (vp_mode != VP_HOLD) return;
   if (c == LV_EVENT_PRESSING && in) {
     lv_point_t p;
     lv_indev_get_point(in, &p);
-    int v = vp_v0 + (vp_y0 - p.y) * 100 / VP_TRACK;   // su = più forte
-    v = v < 0 ? 0 : v > 100 ? 100 : v;
-    OutputDev d = audio_out_active();
-    if (v != audio_out_volume(d)) {
-      audio_out_set_volume(d, v);
-      vp_set(v);
+    int dy = p.y - vp_y0;
+    if (dy > 5 || dy < -5) vp_moved = true;
+    if (dy <= 0) {
+      vp_apply(vp_v0 - dy * 100 / VP_TRACK);   // su = più forte
+    } else {
+      // il pulsante è in fondo allo schermo: verso il basso lo spazio è poco,
+      // quindi la corsa si adatta e il bordo dello schermo corrisponde a 0
+      int room = (SCR_H - 4) - vp_y0;
+      if (room < 16) room = 16;
+      int a = dy * 100 / VP_TRACK, b = dy * vp_v0 / room;
+      vp_apply(vp_v0 - (a > b ? a : b));
     }
   } else if (c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) {
-    vp_active = false;
-    lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
-    OutputDev d = audio_out_active();
-    plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
+    if (vp_moved) {
+      vp_hide();
+    } else {
+      // dito sollevato senza trascinare: il cursore resta aperto e si tocca direttamente
+      vp_mode = VP_OPEN;
+      lv_obj_move_to_index(vp_shield, -1);
+      lv_obj_move_to_index(vp, -1);
+      lv_obj_remove_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
+      vp_hide_after(2500);
+    }
   }
 }
 
+// cursore aperto: la posizione del dito sulla barra è il volume
+void vp_touch_cb(lv_event_t *e) {
+  if (vp_mode != VP_OPEN) return;
+  lv_event_code_t c = lv_event_get_code(e);
+  lv_indev_t *in = lv_indev_active();
+  if ((c == LV_EVENT_PRESSED || c == LV_EVENT_PRESSING) && in) {
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    vp_apply((VP_TRACK_BOT - p.y) * 100 / VP_TRACK);
+    vp_hide_after(2500);
+  } else if (c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) {
+    vp_hide_after(1500);
+  }
+}
+
+void vp_shield_cb(lv_event_t *) { vp_hide(); }   // tocco fuori dal cursore
+
 void build_volume_popup() {
+  vp_shield = ui_box(np);   // trasparente, a tutto schermo, dietro al cursore aperto
+  lv_obj_set_size(vp_shield, SCR_W, SCR_H);
+  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(vp_shield, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(vp_shield, vp_shield_cb, LV_EVENT_PRESSED, nullptr);
+  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
+
   vp = ui_box(np);
   lv_obj_set_size(vp, VP_W, VP_H);
-  lv_obj_set_pos(vp, SCR_W - VP_W - 2, Y_CTRL - 12 - VP_H);
+  lv_obj_set_pos(vp, SCR_W - VP_W - 2, VP_Y);
   lv_obj_set_style_radius(vp, 16, 0);
   lv_obj_set_style_bg_color(vp, lv_color_hex(0x242424), 0);
   lv_obj_set_style_bg_opa(vp, LV_OPA_COVER, 0);
@@ -137,14 +217,19 @@ void build_volume_popup() {
   lv_obj_set_style_clip_corner(track, true, 0);
   lv_obj_set_style_bg_color(track, lv_color_hex(0x4A4A4A), 0);
   lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
+  lv_obj_remove_flag(track, LV_OBJ_FLAG_CLICKABLE);   // i tocchi vanno al riquadro
   vp_fill = ui_box(track);
+  lv_obj_remove_flag(vp_fill, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_size(vp_fill, 28, 0);
   lv_obj_align(vp_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_set_style_bg_color(vp_fill, C_TEXT, 0);
   lv_obj_set_style_bg_opa(vp_fill, LV_OPA_COVER, 0);
   vp_icon = ui_icon(vp, &icons_14, IC_SPEAKER, C_SUB);
   lv_obj_align(vp_icon, LV_ALIGN_BOTTOM_MID, 0, -7);
-  lv_obj_remove_flag(vp, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(vp, LV_OBJ_FLAG_CLICKABLE);   // usato solo quando è aperto (VP_OPEN)
+  lv_obj_add_flag(vp, LV_OBJ_FLAG_PRESS_LOCK);
+  lv_obj_remove_flag(vp, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(vp, vp_touch_cb, LV_EVENT_ALL, nullptr);
   lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
 }
 void queue_cb(lv_event_t *) { ui_queue_open(); }
@@ -440,6 +525,7 @@ void ui_nowplaying_open() {
 }
 
 void ui_nowplaying_close() {
+  vp_hide();
   if (q_view && !lv_obj_has_flag(q_view, LV_OBJ_FLAG_HIDDEN)) slide(q_view, false);
   if (!np_open) return;
   np_open = false;
