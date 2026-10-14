@@ -81,7 +81,7 @@ dal selettore dispositivo (icona altoparlante/cuffie nel mini player).
 4. Carica. Il firmware occupa circa 1 MB.
 
 La prima compilazione dura qualche minuto in più (compila anche LVGL); le successive sono veloci.
-La versione precedente con LVGL 8.4 esterna è nel tag `lvgl8-finale`.
+La versione precedente con LVGL 8.4 esterna è nel branch `lvgl8`.
 
 ## La scheda microSD
 
