@@ -59,16 +59,17 @@ struct BootCrumbs {
   struct Ev {
     uint32_t t;
     char s[28];
-  } ev[12];
+  } ev[20];
   uint32_t ev_n;        // eventi scritti in totale
   uint32_t beat[4];     // ultimo "battito" di: interfaccia, uscita audio, decoder, monitor
+  uint8_t where[4];     // punto del codice in cui si trova ciascun task (vedi plat_where)
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4444;
+constexpr uint32_t kMagic = 0x4F4E4445;
 
 static portMUX_TYPE s_evmux = portMUX_INITIALIZER_UNLOCKED;
-static char s_blackbox[700];
+static char s_blackbox[1100];
 
 void plat_event(const char *what, const char *detail) {
   char tmp[28];
@@ -76,7 +77,7 @@ void plat_event(const char *what, const char *detail) {
   else snprintf(tmp, sizeof tmp, "%s", what);
   uint32_t t = millis();
   portENTER_CRITICAL(&s_evmux);
-  BootCrumbs::Ev &e = s_bc.ev[s_bc.ev_n % 12];
+  BootCrumbs::Ev &e = s_bc.ev[s_bc.ev_n % 20];
   e.t = t;
   memcpy(e.s, tmp, sizeof e.s);
   s_bc.ev_n++;
@@ -87,14 +88,21 @@ void plat_beat(int who) {
   if (who >= 0 && who < 4) s_bc.beat[who] = millis();
 }
 
+void plat_where(int who, uint8_t code) {
+  if (who >= 0 && who < 4) s_bc.where[who] = code;
+}
+
 const char *plat_blackbox_text() { return s_blackbox; }
 
 static void build_blackbox() {
-  int n = snprintf(s_blackbox, sizeof s_blackbox, "Ultimi segni di vita (ms): ui %u, audio %u, decoder %u, monitor %u\n",
-                   (unsigned)s_bc.beat[0], (unsigned)s_bc.beat[1], (unsigned)s_bc.beat[2], (unsigned)s_bc.beat[3]);
-  uint32_t cnt = s_bc.ev_n < 12 ? s_bc.ev_n : 12;
+  int n = snprintf(s_blackbox, sizeof s_blackbox,
+                   "Ultimi segni di vita (ms): ui %u, audio %u, decoder %u, monitor %u\n"
+                   "Punto: ui %u, audio %u, decoder %u\n",
+                   (unsigned)s_bc.beat[0], (unsigned)s_bc.beat[1], (unsigned)s_bc.beat[2], (unsigned)s_bc.beat[3],
+                   s_bc.where[0], s_bc.where[1], s_bc.where[2]);
+  uint32_t cnt = s_bc.ev_n < 20 ? s_bc.ev_n : 20;
   for (uint32_t k = s_bc.ev_n - cnt; k < s_bc.ev_n && n < (int)sizeof s_blackbox - 40; k++) {
-    BootCrumbs::Ev &e = s_bc.ev[k % 12];
+    BootCrumbs::Ev &e = s_bc.ev[k % 20];
     e.s[sizeof e.s - 1] = 0;
     n += snprintf(s_blackbox + n, sizeof s_blackbox - n, "%u %s\n", (unsigned)e.t, e.s);
   }
@@ -184,6 +192,7 @@ uint32_t plat_boot_check(const char **reason) {
   if (crash) build_blackbox();
   s_bc.ev_n = 0;
   memset(s_bc.beat, 0, sizeof s_bc.beat);
+  memset(s_bc.where, 0, sizeof s_bc.where);
   s_bc.stall[0] = 0;
   s_bc.nvs[0] = 0;
   s_bc.wdt_tasks[0] = 0;
@@ -323,5 +332,6 @@ void plat_kv_set(const char *key, int32_t v) { s_kv[key] = v; }
 void plat_monitor_start() {}
 void plat_event(const char *, const char *) {}
 void plat_beat(int) {}
+void plat_where(int, uint8_t) {}
 const char *plat_blackbox_text() { return ""; }
 #endif

@@ -28,4 +28,5 @@ void plat_monitor_start(); // sorveglia il core 0 dal core 1 (diagnostica watchd
 // Scatola nera (sopravvive al riavvio): ultimi eventi e ultimo "battito" di ogni task.
 void plat_event(const char *what, const char *detail = nullptr);
 void plat_beat(int who);   // 0 interfaccia, 1 uscita audio, 2 decoder, 3 monitor
+void plat_where(int who, uint8_t code);   // punto del codice raggiunto (numeri nei sorgenti)
 const char *plat_blackbox_text();

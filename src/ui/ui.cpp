@@ -539,6 +539,7 @@ void ui_tick() {
   s_last_lib = lp.state;
 
   // ---- eventi del player ----
+  plat_where(0, 10);   // 10: eventi del player
   uint32_t pe = player_take_events();
   s_ps = player_status();
   uint32_t what = 0;
@@ -546,7 +547,9 @@ void ui_tick() {
     if (s_ps.track != s_last_track) {
       s_last_track = s_ps.track;
       if (s_ps.track >= 0 && s_ps.playing) lib_note_played(s_ps.track);
+      plat_where(0, 11);   // 11: nuovo brano: mini player e copertina
       update_mini_track();
+      plat_where(0, 12);   // 12: nuovo brano: salva la sessione
       save_session(false);
     }
     what |= RF_PLAYER;
@@ -570,9 +573,11 @@ void ui_tick() {
   if (ae) what |= RF_PLAYER;
 
   if (what) {
+    plat_where(0, 13);   // 13: aggiorna le pagine visibili
     update_mini_state();
     refresh_visible(what);
   }
+  plat_where(0, 14);   // 14: avanzamento e schermata in riproduzione
   update_mini_progress();
   ui_nowplaying_tick();
 

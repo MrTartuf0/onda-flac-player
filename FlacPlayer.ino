@@ -67,9 +67,21 @@ static void safe_mode(uint32_t crashes, const char *reason) {
     lv_obj_align(h, LV_ALIGN_BOTTOM_LEFT, 10, -10);
     display_set_brightness(80);
   }
+  // Stampa completa sulla seriale: si aspetta che il PC legga (fino a 200 ms a riga)
+  Serial.setTxTimeoutMs(200);
   for (uint32_t n = 0;; n++) {
     if (lcd) lv_timer_handler();
-    if (n % 400 == 0) Serial.printf("\n=== AVVIO INTERROTTO ===\n%s\n", msg);
+    if (n % 1000 == 0) {
+      Serial.print("\n=== AVVIO INTERROTTO ===\n");
+      for (const char *p = msg; *p;) {
+        const char *e = strchr(p, '\n');
+        size_t len = e ? (size_t)(e - p) : strlen(p);
+        Serial.write((const uint8_t *)p, len);
+        Serial.print("\n");
+        Serial.flush();
+        p += len + (e ? 1 : 0);
+      }
+    }
     delay(5);
   }
 }
@@ -154,7 +166,9 @@ void loop() {
   static uint8_t stage = 0;
   if (stage == 0) BOOT_STEP("loop: prima schermata");
   plat_beat(0);
+  plat_where(0, 1);   // 1: LVGL (interfaccia)
   lv_timer_handler();
+  plat_where(0, 2);   // 2: rilevamento cuffie / diagnostica
   if (stage == 0) {
     stage = 1;
     BOOT_STEP("loop: in esecuzione");
@@ -170,5 +184,6 @@ void loop() {
     last_perf = millis();
     if (player_status().playing) Serial.printf("[player] %s\n", player_perf_text());
   }
+  plat_where(0, 3);   // 3: attesa
   delay(4);
 }
