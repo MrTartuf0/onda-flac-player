@@ -5,6 +5,7 @@
 #include "../lib/library.h"
 #include "../audio/player.h"
 #include "../audio/audio_out.h"
+#include "../platform.h"
 
 namespace {
 
@@ -29,6 +30,14 @@ size_t q_manual = 0;
 uint32_t q_ver = 0;
 lv_obj_t *q_now_row, *q_head_next, *q_head_ctx;
 lv_obj_t *q_shuffle, *q_repeat;   // pulsanti in fondo alla coda (come Spotify)
+
+// Volume "a pressione": tenendo premuto il pulsante dell'uscita audio compare un
+// cursore verticale; trascinando il dito (senza sollevarlo) si regola il volume,
+// al rilascio sparisce. Un tocco breve apre invece il foglio dei dispositivi.
+constexpr int VP_W = 52, VP_H = 196, VP_TRACK = 140;
+lv_obj_t *vp, *vp_fill, *vp_pct, *vp_icon;
+bool vp_active = false;
+int vp_y0 = 0, vp_v0 = 0;
 
 void anim_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
 void anim_hide_cb(lv_anim_t *a) { lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN); }
@@ -59,7 +68,85 @@ void repeat_cb(lv_event_t *) {
   player_set_repeat(r);
   ui_toast(r == REPEAT_OFF ? "Ripetizione disattivata" : r == REPEAT_ALL ? "Ripeti tutto" : "Ripeti il brano");
 }
-void dev_cb(lv_event_t *) { ui_device_sheet(); }
+
+const char *audio_icon(OutputDev d, int v) {
+  if (d == DEV_HEADPHONES) return IC_HEADPHONES;
+  return v == 0 ? IC_VOL_MUTE : v < 45 ? IC_VOL_LOW : IC_SPEAKER;
+}
+
+void vp_set(int v) {
+  OutputDev d = audio_out_active();
+  lv_obj_set_height(vp_fill, v * VP_TRACK / 100);
+  lv_label_set_text_fmt(vp_pct, "%d", v);
+  lv_label_set_text(vp_icon, audio_icon(d, v));
+  lv_label_set_text(np_audio, audio_icon(d, v));
+}
+
+void audio_btn_cb(lv_event_t *e) {
+  lv_event_code_t c = lv_event_get_code(e);
+  if (c == LV_EVENT_SHORT_CLICKED) {
+    ui_device_sheet();
+    return;
+  }
+  lv_indev_t *in = lv_indev_active();
+  if (c == LV_EVENT_LONG_PRESSED && in) {
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    vp_active = true;
+    vp_y0 = p.y;
+    vp_v0 = audio_out_volume(audio_out_active());
+    vp_set(vp_v0);
+    lv_obj_move_to_index(vp, -1);
+    lv_obj_remove_flag(vp, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+  if (!vp_active) return;
+  if (c == LV_EVENT_PRESSING && in) {
+    lv_point_t p;
+    lv_indev_get_point(in, &p);
+    int v = vp_v0 + (vp_y0 - p.y) * 100 / VP_TRACK;   // su = più forte
+    v = v < 0 ? 0 : v > 100 ? 100 : v;
+    OutputDev d = audio_out_active();
+    if (v != audio_out_volume(d)) {
+      audio_out_set_volume(d, v);
+      vp_set(v);
+    }
+  } else if (c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) {
+    vp_active = false;
+    lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
+    OutputDev d = audio_out_active();
+    plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
+  }
+}
+
+void build_volume_popup() {
+  vp = ui_box(np);
+  lv_obj_set_size(vp, VP_W, VP_H);
+  lv_obj_set_pos(vp, SCR_W - VP_W - 2, Y_CTRL - 12 - VP_H);
+  lv_obj_set_style_radius(vp, 16, 0);
+  lv_obj_set_style_bg_color(vp, lv_color_hex(0x242424), 0);
+  lv_obj_set_style_bg_opa(vp, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_color(vp, lv_color_hex(0x444444), 0);
+  lv_obj_set_style_border_width(vp, 1, 0);
+  vp_pct = ui_label(vp, &font_b14, C_TEXT, "0");
+  lv_obj_align(vp_pct, LV_ALIGN_TOP_MID, 0, 7);
+  lv_obj_t *track = ui_box(vp);
+  lv_obj_set_size(track, 28, VP_TRACK);
+  lv_obj_align(track, LV_ALIGN_TOP_MID, 0, 29);
+  lv_obj_set_style_radius(track, 14, 0);
+  lv_obj_set_style_clip_corner(track, true, 0);
+  lv_obj_set_style_bg_color(track, lv_color_hex(0x4A4A4A), 0);
+  lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
+  vp_fill = ui_box(track);
+  lv_obj_set_size(vp_fill, 28, 0);
+  lv_obj_align(vp_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_set_style_bg_color(vp_fill, C_TEXT, 0);
+  lv_obj_set_style_bg_opa(vp_fill, LV_OPA_COVER, 0);
+  vp_icon = ui_icon(vp, &icons_14, IC_SPEAKER, C_SUB);
+  lv_obj_align(vp_icon, LV_ALIGN_BOTTOM_MID, 0, -7);
+  lv_obj_remove_flag(vp, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
+}
 void queue_cb(lv_event_t *) { ui_queue_open(); }
 void heart_cb(lv_event_t *) {
   int t = ui_current_track();
@@ -317,7 +404,13 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_center(pi);
   ctrl(np, &icons_22, IC_NEXT, next_cb, 50, Y_CTRL - 11);
   // uscita audio: altoparlante / cuffie (verde se cuffie); apre dispositivo + volume
-  np_audio = ctrl(np, &icons_18, IC_SPEAKER, dev_cb, 96, Y_CTRL - 9);
+  np_audio = ctrl(np, &icons_18, IC_SPEAKER, nullptr, 96, Y_CTRL - 9);
+  lv_obj_add_event_cb(np_audio, audio_btn_cb, LV_EVENT_ALL, nullptr);
+  lv_obj_add_flag(np_audio, LV_OBJ_FLAG_PRESS_LOCK);              // continua a ricevere il dito anche fuori
+  lv_obj_remove_flag(np_audio, LV_OBJ_FLAG_GESTURE_BUBBLE);       // trascinare non chiude la schermata
+  lv_obj_remove_flag(np_audio, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_ext_click_area(np_audio, 14);
+  build_volume_popup();
 
   lv_obj_add_flag(np, LV_OBJ_FLAG_HIDDEN);
   build_queue(scr);
@@ -413,7 +506,7 @@ void ui_nowplaying_refresh(uint32_t what) {
   if (s.repeat == REPEAT_ONE) lv_obj_remove_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
   bool hp = audio_out_active() == DEV_HEADPHONES;
-  lv_label_set_text(np_audio, hp ? IC_HEADPHONES : IC_SPEAKER);
+  lv_label_set_text(np_audio, audio_icon(audio_out_active(), audio_out_volume(audio_out_active())));
   lv_obj_set_style_text_color(np_audio, hp ? C_GREEN : C_TEXT, 0);
   (void)what;
   ui_nowplaying_tick();
