@@ -145,7 +145,9 @@ void rewind_lookahead() {
 void out_hold(bool h) {
   s_hold = h;
   if (h) {
-    for (int i = 0; i < 200 && !s_out_idle; i++) vTaskDelay(1);
+    int i = 0;
+    for (; i < 200 && !s_out_idle; i++) vTaskDelay(1);
+    if (!s_out_idle) plat_event("hold TIMEOUT");
   }
 }
 
@@ -244,9 +246,11 @@ bool open_track(int track, bool deferred = false, int manual = -1) {
   }
   bool ok = false;
   if (path) {
+    plat_where(2, 20);   // 20: fopen
     s_fp = fopen(path, "rb");
     if (s_fp) {
       setvbuf(s_fp, s_fbuf, _IOFBF, 16 * 1024);
+      plat_where(2, 21);   // 21: drflac_open
       s_fl = drflac_open(cb_read, cb_seek, cb_tell, s_fp, &kFlAlloc);
     }
     if (s_fl && s_fl->channels >= 1 && s_fl->channels <= 8) {
@@ -256,11 +260,19 @@ bool open_track(int track, bool deferred = false, int manual = -1) {
       uint32_t out_rate = s_src_rate / s_decim;
       if (out_rate != s_rate_now) {
         // frequenza diversa: prima si suona tutto ciò che è nel buffer
+        char d[16];
+        snprintf(d, sizeof d, "%u Hz", (unsigned)out_rate);
+        plat_event("cambio fs", d);
+        plat_where(2, 10);   // 10: svuota il buffer prima del cambio di frequenza
         if (deferred) ring_drain(4000);
         ring_flush();
+        plat_where(2, 11);   // 11: ferma l'uscita
         out_hold(true);
+        plat_where(2, 12);   // 12: riconfigura I2S + codec
         ok = audio_out_set_rate(out_rate);
+        plat_where(2, 13);   // 13: riavvia l'uscita
         out_hold(false);
+        plat_event(ok ? "fs ok" : "fs ERRORE");
         if (ok) s_rate_now = out_rate;
         deferred = false;
       } else {
@@ -587,6 +599,7 @@ void decoder_task(void *) {
   s_last_yield = xTaskGetTickCount();
   for (;;) {
     plat_beat(2);
+    plat_where(2, 1);   // 1: attende comandi
     Cmd c;
     // con il buffer pieno (o niente da decodificare) si dorme sulla coda comandi
     bool can_decode = s_fl && ring_free() >= (uint32_t)kFrames;
@@ -602,6 +615,7 @@ void decoder_task(void *) {
       continue;
     }
     maybe_yield();   // lascia respirare gli altri task (watchdog)
+    plat_where(2, 2);   // 2: decodifica
     if (!decode_block()) {
       bool one;
       {
@@ -615,6 +629,7 @@ void decoder_task(void *) {
         s_markers.push_back(m);
       } else {
         plat_event("fine brano");
+        plat_where(2, 3);   // 3: passaggio al brano successivo
         go_next(false);
       }
     }
@@ -627,11 +642,13 @@ void output_task(void *) {
   uint32_t last_gen = s_gen;
   for (;;) {
     plat_beat(1);
+    plat_where(1, 1);   // 1: attende il lock per lo stato
     bool playing;
     {
       Lock l;
       playing = s_st.playing;
     }
+    plat_where(1, 2);   // 2: stato letto
     if (s_hold || !playing) {
       s_out_idle = true;
       gain = 0;
@@ -678,7 +695,9 @@ void output_task(void *) {
       s_out[i * 2] = (int32_t)(((int64_t)s_out[i * 2] * gain) >> 16);
       s_out[i * 2 + 1] = (int32_t)(((int64_t)s_out[i * 2 + 1] * gain) >> 16);
     }
+    plat_where(1, 3);   // 3: scrittura I2S
     audio_out_write(s_out, n, 200);
+    plat_where(1, 4);   // 4: aggiorna posizione (lock)
 
     // posizione e cambio brano al punto giusto
     uint32_t ev = 0;
@@ -709,6 +728,7 @@ void output_task(void *) {
       }
     }
     if (ev) post_event(ev);
+    plat_where(1, 5);   // 5: statistiche
     update_stats();
   }
 }
