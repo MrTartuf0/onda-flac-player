@@ -222,6 +222,16 @@ void plat_heap_check() {
                   (unsigned)(s_bc.min_internal / 1024),
                   (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                   (unsigned)(heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
+    // stack minimo rimasto (byte) ai task principali: serve a dimensionarli
+    const char *names[] = {"loopTask", "flac", "i2s", "scan", "xfer", "httpd"};
+    char line[160];
+    int n = snprintf(line, sizeof line, "[stack] liberi:");
+    for (const char *nm : names) {
+      TaskHandle_t h = xTaskGetHandle(nm);
+      if (h && n < (int)sizeof line - 24)
+        n += snprintf(line + n, sizeof line - n, " %s %u", nm, (unsigned)uxTaskGetStackHighWaterMark(h));
+    }
+    Serial.println(line);
   }
 }
 int32_t plat_kv_get(const char *key, int32_t def) {
@@ -229,6 +239,24 @@ int32_t plat_kv_get(const char *key, int32_t def) {
   int32_t v = prefs().getInt(key, def);
   s_bc.nvs[0] = 0;
   return v;
+}
+
+void plat_kv_get_str(const char *key, char *out, size_t n) {
+  if (!n) return;
+  out[0] = 0;
+  snprintf(s_bc.nvs, sizeof s_bc.nvs, "lettura %s", key);
+  if (prefs().isKey(key)) prefs().getString(key, out, n);
+  s_bc.nvs[0] = 0;
+}
+
+void plat_kv_set_str(const char *key, const char *v) {
+  char cur[96];
+  plat_kv_get_str(key, cur, sizeof cur);
+  if (!strcmp(cur, v)) return;
+  plat_event("nvs scrive", key);
+  snprintf(s_bc.nvs, sizeof s_bc.nvs, "scrittura %s", key);
+  prefs().putString(key, v);
+  s_bc.nvs[0] = 0;
 }
 
 void plat_kv_set(const char *key, int32_t v) {
@@ -329,6 +357,13 @@ int32_t plat_kv_get(const char *key, int32_t def) {
   return it == s_kv.end() ? def : it->second;
 }
 void plat_kv_set(const char *key, int32_t v) { s_kv[key] = v; }
+static std::map<std::string, std::string> s_kvs;
+void plat_kv_get_str(const char *key, char *out, size_t n) {
+  if (!n) return;
+  auto it = s_kvs.find(key);
+  snprintf(out, n, "%s", it == s_kvs.end() ? "" : it->second.c_str());
+}
+void plat_kv_set_str(const char *key, const char *v) { s_kvs[key] = v; }
 void plat_monitor_start() {}
 void plat_event(const char *, const char *) {}
 void plat_beat(int) {}

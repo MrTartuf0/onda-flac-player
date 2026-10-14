@@ -138,5 +138,13 @@ void ui_nowplaying_refresh(uint32_t what);
 void ui_nowplaying_tick();
 void ui_nowplaying_build(lv_obj_t *scr);
 void ui_set_brightness(uint8_t pct);
-void ui_request_rescan();
+void ui_request_rescan(bool force = true);
+// Trasferimento file via Wi-Fi (src/ui/transfer.cpp)
+void ui_transfer_open();
+void ui_transfer_close();
+bool ui_transfer_visible();
+bool ui_transfer_back();      // gesto/tasto indietro dentro la schermata
+void ui_transfer_tick();
+void ui_session_save();                  // salva contesto, brano e posizione
+void ui_after_transfer(bool changed);    // dopo il trasferimento: riscansione o ripristino
 const char *ctx_type_label(CtxType t);

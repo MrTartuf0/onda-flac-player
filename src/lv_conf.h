@@ -31,7 +31,7 @@
 #define LV_DRAW_SW_SUPPORT_L8           0
 #define LV_DRAW_SW_SUPPORT_AL88         0
 #define LV_DRAW_SW_SUPPORT_A8           1
-#define LV_DRAW_SW_SUPPORT_I1           0
+#define LV_DRAW_SW_SUPPORT_I1           1   /* codici QR (trasferimento file) */
 #define LV_DRAW_SW_DRAW_UNIT_CNT        1
 #define LV_USE_DRAW_ARM2D_SYNC          0
 #define LV_USE_NATIVE_HELIUM_ASM        0
@@ -85,7 +85,7 @@
 #define LV_USE_BUTTON       1
 #define LV_USE_BUTTONMATRIX 1
 #define LV_USE_CALENDAR     0
-#define LV_USE_CANVAS       0
+#define LV_USE_CANVAS       1   /* richiesto dal codice QR */
 #define LV_USE_CHART        0
 #define LV_USE_CHECKBOX     0
 #define LV_USE_DROPDOWN     0
@@ -138,7 +138,7 @@
 #define LV_USE_TJPGD        0
 #define LV_USE_LIBJPEG_TURBO 0
 #define LV_USE_GIF          0
-#define LV_USE_QRCODE       0
+#define LV_USE_QRCODE       1
 #define LV_USE_BARCODE      0
 #define LV_USE_FREETYPE     0
 #define LV_USE_TINY_TTF     0

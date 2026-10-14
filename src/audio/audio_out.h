@@ -14,6 +14,8 @@ enum : uint32_t {
 };
 
 bool audio_out_begin();
+void audio_out_suspend();   // libera I2S e DMA (es. durante il Wi-Fi); riprende con audio_out_resume
+bool audio_out_resume();
 bool audio_out_set_rate(uint32_t sample_rate);   // riconfigura I2S + ES8311 se cambia
 uint32_t audio_out_rate();
 uint32_t audio_out_underruns();      // quante volte il buffer I2S si è svuotato

@@ -17,6 +17,7 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
   swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*)
 - **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
 - **Gesto indietro** come su Android: trascina dal bordo sinistro verso l'interno
+- **Trasferimento file via Wi-Fi** dal browser (vedi sotto)
 - **Selettore dispositivo** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
 - Mini player sempre visibile, riprende brano e posizione (salvata in pausa) all'accensione
 - FLAC 8–32 bit, 8–96 kHz; i file a 176.4/192 kHz vengono decimati a 88.2/96 kHz
@@ -78,7 +79,7 @@ dal selettore dispositivo (icona altoparlante/cuffie nel mini player).
    - PSRAM: **OPI PSRAM**
    - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**
    - USB CDC On Boot: **Enabled**
-4. Carica. Il firmware occupa circa 1 MB.
+4. Carica. Il firmware occupa circa 1,7 MB (con il Wi-Fi).
 
 La prima compilazione dura qualche minuto in più (compila anche LVGL); le successive sono veloci.
 La versione precedente con LVGL 8.4 esterna è nel branch `lvgl8`.
@@ -93,6 +94,27 @@ La versione precedente con LVGL 8.4 esterna è nel branch `lvgl8`.
   usare **Impostazioni → Aggiorna libreria**.
 - Cache, preferiti e statistiche stanno in `/.onda` (puoi cancellarla: verrà ricreata).
 
+## Trasferimento file via Wi-Fi
+
+**Impostazioni → Trasferimento file**: il lettore accende il Wi-Fi e apre una pagina web per
+gestire la microSD dal browser (computer o telefono):
+
+- carica file o intere cartelle (anche trascinandole nella pagina), con avanzamento e velocità
+- crea cartelle, rinomina, sposta, elimina, scarica; i file nascosti (es. `/.onda`) solo su richiesta
+- **Aggiorna libreria** (nella pagina) oppure **indietro** sul lettore: il Wi-Fi si spegne,
+  vengono letti solo i file nuovi e la riproduzione riprende da dove eri
+
+Rete: dalla schermata del lettore scegli la **rete di casa** (password con la tastiera a schermo);
+poi la pagina è su `http://onda.local` o sull'IP mostrato, con il codice QR. Senza rete salvata
+(o se non è raggiungibile) il lettore crea un **hotspot** `onda-XXXX`: inquadra il codice QR col
+telefono per collegarti, poi apri `http://192.168.4.1`.
+
+Durante il trasferimento la musica è in pausa: Wi-Fi e uscita audio non stanno insieme nella RAM
+interna del chip. La velocità tipica è di circa 0,5-1 MB/s.
+
+La pagina web è in `tools/web/index.html`; dopo averla modificata rigenera
+`src/net/web_index.h` con `python3 tools/web/embed.py`.
+
 ## Struttura del progetto
 
 ```
@@ -105,10 +127,12 @@ FlacPlayer/
   src/audio/player.*      task di decodifica (dr_flac), coda, shuffle/repeat, rampe anti-click
   src/lib/                scansione SD, tag FLAC, indice, ricerca, preferiti, copertine (TJpgDec)
   src/ui/                 pagine LVGL (Home, Cerca, Libreria, Album, Artista, In riproduzione...)
+  src/net/                trasferimento file: Wi-Fi, hotspot, mDNS, server HTTP e pagina web
   src/fonts/              font generati (Figtree + icone Font Awesome)
   src/lvgl/               LVGL 9.5.0 (solo i file necessari, licenza MIT)
   src/lv_conf.h           configurazione LVGL
 tools/gen_fonts.sh        rigenera i font con lv_font_conv
+tools/web/                pagina web del trasferimento file (+ embed.py)
 ```
 
 ## Limiti noti

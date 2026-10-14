@@ -44,6 +44,8 @@ void player_set_repeat(RepeatMode r);
 void player_enqueue(uint16_t track);       // "Aggiungi in coda"
 void player_jump(int upcoming_index);      // salta a un elemento di player_upcoming()
 void player_stop();
+// Ferma il task di uscita (true) finché serve liberare/riconfigurare l'I2S; false = riprende
+void player_hold_output(bool hold);
 
 PlayerStatus player_status();
 PlayContext player_context();

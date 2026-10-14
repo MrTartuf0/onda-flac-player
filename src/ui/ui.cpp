@@ -37,6 +37,8 @@ bool s_last_playing = false;
 uint32_t s_last_save = 0;
 uint32_t s_last_pos_save = 0;
 LibState s_last_lib = LIB_IDLE;
+bool s_restore_pending = false;   // ripristina la sessione al termine della prossima scansione
+bool s_saw_scan = false;
 
 // ------------------------------------------------------------- sessione ----
 void save_session(bool with_pos) {
@@ -397,7 +399,15 @@ lv_obj_t *ui_page_scroll(Page *p) {
 }
 
 void ui_push(Page *p) {
-  s_stack[s_tab].push_back(p);
+  auto &st = s_stack[s_tab];
+  st.push_back(p);
+  // cronologia limitata: le pagine restano in memoria per il "indietro", oltre
+  // una certa profondità si libera la più vecchia (la radice della scheda resta)
+  constexpr size_t kMaxDepth = 8;
+  while (st.size() > kMaxDepth) {
+    delete st[1];
+    st.erase(st.begin() + 1);
+  }
   show_only_top();
 }
 
@@ -409,6 +419,7 @@ void ui_pop() {
 }
 
 void ui_back() {
+  if (ui_transfer_back()) return;
   if (!s_main_built) return;
   if (ui_sheet_close()) return;
   if (ui_queue_visible()) {
@@ -535,7 +546,20 @@ void ui_set_brightness(uint8_t pct) {
   if (s_bright_fn) s_bright_fn(pct);
 }
 
-void ui_request_rescan() {
+void ui_session_save() { save_session(true); }
+
+void ui_after_transfer(bool changed) {
+  if (changed) {
+    // nuovi file: scansione (veloce, riusa i tag già letti) e poi si riprende da dove eri
+    s_restore_pending = true;
+    s_saw_scan = false;
+    ui_request_rescan(false);
+  } else {
+    restore_session();
+  }
+}
+
+void ui_request_rescan(bool force) {
   if (!s_rescan_fn) return;
   player_stop();
   s_main_built = false;
@@ -544,7 +568,7 @@ void ui_request_rescan() {
   art_flush_unused();
   lv_obj_remove_flag(s_boot, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_to_index(s_boot, -1);
-  s_rescan_fn(true);
+  s_rescan_fn(force);
 }
 
 void ui_init(RescanFn rescan, BrightnessFn bright) {
@@ -594,6 +618,7 @@ void ui_tick() {
   // ---- stato libreria ----
   LibProgress lp = lib_progress();
   if (lp.state != LIB_READY) {
+    if (lp.state == LIB_SCANNING) s_saw_scan = true;
     if (s_main_built && lp.state == LIB_SCANNING) {
       s_main_built = false;
       destroy_pages();
@@ -606,10 +631,17 @@ void ui_tick() {
   }
   if (!s_main_built) {
     build_main();
-    if (s_last_track == -2) restore_session();
+    if (s_last_track == -2) {
+      restore_session();
+    } else if (s_restore_pending && s_saw_scan) {
+      s_restore_pending = false;
+      restore_session();
+    }
     s_last_track = -1;
   }
   s_last_lib = lp.state;
+
+  ui_transfer_tick();
 
   // ---- eventi del player ----
   plat_where(0, 10);   // 10: eventi del player

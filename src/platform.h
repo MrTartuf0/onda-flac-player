@@ -14,6 +14,9 @@ void plat_log(const char *fmt, ...);
 // Impostazioni persistenti (NVS su ESP32)
 int32_t plat_kv_get(const char *key, int32_t def);
 void plat_kv_set(const char *key, int32_t v);
+// stringhe (es. rete Wi-Fi): out deve contenere almeno n byte
+void plat_kv_get_str(const char *key, char *out, size_t n);
+void plat_kv_set_str(const char *key, const char *v);
 
 // Diagnostica di avvio: "briciole" in memoria RTC che sopravvivono a un crash.
 // slot 0 = interfaccia/loop, 1 = scansione SD, 2 = player

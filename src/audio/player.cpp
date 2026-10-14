@@ -23,6 +23,7 @@ namespace {
 constexpr int kFrames = 512;               // frame per blocco di decodifica
 constexpr int kOutFrames = 256;            // frame per scrittura I2S
 constexpr uint32_t kRingFrames = 131072;   // 1 MB: ~3 s a 44.1 kHz, ~1.4 s a 96 kHz
+constexpr size_t kFileBuf = 8 * 1024;   // buffer di lettura del file (RAM interna: la SD ci scrive in DMA)
 
 enum CmdType : uint8_t { C_PLAY, C_TOGGLE, C_PAUSE, C_RESUME, C_NEXT, C_PREV, C_SEEK, C_SHUFFLE,
                          C_REPEAT, C_JUMP, C_STOP };
@@ -249,7 +250,7 @@ bool open_track(int track, bool deferred = false, int manual = -1) {
     plat_where(2, 20);   // 20: fopen
     s_fp = fopen(path, "rb");
     if (s_fp) {
-      setvbuf(s_fp, s_fbuf, _IOFBF, 16 * 1024);
+      setvbuf(s_fp, s_fbuf, _IOFBF, kFileBuf);
       plat_where(2, 21);   // 21: drflac_open
       s_fl = drflac_open(cb_read, cb_seek, cb_tell, s_fp, &kFlAlloc);
     }
@@ -740,14 +741,14 @@ void player_begin(TrackPathFn resolver) {
   mtx();
   s_q = xQueueCreate(16, sizeof(Cmd));
   s_ring = (int32_t *)heap_caps_malloc(kRingFrames * 8, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-  s_fbuf = (char *)heap_caps_malloc(16 * 1024, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  s_fbuf = (char *)heap_caps_malloc(kFileBuf, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   s_tmp = (int32_t *)heap_caps_malloc(kFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   s_mix = (int32_t *)heap_caps_malloc(kFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   s_out = (int32_t *)heap_caps_malloc(kOutFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (!s_ring || !s_fbuf || !s_tmp || !s_mix || !s_out) Serial.println("[player] memoria insufficiente");
   // uscita: priorità alta, core 0. Decoder: priorità media, qualunque core libero.
   xTaskCreatePinnedToCore(output_task, "i2s", 4096, nullptr, configMAX_PRIORITIES - 3, nullptr, 0);
-  xTaskCreatePinnedToCore(decoder_task, "flac", 16 * 1024, nullptr, 3, nullptr, tskNO_AFFINITY);
+  xTaskCreatePinnedToCore(decoder_task, "flac", 12 * 1024, nullptr, 3, nullptr, tskNO_AFFINITY);
 }
 
 void player_play_list(const std::vector<uint16_t> &tracks, int start, const PlayContext &ctx,
@@ -769,6 +770,7 @@ void player_resume() { send(C_RESUME); }
 void player_next() { send(C_NEXT); }
 void player_prev() { send(C_PREV); }
 void player_seek_ms(uint32_t ms) { send(C_SEEK, 0, ms); }
+void player_hold_output(bool hold) { out_hold(hold); }
 void player_set_shuffle(bool on) { send(C_SHUFFLE, on); }
 void player_set_repeat(RepeatMode r) { send(C_REPEAT, r); }
 void player_jump(int i) { send(C_JUMP, i); }

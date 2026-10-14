@@ -17,6 +17,7 @@ class SettingsPage : public Page {
   static void back_cb(lv_event_t *) { ui_pop(); }
   static void out_cb(lv_event_t *) { ui_device_sheet(); }
   static void rescan_cb(lv_event_t *) { ui_request_rescan(); }
+  static void xfer_cb(lv_event_t *) { ui_transfer_open(); }
   static void pause_cb(lv_event_t *e) {
     bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
     audio_out_set_pause_on_unplug(on);
@@ -120,6 +121,9 @@ class SettingsPage : public Page {
     lv_obj_set_style_bg_color(sl, C_TEXT, LV_PART_KNOB);
     lv_obj_set_style_pad_all(sl, 5, LV_PART_KNOB);
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_VALUE_CHANGED, this);
+
+    section("Wi-Fi");
+    row("Trasferimento file", "Carica e gestisci la musica dal browser", xfer_cb);
 
     section("Libreria");
     char buf[96];

@@ -128,7 +128,7 @@ void setup() {
 
   // Le allocazioni piccole (oggetti LVGL, indice della libreria, stringhe...) vanno
   // in PSRAM: la RAM interna (~300 KB) resta per DMA, stack e sistema operativo.
-  heap_caps_malloc_extmem_enable(64);
+  heap_caps_malloc_extmem_enable(16);
 
   const char *reason = "";
   uint32_t crashes = plat_boot_check(&reason);

@@ -90,28 +90,17 @@ i2s_std_clk_config_t clk_for(uint32_t rate) {
   return c;
 }
 
-}  // namespace
-
-bool audio_out_begin() {
-  pinMode(AMP_PIN_EN, OUTPUT);
-  digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);   // ampli spento finché non è tutto pronto
-#if HP_DETECT_PIN >= 0
-  pinMode(HP_DETECT_PIN, INPUT_PULLUP);
-#endif
-
-  plat_mark(0, "audio: I2S");
+bool i2s_create(uint32_t rate) {
   i2s_chan_config_t cc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
-  cc.dma_desc_num = 8;   // ~90 ms di buffer a 44.1 kHz
-  cc.dma_frame_num = 511;       // 511 frame * 8 byte = 4088 byte per descrittore
+  cc.dma_desc_num = 6;          // ~65 ms di buffer a 44.1 kHz (il resto lo fa il buffer in PSRAM)
+  cc.dma_frame_num = 480;       // 480 frame * 8 byte = 3840 byte per descrittore
   cc.auto_clear = true;         // silenzio in caso di underrun / pausa
   if (i2s_new_channel(&cc, &s_tx, nullptr) != ESP_OK) return false;
   i2s_event_callbacks_t cbs = {};
   cbs.on_send_q_ovf = on_underrun;
   i2s_channel_register_event_callback(s_tx, &cbs, nullptr);
-
-  s_rate = 44100;
   i2s_std_config_t sc = {
-    .clk_cfg = clk_for(s_rate),
+    .clk_cfg = clk_for(rate),
     .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
     .gpio_cfg = {
       .mclk = (gpio_num_t)I2S_PIN_MCLK,
@@ -122,9 +111,48 @@ bool audio_out_begin() {
       .invert_flags = {false, false, false},
     },
   };
-  if (i2s_channel_init_std_mode(s_tx, &sc) != ESP_OK) return false;
-  if (i2s_channel_enable(s_tx) != ESP_OK) return false;
+  if (i2s_channel_init_std_mode(s_tx, &sc) != ESP_OK || i2s_channel_enable(s_tx) != ESP_OK) {
+    i2s_del_channel(s_tx);
+    s_tx = nullptr;
+    return false;
+  }
   route_mirror_pins();
+  return true;
+}
+
+}  // namespace
+
+// Libera il canale I2S (e i suoi ~33 KB di buffer DMA in RAM interna) finché
+// serve memoria per altro, es. il Wi-Fi del trasferimento file.
+void audio_out_suspend() {
+  if (!s_tx) return;
+  digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);
+  es8311_mute(true);
+  i2s_chan_handle_t t = s_tx;
+  s_tx = nullptr;
+  i2s_channel_disable(t);
+  i2s_del_channel(t);
+}
+
+bool audio_out_resume() {
+  if (s_tx) return true;
+  if (!i2s_create(s_rate)) return false;
+  delay(5);
+  es8311_begin(s_rate, s_rate * es8311_mclk_multiple(s_rate));
+  apply_device(s_active);
+  return true;
+}
+
+bool audio_out_begin() {
+  pinMode(AMP_PIN_EN, OUTPUT);
+  digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);   // ampli spento finché non è tutto pronto
+#if HP_DETECT_PIN >= 0
+  pinMode(HP_DETECT_PIN, INPUT_PULLUP);
+#endif
+
+  plat_mark(0, "audio: I2S");
+  s_rate = 44100;
+  if (!i2s_create(s_rate)) return false;
 
   plat_mark(0, "audio: codec ES8311");
   // Il codec vuole MCLK attivo prima della configurazione
@@ -166,7 +194,10 @@ bool audio_out_set_rate(uint32_t rate) {
 }
 
 size_t audio_out_write(const int32_t *frames, size_t n, uint32_t timeout_ms) {
-  if (!s_tx) return 0;
+  if (!s_tx) {   // uscita sospesa: non far girare a vuoto chi scrive
+    vTaskDelay(pdMS_TO_TICKS(10));
+    return 0;
+  }
   size_t written = 0;
   i2s_channel_write(s_tx, frames, n * 8, &written, pdMS_TO_TICKS(timeout_ms));
   return written / 8;

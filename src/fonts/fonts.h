@@ -53,3 +53,6 @@ LV_FONT_DECLARE(icons_28);
 #define IC_BARS          "\xEF\x95\x90"
 #define IC_SUN           "\xEF\x86\x85"
 #define IC_CHECK_CIRCLE  "\xEF\x81\x98"
+#define IC_WIFI          "\xEF\x87\xAB"
+#define IC_LOCK          "\xEF\x80\xA3"
+#define IC_UPLOAD        "\xEF\x82\x93"
