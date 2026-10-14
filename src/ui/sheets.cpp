@@ -228,6 +228,12 @@ void menu_artist_cb(lv_event_t *) {
 
 }  // namespace
 
+bool ui_sheet_close() {
+  if (!s_backdrop) return false;
+  sheet_close();
+  return true;
+}
+
 void ui_device_sheet() {
   lv_obj_t *sh = sheet_open();
   device_fill(sh);

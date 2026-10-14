@@ -9,6 +9,7 @@
 #include "../audio/player.h"
 #include "../audio/audio_out.h"
 #include "../platform.h"
+#include "../hal/edge_swipe.h"
 
 namespace {
 
@@ -335,6 +336,51 @@ void refresh_visible(uint32_t what) {
 
 // ================================================================= API ==
 
+// ------------------------------------------------- gesto "indietro" ----
+// Cerchio con la freccia che esce dal bordo sinistro mentre trascini il dito
+// (come su Android); oltre la soglia diventa bianco e al rilascio torna indietro.
+static lv_obj_t *s_edge = nullptr;
+static lv_obj_t *s_edge_ic = nullptr;
+static bool s_edge_live = false;
+
+static void edge_build() {
+  s_edge = ui_box(lv_layer_top());
+  lv_obj_set_size(s_edge, 38, 38);
+  lv_obj_set_style_radius(s_edge, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(s_edge, LV_OPA_COVER, 0);
+  s_edge_ic = ui_icon(s_edge, &icons_14, IC_BACK, C_TEXT);
+  lv_obj_center(s_edge_ic);
+  lv_obj_add_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void edge_update(int dx, int y) {
+  if (!s_edge || !s_main_built) return;
+  if (!s_edge_live) {
+    s_edge_live = true;
+    lv_obj_move_to_index(s_edge, -1);   // sopra a fogli e schermate
+    lv_obj_remove_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+  }
+  int d = dx < 0 ? 0 : (dx > EDGE_SWIPE_COMMIT ? EDGE_SWIPE_COMMIT : dx);
+  bool armed = dx >= EDGE_SWIPE_COMMIT;
+  int yy = y - 19;
+  if (yy < 4) yy = 4;
+  if (yy > SCR_H - 42) yy = SCR_H - 42;
+  lv_obj_set_pos(s_edge, -38 + d * 46 / EDGE_SWIPE_COMMIT, yy);
+  lv_obj_set_style_bg_color(s_edge, armed ? C_TEXT : lv_color_hex(0x3A3A3A), 0);
+  lv_obj_set_style_text_color(s_edge_ic, armed ? C_BLACK : C_TEXT, 0);
+}
+
+static void edge_back_async(void *) { ui_back(); }
+
+static void edge_end(bool commit) {
+  s_edge_live = false;
+  if (s_edge) lv_obj_add_flag(s_edge, LV_OBJ_FLAG_HIDDEN);
+  // fuori dalla lettura del touch: la navigazione può eliminare oggetti
+  if (commit && s_main_built) lv_async_call(edge_back_async, nullptr);
+}
+
+static bool edge_excluded(int x, int y) { return s_main_built && ui_nowplaying_blocks_edge(x, y); }
+
 lv_obj_t *ui_page_root() { return s_pages; }
 
 lv_obj_t *ui_page_scroll(Page *p) {
@@ -360,6 +406,26 @@ void ui_pop() {
   delete s_stack[s_tab].back();
   s_stack[s_tab].pop_back();
   show_only_top();
+}
+
+void ui_back() {
+  if (!s_main_built) return;
+  if (ui_sheet_close()) return;
+  if (ui_queue_visible()) {
+    ui_queue_close();
+    return;
+  }
+  if (ui_nowplaying_visible()) {
+    ui_nowplaying_close();
+    return;
+  }
+  Page *p = top_page();
+  if (p && p->on_back()) return;
+  if (s_stack[s_tab].size() > 1) {
+    ui_pop();
+    return;
+  }
+  if (s_tab != TAB_HOME) ui_switch_tab(TAB_HOME);   // come Android/Spotify: dalla radice si torna a Home
 }
 
 void ui_switch_tab(Tab t) {
@@ -512,6 +578,13 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   lv_obj_t *tl = ui_label(s_toast, &font_b12, C_BLACK, "");
   lv_obj_set_width(tl, lv_pct(100));
   lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
+
+  edge_build();
+  EdgeSwipeHooks h;
+  h.update = edge_update;
+  h.end = edge_end;
+  h.excluded = edge_excluded;
+  edge_swipe_set_hooks(h);
 
   ui_set_brightness(plat_kv_get("bright", 80));
   lv_timer_create([](lv_timer_t *) { ui_tick(); }, 100, nullptr);

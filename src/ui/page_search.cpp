@@ -361,6 +361,18 @@ class SearchPage : public Page {
     if (kb_visible) show_kb(false);
   }
 
+  bool on_back() override {
+    if (kb_visible) {
+      show_kb(false);
+      return true;
+    }
+    if (!lv_obj_has_flag(view, LV_OBJ_FLAG_HIDDEN)) {
+      leave();
+      return true;
+    }
+    return false;
+  }
+
   void refresh(uint32_t what) override {
     if (what & RF_PLAYER) list.rebind_all();
   }

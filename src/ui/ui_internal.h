@@ -93,6 +93,7 @@ class Page {
   }
   virtual void refresh(uint32_t what) { (void)what; }
   virtual void on_show() {}
+  virtual bool on_back() { return false; }   // gesto "indietro": true = gestito dalla pagina
 };
 
 enum Tab : uint8_t { TAB_HOME = 0, TAB_SEARCH = 1, TAB_LIBRARY = 2 };
@@ -125,6 +126,11 @@ void ui_toast(const char *msg);
 void ui_track_menu(int track);
 void ui_device_sheet();
 void ui_queue_open();
+bool ui_queue_visible();
+void ui_queue_close();
+bool ui_sheet_close();                       // chiude il foglio aperto; false se non ce n'era
+void ui_back();                              // "indietro": foglio, coda, in riproduzione, pagina
+bool ui_nowplaying_blocks_edge(int x, int y);   // zone dove il gesto dal bordo è disattivato
 void ui_nowplaying_open();
 void ui_nowplaying_close();
 bool ui_nowplaying_visible();

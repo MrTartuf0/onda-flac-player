@@ -7,6 +7,7 @@
 #include "../lvgl/lvgl.h"
 #include "../config.h"
 #include "../platform.h"
+#include "edge_swipe.h"
 
 namespace {
 
@@ -89,17 +90,14 @@ bool tp_read(uint16_t &x, uint16_t &y) {
 }
 
 void touch_cb(lv_indev_t *, lv_indev_data_t *data) {
-  static uint16_t lx = 0, ly = 0;
-  uint16_t x, y;
-  if (tp_read(x, y)) {
-    lx = x;
-    ly = y;
-    data->state = LV_INDEV_STATE_PRESSED;
-  } else {
-    data->state = LV_INDEV_STATE_RELEASED;
-  }
-  data->point.x = lx;
-  data->point.y = ly;
+  uint16_t x = 0, y = 0;
+  bool down = tp_read(x, y);
+  // il filtro intercetta il gesto "indietro" dal bordo sinistro
+  int ox, oy;
+  bool pressed = edge_swipe_filter(down, x, y, &ox, &oy, millis());
+  data->state = pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+  data->point.x = ox;
+  data->point.y = oy;
 }
 
 uint32_t tick_cb() { return millis(); }
