@@ -13,11 +13,12 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 - **Cerca**: ricerca istantanea (senza accenti: "bjork" trova "Björk") + "Sfoglia tutto" per genere
 - **La tua libreria**: filtri Playlist / Album / Artisti / Generi, ordinamento Recenti / Alfabetico
 - Pagine **album**, **artista** (Popolari + Discografia), **playlist** `.m3u`, **Brani che ti piacciono**
-- **In riproduzione**: copertina, gradiente col colore dell'album, seek, shuffle, ripeti (tutto / brano),
-  swipe sinistra/destra per cambiare brano, swipe giù per chiudere, formato (es. *FLAC 24 bit • 96 kHz*)
-- **Coda** e "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
+- **In riproduzione**: copertina, gradiente col colore dell'album, seek, casuale, uscita audio con volume,
+  swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*)
+- **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
+- **Gesto indietro** come su Android: trascina dal bordo sinistro verso l'interno
 - **Selettore dispositivo** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
-- Mini player sempre visibile, riprende brano e posizione all'accensione
+- Mini player sempre visibile, riprende brano e posizione (salvata in pausa) all'accensione
 - FLAC 8–32 bit, 8–96 kHz; i file a 176.4/192 kHz vengono decimati a 88.2/96 kHz
 - Copertine JPEG incorporate nel FLAC o `cover.jpg` / `folder.jpg` / `front.jpg` nella cartella
 
@@ -80,7 +81,7 @@ dal selettore dispositivo (icona altoparlante/cuffie nel mini player).
 4. Carica. Il firmware occupa circa 1 MB.
 
 La prima compilazione dura qualche minuto in più (compila anche LVGL); le successive sono veloci.
-La versione precedente con LVGL 8.4 esterna è sul branch `main`.
+La versione precedente con LVGL 8.4 esterna è nel tag `lvgl8-finale`.
 
 ## La scheda microSD
 
