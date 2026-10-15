@@ -26,6 +26,7 @@
 #include "src/hal/display.h"
 #include "src/hal/battery.h"
 #include "src/net/xfer.h"
+#include "src/power.h"
 #include "src/audio/audio_out.h"
 #include "src/audio/player.h"
 #include "src/lib/library.h"
@@ -93,44 +94,6 @@ static void safe_mode(uint32_t crashes, const char *reason) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Batteria esaurita: avviso, poi standby profondo (consumo minimo). Si riaccende
-// toccando lo schermo o col tasto BOOT; se la batteria è ancora troppo scarica
-// mostra di nuovo l'avviso e torna in standby.
-// ---------------------------------------------------------------------------
-static void battery_power_off(bool at_boot) {
-  Serial.printf("[bat] batteria esaurita (%d mV): standby\n", battery_read_mv());
-  plat_event("batteria esaurita");
-  ui_battery_empty_screen(at_boot);   // salva la sessione e mette in pausa
-  for (uint32_t t0 = millis(); millis() - t0 < 5000;) {
-    lv_timer_handler();
-    delay(5);
-  }
-  if (!at_boot) {
-    audio_out_suspend();
-    SD_MMC.end();
-  }
-  display_sleep();
-  pinMode(AMP_PIN_EN, OUTPUT);
-  digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);   // amplificatore spento
-  gpio_hold_en((gpio_num_t)AMP_PIN_EN);
-  gpio_deep_sleep_hold_en();
-
-  // risveglio: tasto BOOT o tocco (il touch abbassa INT); se INT resta basso
-  // (dito sullo schermo o touch in un'altra modalità) aspetta, poi solo BOOT
-  uint64_t mask = 1ULL << BTN_BOOT_PIN;
-  for (uint32_t t0 = millis(); millis() - t0 < 3000 && digitalRead(TP_PIN_INT) == LOW;) delay(10);
-  if (digitalRead(TP_PIN_INT) == HIGH) mask |= 1ULL << TP_PIN_INT;
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);   // tiene le resistenze di pull-up
-  for (int pin : {BTN_BOOT_PIN, TP_PIN_INT}) {
-    rtc_gpio_pullup_en((gpio_num_t)pin);
-    rtc_gpio_pulldown_dis((gpio_num_t)pin);
-  }
-  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_LOW);
-  Serial.flush();
-  esp_deep_sleep_start();
-}
-
 // Cosa sta consumando.
 //  - sig: quando cambia, il salto di tensione della batteria non è il cavo
 //    collegato o staccato (vedi battery_poll);
@@ -143,7 +106,9 @@ static void load_probe(uint32_t *sig, int *ma) {
   uint8_t br = display_brightness();
   *sig = (playing ? 1u : 0u) | (uint32_t)d << 1 | (uint32_t)(audio_out_volume(d) / 8) << 2 |
          (uint32_t)wifi << 7 | (uint32_t)(br / 10) << 8;
-  float m = 70;                  // ESP32-S3 a 240 MHz con PSRAM, logica del display, touch
+  uint32_t mhz = getCpuFrequencyMhz();
+  *sig |= (mhz / 80) << 12;
+  float m = 30 + 40 * mhz / 240.0f;   // ESP32-S3 (70 mA a 240 MHz) con PSRAM, logica del display, touch
   if (playing) m += 12;          // decodifica FLAC e letture dalla microSD
   m += 4 + 0.66f * br;           // retroilluminazione (~70 mA al massimo)
   if (d == DEV_SPEAKER) {
@@ -190,15 +155,19 @@ static void scan_task(void *) {
 static void request_rescan(bool force) { s_scan_req = force ? 2 : 1; }
 
 void setup() {
-  // dopo lo standby per batteria scarica: libera i pin tenuti fermi (retroilluminazione, amplificatore)
+  // dopo lo spegnimento (deep sleep): libera i pin tenuti fermi (retroilluminazione,
+  // amplificatore) e riporta tasto e touch a GPIO normali
+  bool woke = esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT1;
   gpio_deep_sleep_hold_dis();
   gpio_hold_dis((gpio_num_t)LCD_PIN_BL);
   gpio_hold_dis((gpio_num_t)AMP_PIN_EN);
+  rtc_gpio_deinit((gpio_num_t)BTN_BOOT_PIN);
+  rtc_gpio_deinit((gpio_num_t)TP_PIN_INT);
   Serial.begin(115200);
   // Se il Mac/PC non sta leggendo la porta, le stampe vengono scartate invece di
   // bloccare il programma (di default aspetterebbero fino a 100 ms ciascuna).
   Serial.setTxTimeoutMs(0);
-  delay(1500);   // tempo per aprire il monitor seriale USB
+  if (!woke) delay(1500);   // tempo per aprire il monitor seriale USB (non quando lo riaccendi col tasto)
   Serial.println("\n== " APP_NAME " - lettore FLAC (firmware del " __DATE__ " " __TIME__ ") ==");
   Serial.printf("PSRAM: %u KB liberi\n", (unsigned)(ESP.getFreePsram() / 1024));
 
@@ -223,7 +192,7 @@ void setup() {
   battery_set_load_factor(plat_kv_get("bat_k", 1000) / 1000.0f);
   int bmv = battery_read_mv();
   Serial.printf("[bat] %d mV all'avvio\n", bmv);
-  if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) battery_power_off(true);
+  if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) power_off(PWR_BATTERY_BOOT);
   BOOT_STEP("interfaccia");
   ui_init(request_rescan, display_set_brightness);
   lv_timer_handler();   // disegna subito la schermata di avvio
@@ -242,6 +211,7 @@ void setup() {
   if (xTaskCreatePinnedToCoreWithCaps(scan_task, "scan", 24 * 1024, nullptr, 2, nullptr, 0,
                                       MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS)
     xTaskCreatePinnedToCore(scan_task, "scan", 24 * 1024, nullptr, 2, nullptr, 0);
+  power_begin();   // tasto BOOT, spegnimento automatico dello schermo
   BOOT_STEP("setup completato");
 }
 
@@ -274,7 +244,9 @@ void loop() {
     last_k_t = millis();
     ui_pref_set("bat_k", (int32_t)(battery_load_factor() * 1000 + 0.5f));
   }
-  if (stage == 2 && battery_info().critical) battery_power_off(false);
+  if (stage == 2 && battery_info().critical) power_off(PWR_BATTERY);
+  plat_where(0, 6);   // 6: tasto BOOT, schermo e risparmio energetico
+  power_poll();
   plat_where(0, 5);   // 5: diagnostica RAM
   plat_heap_check();
   static uint32_t last_perf = 0;

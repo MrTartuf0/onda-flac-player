@@ -22,6 +22,8 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 - **Trasferimento file via Wi-Fi** dal browser (vedi sotto)
 - **Batteria**: percentuale e stato di ricarica nel centro di controllo, avvisi al 10% e 5%,
   standby automatico quando è esaurita (vedi sotto)
+- **Tasto BOOT come tasto di accensione**: schermo spento con la musica che continua (es. in
+  tasca), play/pausa, spegnimento completo; schermo che si spegne da solo (vedi sotto)
 - **Uscita audio** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
 - Mini player sempre visibile, riprende brano e posizione (salvata in pausa) all'accensione
 - FLAC 8–32 bit, 8–96 kHz; i file a 176.4/192 kHz vengono decimati a 88.2/96 kHz
@@ -159,8 +161,31 @@ stimato alla carica completa.
 - La percentuale è una stima dalla curva tipica di una LiPo: durante l'ascolto può oscillare di
   qualche punto. Se la tensione mostrata in Impostazioni differisce da quella misurata col tester,
   correggila con `BAT_OFFSET_MV` in `src/config.h`.
-- In standby la scheda consuma ancora un po' (display, DAC esterno): per lunghi periodi di
-  inutilizzo scollega la batteria.
+- Da spento (deep sleep) la scheda consuma ancora un po' (regolatore, display, touch, DAC
+  esterno): per lunghi periodi di inutilizzo scollega la batteria.
+
+## Tasto BOOT e risparmio energetico
+
+Il tasto **BOOT** della scheda (IO0) fa da tasto di accensione, così non serve nessun pin in più:
+
+| Tasto BOOT | Cosa fa |
+|---|---|
+| 1 clic | spegne o riaccende lo schermo; la musica continua |
+| 2 clic | play / pausa (anche a schermo spento, ad esempio in tasca) |
+| tenuto premuto ~1 s | spegnimento completo (deep sleep); si riaccende premendolo di nuovo |
+
+- **Schermo che si spegne da solo** dopo 30 secondi senza toccarlo (Impostazioni → Schermo:
+  15 s, 30 s, 1 min, 2 min, 5 min o Mai). Se si è spento da solo un tocco lo riaccende
+  (disattivabile con *Riattiva toccando*); se l'hai spento col tasto il touch resta bloccato e
+  si riaccende solo col tasto, così in tasca non parte nulla per sbaglio. Il tocco che riaccende
+  lo schermo non arriva all'interfaccia. Durante il trasferimento file lo schermo resta acceso.
+- **A schermo spento** il display va in sleep (retroilluminazione spenta), LVGL non ridisegna
+  nulla e il processore scende a 80 MHz (160 MHz per i file oltre i 48 kHz; `SCREEN_OFF_CPU_MHZ`
+  in `src/config.h`, 0 = sempre a 240 MHz). La musica e il resto continuano normalmente.
+- **Spegnimento automatico**: in pausa, a batteria e senza toccarlo per 10 minuti il lettore
+  salva il punto in cui eri e si spegne (Impostazioni → Tasto BOOT: 5, 10, 30, 60 min o Mai).
+  Col cavo collegato non si spegne. C'è anche *Spegni ora*.
+- Alla riaccensione riparte da dove eri (brano e posizione), senza l'attesa iniziale.
 
 ## Struttura del progetto
 
@@ -170,6 +195,7 @@ FlacPlayer/
   src/config.h            pin e opzioni
   src/hal/display.*       ILI9341 via esp_lcd (SPI+DMA), touch FT6336U, driver LVGL
   src/hal/battery.*       lettura della batteria, stima di percentuale e stato di ricarica
+  src/power.*             tasto BOOT, schermo spento, spegnimento (deep sleep), frequenza CPU
   src/hal/edge_swipe.*    gesti dai bordi: "indietro" (sinistra) e centro di controllo (in basso)
   src/audio/es8311.*      codec dello speaker
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi

@@ -9,6 +9,7 @@
 #include "../config.h"
 #include "../platform.h"
 #include "edge_swipe.h"
+#include "../power.h"
 
 namespace {
 
@@ -92,7 +93,10 @@ bool tp_read(uint16_t &x, uint16_t &y) {
 
 void touch_cb(lv_indev_t *, lv_indev_data_t *data) {
   uint16_t x = 0, y = 0;
-  bool down = tp_read(x, y);
+  // a schermo spento col tasto il touch non si legge nemmeno; a schermo spento
+  // da solo un tocco lo riaccende ma non arriva all'interfaccia
+  bool down = power_touch_needed() && tp_read(x, y);
+  if (!power_touch_filter(down)) down = false;
   // il filtro intercetta il gesto "indietro" dal bordo sinistro
   int ox, oy;
   bool pressed = edge_swipe_filter(down, x, y, &ox, &oy, millis());
@@ -106,14 +110,32 @@ uint32_t tick_cb() { return millis(); }
 }  // namespace
 
 static uint8_t s_bright = 0;
+static bool s_panel_on = true;
 
 void display_set_brightness(uint8_t pct) {
   if (pct < 5) pct = 5;
   s_bright = pct;
-  ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
+  if (s_panel_on) ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
 }
 
-uint8_t display_brightness() { return s_bright; }
+uint8_t display_brightness() { return s_panel_on ? s_bright : 0; }
+uint8_t display_brightness_setting() { return s_bright; }
+
+void display_panel(bool on) {
+  if (on == s_panel_on || !s_io) return;
+  if (!on) {
+    ledcWrite(LCD_PIN_BL, 0);
+    for (int i = 0; i < 50 && s_dma_busy; i++) delay(1);
+    esp_lcd_panel_io_tx_param(s_io, 0x28, nullptr, 0);   // display off
+    esp_lcd_panel_io_tx_param(s_io, 0x10, nullptr, 0);   // sleep in: il pannello consuma pochissimo
+    s_panel_on = false;
+  } else {
+    esp_lcd_panel_io_tx_param(s_io, 0x11, nullptr, 0);   // sleep out
+    delay(120);
+    esp_lcd_panel_io_tx_param(s_io, 0x29, nullptr, 0);   // display on (retroilluminazione: dopo il ridisegno)
+    s_panel_on = true;
+  }
+}
 
 void display_sleep() {
   ledcWrite(LCD_PIN_BL, 0);

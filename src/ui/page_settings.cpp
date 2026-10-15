@@ -6,6 +6,7 @@
 #include "../audio/player.h"
 #include "../platform.h"
 #include "../hal/battery.h"
+#include "../power.h"
 
 namespace {
 
@@ -14,6 +15,7 @@ class SettingsPage : public Page {
   lv_obj_t *col, *out_val, *jack_val;
   lv_obj_t *bat_lvl = nullptr, *bat_state = nullptr, *bat_icon = nullptr, *bat_load = nullptr;
   lv_timer_t *bat_timer = nullptr;
+  lv_obj_t *scr_val = nullptr, *off_val = nullptr;
 
   SettingsPage() { build(); }
   ~SettingsPage() override {
@@ -68,6 +70,39 @@ class SettingsPage : public Page {
     bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
     ui_battery_icon_set(bat_icon, b.pct, chg ? C_GREEN : (b.low ? lv_color_hex(0xF15E6C) : C_TEXT));
     lv_obj_remove_flag(bat_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // tocco sulla riga: passa al valore successivo
+  static void scr_cb(lv_event_t *e) {
+    static const int opts[] = {15, 30, 60, 120, 300, 0};
+    int cur = power_screen_timeout_s(), n = sizeof opts / sizeof opts[0], i = 0;
+    while (i < n && opts[i] != cur) i++;
+    power_set_screen_timeout_s(opts[(i + 1) % n]);
+    ((SettingsPage *)lv_event_get_user_data(e))->power_labels();
+  }
+  static void off_cb(lv_event_t *e) {
+    static const int opts[] = {5, 10, 30, 60, 0};
+    int cur = power_auto_off_min(), n = sizeof opts / sizeof opts[0], i = 0;
+    while (i < n && opts[i] != cur) i++;
+    power_set_auto_off_min(opts[(i + 1) % n]);
+    ((SettingsPage *)lv_event_get_user_data(e))->power_labels();
+  }
+  static void touchwake_cb(lv_event_t *e) {
+    power_set_touch_wake(lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
+  }
+  static void poweroff_cb(lv_event_t *) { power_off_later(); }
+
+  void power_labels() {
+    char b[48];
+    int s = power_screen_timeout_s();
+    if (!s) snprintf(b, sizeof b, "Mai");
+    else if (s < 60) snprintf(b, sizeof b, "Dopo %d secondi", s);
+    else snprintf(b, sizeof b, "Dopo %d minut%s", s / 60, s == 60 ? "o" : "i");
+    lv_label_set_text(scr_val, b);
+    int m = power_auto_off_min();
+    if (!m) snprintf(b, sizeof b, "Mai");
+    else snprintf(b, sizeof b, "Dopo %d min in pausa", m);
+    lv_label_set_text(off_val, b);
   }
 
   static void bright_cb(lv_event_t *e) {
@@ -177,6 +212,23 @@ class SettingsPage : public Page {
     lv_obj_set_style_pad_all(sl, 5, LV_PART_KNOB);
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_RELEASED, this);
+
+    lv_obj_t *so = row("Spegni lo schermo", "-", scr_cb);
+    scr_val = lv_obj_get_child(so, 1);
+    toggle("Riattiva toccando", "Se lo schermo si è spento da solo", power_touch_wake(), touchwake_cb);
+
+    section("Tasto BOOT");
+    lv_obj_t *hint = ui_label(col, &font_r12, C_SUB,
+                              "1 clic: schermo spento o acceso, la musica continua\n"
+                              "2 clic: play / pausa\n"
+                              "Tenuto premuto: spegne il lettore (si riaccende col tasto)");
+    lv_obj_set_width(hint, SCR_W - 28);
+    lv_obj_set_style_pad_left(hint, 14, 0);
+    lv_obj_set_style_pad_bottom(hint, 6, 0);
+    lv_obj_t *ao = row("Spegnimento automatico", "-", off_cb);
+    off_val = lv_obj_get_child(ao, 1);
+    row("Spegni ora", "Si riaccende col tasto BOOT", poweroff_cb);
+    power_labels();
 
     section("Wi-Fi");
     row("Trasferimento file", "Carica e gestisci la musica dal browser", xfer_cb);

@@ -78,6 +78,11 @@
 #define BAT_SHUTDOWN_MV      3300  // sotto (a batteria, per 30 s): salva e va in standby
 #define BAT_BOOT_MIN_MV      3400  // all'accensione: sotto questa tensione non parte
 
+// ---------------------------------------------------------------- Energia ----
+//  A schermo spento il processore rallenta (la musica continua): 80 MHz bastano
+//  per i FLAC fino a 48 kHz, sopra si usa 160. Metti 0 per lasciarlo a 240 MHz.
+#define SCREEN_OFF_CPU_MHZ   80
+
 // ------------------------------------------------------------------ Varie ----
 #define LED_RGB_PIN      42
 #define BTN_BOOT_PIN     0

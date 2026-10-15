@@ -95,6 +95,20 @@ void ui_battery_tick() {
   }
 }
 
+void ui_power_off_screen() {
+  player_pause();
+  ui_session_save();
+  lv_obj_t *o = ui_box(lv_layer_top());
+  lv_obj_set_size(o, SCR_W, SCR_H);
+  lv_obj_set_style_bg_color(o, C_BLACK, 0);
+  lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+  lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_t *t = ui_label(o, &font_b20, C_TEXT, "Spegnimento");
+  lv_obj_align(t, LV_ALIGN_CENTER, 0, -10);
+  lv_obj_t *s = ui_label(o, &font_r12, C_SUB, "Premi il tasto BOOT per riaccendere");
+  lv_obj_align(s, LV_ALIGN_CENTER, 0, 18);
+}
+
 // Schermata a tutto schermo prima dello standby (o all'accensione con la batteria
 // troppo scarica). Non serve il resto dell'interfaccia.
 void ui_battery_empty_screen(bool at_boot) {
