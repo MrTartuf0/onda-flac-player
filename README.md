@@ -37,9 +37,9 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 | Touch FT6336U | I2C SDA 16, SCL 15, RST 18, INT 17 | già sulla scheda |
 | microSD (SDMMC 4 bit) | CLK 38, CMD 40, D0 39, D1 41, D2 48, D3 47 | già sulla scheda |
 | Codec ES8311 → ampli SC8002B | MCLK 4, BCLK 5, WS 7, DOUT 8; ampli EN = IO1 (attivo basso) | già sulla scheda |
-| **PCM5102 BCK** | **IO14** | header P3 "Expanded IO" |
-| **PCM5102 LCK** | **IO21** | header P3 |
-| **PCM5102 DIN** | **IO3** | header P3 |
+| **PCM5102 BCK** | **IO21** | header P3 "Expanded IO" |
+| **PCM5102 DIN** | **IO14** | header P3 |
+| **PCM5102 LCK** | **IO3** | header P3 |
 | **Rilevamento cuffie** | **IO2** | header P3 |
 | Batteria (partitore 200k/200k) | IO9 | già sulla scheda, LiPo 3,7 V sul connettore BAT |
 
@@ -47,9 +47,9 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 
 ```
  Freenove P3 (Expanded IO)          Modulo PCM5102 (GY-PCM5102)
-   IO14  ─────────────────────────── BCK
-   IO21  ─────────────────────────── LCK
-   IO3   ─────────────────────────── DIN
+   IO21  ─────────────────────────── BCK
+   IO14  ─────────────────────────── DIN
+   IO3   ─────────────────────────── LCK
  Freenove P4 (I2C)  3V3 ──────────── VIN
                     GND ──────────── GND, SCK (SCK a massa = PLL interno)
 ```
@@ -57,7 +57,7 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 Sul retro del modulo i ponticelli devono essere: **FLT = L, DEMP = L, XSMT = H, FMT = L**
 (è la configurazione di fabbrica della maggior parte dei moduli; se non senti nulla controlla XSMT).
 
-Il segnale I2S è lo stesso che va all'ES8311: il firmware lo **duplica** sui pin 14/21/3 tramite la
+Il segnale I2S è lo stesso che va all'ES8311: il firmware lo **duplica** sui pin 21/14/3 tramite la
 GPIO matrix dell'ESP32-S3, quindi il cambio di uscita è istantaneo, senza riconfigurare nulla. Quando
 sono attive le cuffie l'ampli dello speaker viene spento e il DAC dell'ES8311 messo in muto.
 

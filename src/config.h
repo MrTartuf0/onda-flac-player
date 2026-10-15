@@ -54,9 +54,9 @@
 
 // -------------------------------- DAC esterno PCM5102 (header P3 "Expanded IO") --
 //  Il segnale I2S viene duplicato su questi pin tramite la GPIO matrix.
-#define DAC_PIN_BCK      14
-#define DAC_PIN_LRCK     21
-#define DAC_PIN_DIN      3
+#define DAC_PIN_BCK      21
+#define DAC_PIN_LRCK     3
+#define DAC_PIN_DIN      14
 
 // --------------------------------------------------- Rilevamento cuffie ----
 //  Collega il contatto "detect/switch" di un jack 3.5mm a questo pin.
