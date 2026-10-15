@@ -174,9 +174,9 @@ class HomePage : public Page {
     lv_obj_t *cv = ui_cover(cd, W, round ? LV_RADIUS_CIRCLE : 4);
     ui_cover_set(cv, k, idx);
     lv_obj_t *t = ui_label(cd, &font_b12, C_TEXT, c.name);
+    lv_obj_set_style_margin_top(t, 6, 0);   // margine, non padding: l'altezza della riga resta intera
     ui_dot(t);
     lv_obj_set_width(t, W);
-    lv_obj_set_style_pad_top(t, 6, 0);
     if (round) lv_obj_set_style_text_align(t, LV_TEXT_ALIGN_CENTER, 0);
     if (sub) {
       lv_obj_t *s = ui_label(cd, &font_r12, C_SUB, sub);

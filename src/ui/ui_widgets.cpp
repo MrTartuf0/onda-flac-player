@@ -34,7 +34,9 @@ lv_obj_t *ui_icon(lv_obj_t *parent, const lv_font_t *f, const char *ic, lv_color
 void ui_dot(lv_obj_t *l) {
   lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_DOTS);
   const lv_font_t *f = lv_obj_get_style_text_font(l, LV_PART_MAIN);
-  lv_obj_set_height(l, lv_font_get_line_height(f));
+  // una riga: l'altezza deve contare anche il padding, altrimenti il testo viene tagliato
+  lv_obj_set_height(l, lv_font_get_line_height(f) + lv_obj_get_style_pad_top(l, LV_PART_MAIN) +
+                           lv_obj_get_style_pad_bottom(l, LV_PART_MAIN));
 }
 
 void ui_pressable(lv_obj_t *o) {

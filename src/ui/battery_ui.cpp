@@ -25,10 +25,12 @@ lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h) {
   lv_obj_set_style_border_color(body, C_TEXT, 0);
   lv_obj_set_style_border_opa(body, LV_OPA_70, 0);
   lv_obj_set_style_radius(body, h >= 16 ? 4 : 2, 0);
+  // il livello sta dentro al bordo (1 px) con lo stesso spazio su tutti i lati;
+  // le coordinate dei figli partono già dall'interno del bordo
   lv_obj_t *fill = ui_box(body);
-  int in = h >= 16 ? 3 : 2;
-  lv_obj_set_pos(fill, in, in);
-  lv_obj_set_size(fill, 0, h - 2 * in);
+  int gap = h >= 16 ? 2 : 1;
+  lv_obj_align(fill, LV_ALIGN_LEFT_MID, gap, 0);
+  lv_obj_set_size(fill, 0, h - 2 - 2 * gap);
   lv_obj_set_style_radius(fill, h >= 16 ? 2 : 1, 0);
   lv_obj_set_style_bg_opa(fill, LV_OPA_COVER, 0);
   lv_obj_t *tip = ui_box(wrap);
@@ -45,8 +47,9 @@ lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h) {
 void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c) {
   lv_obj_t *body = lv_obj_get_child(icon, 0);
   lv_obj_t *fill = lv_obj_get_child(body, 0);
-  int in = lv_obj_get_x(fill);
-  int full = lv_obj_get_width(body) - 2 * in;
+  // dimensioni impostate (non serve aspettare il calcolo del layout)
+  int gap = lv_obj_get_style_height(body, LV_PART_MAIN) >= 16 ? 2 : 1;
+  int full = lv_obj_get_style_width(body, LV_PART_MAIN) - 2 - 2 * gap;
   if (pct < 0) pct = 0;
   if (pct > 100) pct = 100;
   int w = (full * pct + 50) / 100;
