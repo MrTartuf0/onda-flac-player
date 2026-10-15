@@ -388,19 +388,49 @@ static IRAM_ATTR void hang_hook() {
 
 // Chi usa la flash: le operazioni sulla flash (NVS, partizioni) passano da qui e
 // spengono la cache; se la scheda si blocca durante una di esse lo si legge al riavvio.
+// La firma di start() cambia con la versione di ESP-IDF (5.4: (arg), 5.5: (arg, flags)):
+// ci sono entrambe le versioni e il compilatore sceglie quella giusta.
 static esp_flash_os_functions_t s_fos;
-static const esp_flash_os_functions_t *s_fos_orig = nullptr;
+static void *s_fos_start = nullptr, *s_fos_end = nullptr;
 
-static IRAM_ATTR esp_err_t fos_start(void *arg) {
+static IRAM_ATTR void fos_note() {
   char *d = s_bc.flash_by, *end = s_bc.flash_by + sizeof s_bc.flash_by - 1;
   d = put_task(d, end, xTaskGetCurrentTaskHandle());
   *d = 0;
-  return s_fos_orig->start(arg);
 }
-static IRAM_ATTR esp_err_t fos_end(void *arg) {
-  esp_err_t r = s_fos_orig->end(arg);
+[[maybe_unused]] static IRAM_ATTR esp_err_t fos_start1(void *arg) {
+  fos_note();
+  return ((esp_err_t (*)(void *))s_fos_start)(arg);
+}
+[[maybe_unused]] static IRAM_ATTR esp_err_t fos_start2(void *arg, uint32_t flags) {
+  fos_note();
+  return ((esp_err_t (*)(void *, uint32_t))s_fos_start)(arg, flags);
+}
+[[maybe_unused]] static IRAM_ATTR esp_err_t fos_end1(void *arg) {
+  esp_err_t r = ((esp_err_t (*)(void *))s_fos_end)(arg);
   s_bc.flash_by[0] = 0;
   return r;
+}
+[[maybe_unused]] static IRAM_ATTR esp_err_t fos_end2(void *arg, uint32_t flags) {
+  esp_err_t r = ((esp_err_t (*)(void *, uint32_t))s_fos_end)(arg, flags);
+  s_bc.flash_by[0] = 0;
+  return r;
+}
+[[maybe_unused]] static void fos_wrap_start(esp_err_t (*&f)(void *)) {
+  s_fos_start = (void *)f;
+  f = fos_start1;
+}
+[[maybe_unused]] static void fos_wrap_start(esp_err_t (*&f)(void *, uint32_t)) {
+  s_fos_start = (void *)f;
+  f = fos_start2;
+}
+[[maybe_unused]] static void fos_wrap_end(esp_err_t (*&f)(void *)) {
+  s_fos_end = (void *)f;
+  f = fos_end1;
+}
+[[maybe_unused]] static void fos_wrap_end(esp_err_t (*&f)(void *, uint32_t)) {
+  s_fos_end = (void *)f;
+  f = fos_end2;
 }
 
 static void diag_hooks_install() {
@@ -409,9 +439,8 @@ static void diag_hooks_install() {
   esp_flash_t *f = esp_flash_default_chip;
   if (f && f->os_func && f->os_func->start && f->os_func->end) {
     s_fos = *f->os_func;
-    s_fos_orig = f->os_func;
-    s_fos.start = fos_start;
-    s_fos.end = fos_end;
+    fos_wrap_start(s_fos.start);
+    fos_wrap_end(s_fos.end);
     f->os_func = &s_fos;
   }
 }
