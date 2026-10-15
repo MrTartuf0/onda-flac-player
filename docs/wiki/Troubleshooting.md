@@ -53,6 +53,10 @@ Open the file transfer page once from a phone or computer, or connect the player
 - If the home network can't be reached, the player falls back to its own hotspot `onda-XXXX`: scan the QR code on the screen.
 - `onda.local` may not work on some Android phones; use the IP address shown on the player.
 
+## Voice search: no microphone, or it doesn't understand
+
+The microphone appears only when the firmware was flashed with the *ESP SR 16M* partition scheme. Recognition is in English and limited to the names in your library. See [Voice Search](Voice-Search) for setup and for the `[voice]` lines in the serial log.
+
 ## Known limits
 
 - PNG and progressive JPEG covers are not decoded on the device (the web page can convert them).

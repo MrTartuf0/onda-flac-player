@@ -160,6 +160,10 @@ lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h);
 void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c);
 const char *ui_battery_state_text(const BatteryInfo &b);
 void ui_fmt_minutes(int m, char *buf, size_t n);   // durata stimata arrotondata
+// Ricerca vocale (src/ui/voice_ui.cpp): schermata del microfono
+void ui_voice_open();
+bool ui_voice_visible();
+bool ui_voice_close();                   // false se non era aperta
 // Centro di controllo (src/ui/control_center.cpp): scorri su dal bordo in basso
 void ui_cc_build();
 bool ui_cc_visible();

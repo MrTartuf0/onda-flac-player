@@ -10,18 +10,20 @@ src/power.*               BOOT button, screen off, auto power-off, deep sleep, C
 src/clock.*               clock (time from the browser or NTP, time zone, date format)
 src/i18n.*, i18n_en.h     translations (see Language and Translations)
 src/session.h             session timer API (implemented in src/ui/session.cpp)
+src/voice/voice.*         voice search: names from the library, ESP-SR MultiNet in its own task
 src/hal/display.*         ILI9341 via esp_lcd (SPI + DMA), FT6336U touch, LVGL display/input drivers
 src/hal/battery.*         battery voltage, percentage, charge detection, runtime estimate
 src/hal/edge_swipe.*      edge gestures: back (left edge) and control center (bottom edge)
-src/audio/es8311.*        speaker codec setup over I2C
-src/audio/audio_out.*     I2S output, mirroring to the PCM5102, headphone detection, volumes
+src/audio/es8311.*        codec setup over I2C: speaker DAC, and the ADC for the microphone
+src/audio/audio_out.*     I2S output, mirroring to the PCM5102, headphone detection, volumes, microphone input
 src/audio/player.*        decoder and output tasks, queue, shuffle/repeat, anti-click ramps, beeps
 src/lib/flac_meta.*       fast tag and picture reading during the scan
 src/lib/flac_tags.*       full metadata reading and in-place tag writing (web page)
 src/lib/library.*         scan, index, albums/artists/genres/playlists, search, likes, play counts
 src/lib/artwork.*         cover decoding (TJpgDec), thumbnail cache on SD and in RAM, album colour
 src/ui/                   LVGL pages: Home, Search, Settings, album/artist/collection pages,
-                          Now playing and queue, control center, sheets, transfer, battery screens
+                          Now playing and queue, control center, sheets, transfer, battery screens,
+                          voice search screen
 src/net/xfer.*            Wi-Fi (home network or hotspot), mDNS, HTTP server and JSON API
 src/net/web_index.h       the web page, generated from tools/web/index.html
 src/fonts/                generated fonts (Figtree + Font Awesome icons)
@@ -40,6 +42,7 @@ tools/i18n/               translation table and generator
 | `i2s` | 0, high priority | Takes PCM from the ring, applies volume, ramps and beeps, writes to I2S |
 | `scan` | 0 | Library scan, tag reading, cover thumbnails; also writes the crash log |
 | `xfer` | 0 | Wi-Fi and HTTP server, only during file transfer |
+| `voice` | 1, priority 1 | Voice search: loads the model, reads the microphone and runs MultiNet. Created the first time the microphone is used, deleted before file transfer |
 | `monitor` | 1, high priority | Detects stalls of the other tasks |
 
 ## Audio path

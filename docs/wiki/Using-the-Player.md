@@ -28,6 +28,8 @@ Type in the search box for instant results across songs, albums and artists. Acc
 
 Without a query the page shows your library, with filters (**Playlist**, **Album**, **Artists**, **Genres**) and a sort button (recently played first, or alphabetical).
 
+The **microphone** in the search box starts a [voice search](Voice-Search): say the name of an artist, album, playlist or song (experimental, needs the *ESP SR 16M* partition scheme).
+
 ## Album, artist and playlist pages
 
 - **Album**: cover, artist, year and length, the big play button, shuffle, then the songs in disc/track order.
@@ -52,7 +54,7 @@ The queue shows the song now playing, the songs you added with *Add to queue*, a
 
 ## Control center
 
-<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-control.png" alt="Control center with the session timer running, Settings, and the battery-low screen">
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-control.png" alt="Control center, the Battery section of Settings, and the battery-low screen">
 
 Swipe up from the bottom edge. The panel follows your finger; close it by dragging the handle down, swiping down, tapping an empty area or with the back gesture.
 
@@ -60,7 +62,8 @@ Swipe up from the bottom edge. The panel follows your finger; close it by draggi
 - **Speaker / Headphones / AUTO**: the audio output. AUTO uses the headphones when they are plugged in.
 - **Battery**: percentage, estimated runtime on battery or time to full while charging.
 - **Volume** and **Brightness**: tap a point to jump to that level (in 5% steps), or put your finger anywhere and drag up or down for fine control. Volume is the one of the output in use; each output remembers its own.
-- **Timer**: the session timer, see [Session Timer and Clock](Session-Timer-and-Clock).
+
+The session timer is in **Settings**, see [Session Timer and Clock](Session-Timer-and-Clock).
 
 > **Headphone safety**: with headphones, a tap never sets the volume above 75%. To go higher you have to drag.
 
@@ -74,6 +77,7 @@ When you unplug the headphones the music pauses, like on a phone (**Settings →
 
 | Section | What's there |
 |---|---|
+| Session timer | Elapsed time, start/stop, reminder after (see [Session Timer and Clock](Session-Timer-and-Clock)) |
 | Battery | Level and voltage, charging status, estimated current draw |
 | Date and time | Date and where the time came from |
 | Audio | Output, headphone jack status, pause on unplug, invert jack detection |

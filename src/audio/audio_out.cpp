@@ -203,9 +203,12 @@ uint32_t audio_out_underruns() { return s_underruns; }
 uint32_t audio_out_max_rate() { return 96000; }
 
 bool audio_out_set_rate(uint32_t rate) {
-  if (!s_tx) return false;
   if (rate == s_rate) return true;
   if (!es8311_rate_supported(rate)) return false;
+  if (!s_tx) {   // uscita sospesa (microfono, Wi-Fi): si usa alla ripresa
+    s_rate = rate;
+    return true;
+  }
   bool spk = (s_active == DEV_SPEAKER);
   if (spk) digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);   // niente "pop" durante il cambio
   i2s_channel_disable(s_tx);
@@ -299,3 +302,71 @@ int32_t audio_out_gain_q16() {
 
 bool audio_out_muted() { return s_muted; }
 void audio_out_clear_mute() { s_muted = false; }
+
+// ------------------------------------------------------------ microfono ----
+// Per la ricerca vocale: l'uscita viene sospesa (chi chiama ha già fermato il
+// player) e lo stesso I2S riparte solo in ricezione, a 16 kHz, con il codec che
+// manda il microfono sul pin dati IO6.
+namespace {
+i2s_chan_handle_t s_rx = nullptr;
+int32_t s_rx_buf[256 * 2];
+}  // namespace
+
+bool audio_out_mic_begin(uint32_t rate) {
+  if (s_rx) return true;
+  audio_out_suspend();
+  i2s_chan_config_t cc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+  cc.dma_desc_num = 4;
+  cc.dma_frame_num = 256;
+  if (i2s_new_channel(&cc, nullptr, &s_rx) != ESP_OK) {
+    s_rx = nullptr;
+    return false;
+  }
+  i2s_std_config_t sc = {
+    .clk_cfg = clk_for(rate),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
+    .gpio_cfg = {
+      .mclk = (gpio_num_t)I2S_PIN_MCLK,
+      .bclk = (gpio_num_t)I2S_PIN_BCLK,
+      .ws = (gpio_num_t)I2S_PIN_WS,
+      .dout = I2S_GPIO_UNUSED,
+      .din = (gpio_num_t)I2S_PIN_DIN,
+      .invert_flags = {false, false, false},
+    },
+  };
+  if (i2s_channel_init_std_mode(s_rx, &sc) != ESP_OK || i2s_channel_enable(s_rx) != ESP_OK) {
+    i2s_del_channel(s_rx);
+    s_rx = nullptr;
+    return false;
+  }
+  delay(5);   // il codec vuole MCLK prima della configurazione
+  es8311_begin(rate, rate * es8311_mclk_multiple(rate));
+  es8311_mute(true);
+  es8311_mic(true);
+  return true;
+}
+
+size_t audio_out_mic_read(int16_t *out, size_t n, uint32_t timeout_ms) {
+  if (!s_rx) return 0;
+  size_t done = 0;
+  while (done < n) {
+    size_t want = n - done;
+    if (want > 256) want = 256;
+    size_t got = 0;
+    i2s_channel_read(s_rx, s_rx_buf, want * 8, &got, pdMS_TO_TICKS(timeout_ms));
+    size_t frames = got / 8;
+    for (size_t i = 0; i < frames; i++) out[done + i] = (int16_t)(s_rx_buf[i * 2] >> 16);   // canale sinistro
+    done += frames;
+    if (!frames) break;
+  }
+  return done;
+}
+
+void audio_out_mic_end() {
+  if (!s_rx) return;
+  es8311_mic(false);
+  i2s_channel_disable(s_rx);
+  i2s_del_channel(s_rx);
+  s_rx = nullptr;
+  audio_out_resume();
+}

@@ -10,6 +10,7 @@
 #include "../hal/battery.h"
 #include "../power.h"
 #include "../clock.h"
+#include "../session.h"
 
 namespace {
 
@@ -20,6 +21,7 @@ class SettingsPage : public Page {
   lv_timer_t *bat_timer = nullptr;
   lv_obj_t *scr_val = nullptr, *off_val = nullptr;
   lv_obj_t *clk = nullptr, *date_t = nullptr, *date_s = nullptr;
+  lv_obj_t *tm_time = nullptr, *tm_sub = nullptr, *tm_btn = nullptr, *tm_lim = nullptr;
 
   SettingsPage() { build(); }
   ~SettingsPage() override {
@@ -52,6 +54,85 @@ class SettingsPage : public Page {
     SettingsPage *p = (SettingsPage *)lv_timer_get_user_data(t);
     p->bat_update();
     p->clock_update();
+    p->timer_update();
+  }
+
+  // ---- timer della sessione
+  static void tm_btn_cb(lv_event_t *e) {
+    session_toggle(false);
+    ((SettingsPage *)lv_event_get_user_data(e))->timer_update(true);
+  }
+  static void tm_lim_cb(lv_event_t *e) {
+    static const int opts[] = {10, 15, 20, 30, 45, 60, 90, 120, 0};
+    int cur = session_limit_min(), n = sizeof opts / sizeof opts[0], i = 0;
+    while (i < n && opts[i] != cur) i++;
+    session_set_limit_min(opts[(i + 1) % n]);
+    ((SettingsPage *)lv_event_get_user_data(e))->timer_update(true);
+  }
+  void timer_update(bool force = false) {
+    static const lv_color_t red = lv_color_hex(0xF15E6C);
+    int32_t sec = session_running() ? (int32_t)(session_elapsed_ms() / 1000) : -1;
+    if (!force && sec < 0 && !session_last_ms() && lv_label_get_text(tm_time)[0]) return;   // fermo: nulla cambia
+    char b[48], lim[24];
+    uint32_t show = sec >= 0 ? (uint32_t)sec : 0;
+    if (show >= 3600) snprintf(b, sizeof b, "%u:%02u:%02u", (unsigned)(show / 3600), (unsigned)(show / 60 % 60), (unsigned)(show % 60));
+    else snprintf(b, sizeof b, "%u:%02u", (unsigned)(show / 60), (unsigned)(show % 60));
+    lv_label_set_text(tm_time, b);
+    bool over = session_over();
+    session_fmt_limit(session_limit_min(), lim, sizeof lim);
+    if (sec >= 0) {
+      snprintf(b, sizeof b, "%s", over ? TR("Limite superato") : TR("In corso"));
+    } else if (session_last_ms()) {
+      char d[16];
+      fmt_duration(session_last_ms(), d, sizeof d);
+      snprintf(b, sizeof b, TR("Fermo \xE2\x80\xA2 l'ultima: %s"), d);
+    } else {
+      snprintf(b, sizeof b, "%s", TR("Fermo"));
+    }
+    lv_label_set_text(tm_sub, b);
+    lv_obj_set_style_text_color(tm_time, over ? red : (sec >= 0 ? C_TEXT : C_SUB), 0);
+    lv_obj_set_style_text_color(tm_sub, over ? red : C_SUB, 0);
+    lv_label_set_text(tm_lim, lim);
+    bool run = sec >= 0;
+    lv_obj_set_style_bg_color(tm_btn, run ? red : C_GREEN, 0);
+    lv_obj_t *ic = lv_obj_get_child(tm_btn, 0);
+    lv_label_set_text(ic, run ? IC_STOP : IC_PLAY);
+    lv_obj_set_style_translate_x(ic, run ? 0 : 2, 0);
+  }
+
+  void timer_build() {
+    section(TR("Timer della sessione"));
+    // tempo grande a sinistra, pulsante rotondo avvia/ferma a destra
+    lv_obj_t *r = ui_box(col);
+    lv_obj_set_size(r, SCR_W, 64);
+    tm_time = ui_label(r, &font_b26, C_TEXT, "");
+    lv_obj_align(tm_time, LV_ALIGN_LEFT_MID, 14, -9);
+    tm_sub = ui_label(r, &font_r12, C_SUB, "");
+    lv_obj_set_width(tm_sub, SCR_W - 90);
+    ui_dot(tm_sub);
+    lv_obj_align(tm_sub, LV_ALIGN_LEFT_MID, 14, 17);
+    constexpr int TB = 44;
+    tm_btn = ui_box(r);
+    lv_obj_set_size(tm_btn, TB, TB);
+    lv_obj_align(tm_btn, LV_ALIGN_RIGHT_MID, -16, 0);
+    lv_obj_set_style_radius(tm_btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(tm_btn, LV_OPA_COVER, 0);
+    lv_obj_add_flag(tm_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_ext_click_area(tm_btn, 8);
+    lv_obj_set_style_transform_scale(tm_btn, 232, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_pivot_x(tm_btn, TB / 2, 0);
+    lv_obj_set_style_transform_pivot_y(tm_btn, TB / 2, 0);
+    lv_obj_add_event_cb(tm_btn, tm_btn_cb, LV_EVENT_CLICKED, this);
+    lv_obj_center(ui_icon(tm_btn, &icons_18, IC_PLAY, C_BLACK));
+    lv_obj_t *lr = row(TR("Avviso dopo"), "-", tm_lim_cb);
+    tm_lim = lv_obj_get_child(lr, 1);
+    lv_obj_t *hint = ui_label(col, &font_r12, C_SUB,
+                              TR("Allo scadere: 3 bip sopra la musica, poi 2 bip ogni 5 minuti. "
+                                 "In tasca: 3 clic sul tasto BOOT per avviarlo o fermarlo."));
+    lv_obj_set_width(hint, SCR_W - 28);
+    lv_obj_set_style_pad_left(hint, 14, 0);
+    lv_obj_set_style_pad_bottom(hint, 4, 0);
+    timer_update(true);
   }
 
   // ora in alto a destra e riga "Data e ora"
@@ -224,6 +305,8 @@ class SettingsPage : public Page {
     clk = ui_label(hd, &font_b16, C_SUB, "");   // orologio
     lv_obj_align(clk, LV_ALIGN_TOP_RIGHT, -14, 16);
 
+    timer_build();
+
     section(TR("Batteria"));
     lv_obj_t *bl = row(TR("Livello"), "-", nullptr);
     bat_lvl = lv_obj_get_child(bl, 1);
@@ -286,6 +369,7 @@ class SettingsPage : public Page {
     lv_obj_t *hint = ui_label(col, &font_r12, C_SUB,
                               TR("1 clic: schermo spento o acceso, la musica continua\n"
                               "2 clic: play / pausa\n"
+                              "3 clic: avvia o ferma il timer della sessione\n"
                               "Tenuto premuto: spegne il lettore (si riaccende col tasto)"));
     lv_obj_set_width(hint, SCR_W - 28);
     lv_obj_set_style_pad_left(hint, 14, 0);

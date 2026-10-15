@@ -8,6 +8,7 @@
 #include "../net/xfer.h"
 #include "../audio/player.h"
 #include "../audio/audio_out.h"
+#include "../voice/voice.h"
 
 namespace {
 
@@ -382,6 +383,9 @@ bool ui_transfer_visible() { return s_open; }
 void ui_transfer_open() {
   if (s_open) return;
   if (!xf) build();
+  // il Wi-Fi vuole tutta la RAM interna possibile: via il modello vocale
+  ui_voice_close();
+  voice_release();
   ui_session_save();
   // musica ferma e file chiusi: dal browser si può cancellare anche il brano in ascolto
   player_stop();

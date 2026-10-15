@@ -9,6 +9,7 @@
 #include "../lib/library.h"
 #include "../lib/flac_meta.h"
 #include "../audio/player.h"
+#include "../voice/voice.h"
 
 namespace {
 
@@ -51,6 +52,12 @@ class SearchPage : public Page {
 
   // ------------------------------------------------------ libreria ----
   static void box_cb(lv_event_t *e) { ((SearchPage *)lv_event_get_user_data(e))->enter(); }
+  static void mic_cb(lv_event_t *e) {
+    SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
+    lv_event_stop_bubbling(e);
+    if (p->kb_visible) p->show_kb(false);
+    ui_voice_open();
+  }
 
   static void chip_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
@@ -189,9 +196,10 @@ class SearchPage : public Page {
     lv_obj_set_scrollbar_mode(browse, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_flag(browse, LV_OBJ_FLAG_SCROLL_MOMENTUM);
 
-    // casella di ricerca (un tocco apre la tastiera) + ordinamento
+    // casella di ricerca (un tocco apre la tastiera, il microfono la ricerca
+    // vocale) + ordinamento
     lv_obj_t *box = ui_box(browse);
-    lv_obj_set_size(box, SCR_W - 24 - 40, 38);
+    lv_obj_set_size(box, SCR_W - 12 - 46, 38);
     lv_obj_set_pos(box, 12, 8);
     lv_obj_set_style_radius(box, 6, 0);
     lv_obj_set_style_bg_color(box, C_TEXT, 0);
@@ -200,8 +208,13 @@ class SearchPage : public Page {
     lv_obj_add_event_cb(box, box_cb, LV_EVENT_CLICKED, this);
     lv_obj_t *ic = ui_icon(box, &icons_18, IC_SEARCH, lv_color_hex(0x121212));
     lv_obj_align(ic, LV_ALIGN_LEFT_MID, 10, 0);
-    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), TR("Cosa vuoi ascoltare?"));
-    lv_obj_align(ph, LV_ALIGN_LEFT_MID, 38, 0);
+    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), TR("Cosa ascoltiamo?"));
+    lv_obj_align(ph, LV_ALIGN_LEFT_MID, 36, 0);
+    if (voice_supported()) {
+      lv_obj_t *mic = ui_icon_btn(box, &icons_18, IC_MIC, lv_color_hex(0x121212), mic_cb, this);
+      lv_obj_align(mic, LV_ALIGN_RIGHT_MID, -9, 0);
+      lv_obj_set_ext_click_area(mic, 12);
+    }
     lv_obj_t *so = ui_icon_btn(browse, &icons_18, IC_SORT, C_TEXT, sort_cb, this);
     lv_obj_set_pos(so, SCR_W - 12 - 26, 17);
     lv_obj_set_ext_click_area(so, 10);
@@ -299,7 +312,8 @@ class SearchPage : public Page {
 
     ta = lv_textarea_create(top);
     lv_textarea_set_one_line(ta, true);
-    lv_textarea_set_placeholder_text(ta, TR("Cosa vuoi ascoltare?"));
+    lv_textarea_set_placeholder_text(ta, TR("Cosa ascoltiamo?"));
+    bool mic = voice_supported();
     lv_obj_set_size(ta, SCR_W - 90, 34);
     lv_obj_align(ta, LV_ALIGN_LEFT_MID, 8, 0);
     lv_obj_set_style_text_font(ta, &font_r14, 0);
@@ -308,12 +322,17 @@ class SearchPage : public Page {
     lv_obj_set_style_border_width(ta, 0, 0);
     lv_obj_set_style_radius(ta, 4, 0);
     lv_obj_set_style_pad_ver(ta, 7, 0);
-    lv_obj_set_style_pad_hor(ta, 10, 0);
+    lv_obj_set_style_pad_left(ta, mic ? 8 : 10, 0);
+    lv_obj_set_style_pad_right(ta, mic ? 28 : 10, 0);   // a destra il microfono
     lv_obj_set_style_text_color(ta, C_SUB, LV_PART_TEXTAREA_PLACEHOLDER);
     lv_obj_set_style_bg_color(ta, C_GREEN, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_color(ta, C_GREEN, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_add_event_cb(ta, ta_cb, LV_EVENT_ALL, this);
 
+    if (mic) {   // dentro la casella, sul lato destro
+      lv_obj_t *m = ui_icon_btn(top, &icons_18, IC_MIC, C_SUB, mic_cb, this);
+      lv_obj_align(m, LV_ALIGN_LEFT_MID, 8 + SCR_W - 90 - 24, 0);
+    }
     cancel = ui_label(top, &font_r14, C_TEXT, TR("Annulla"));
     lv_obj_add_flag(cancel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_ext_click_area(cancel, 10);

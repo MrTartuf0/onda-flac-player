@@ -20,7 +20,16 @@ git clone https://github.com/MrTartuf0/onda-flac-player.git FlacPlayer
    - PSRAM: **OPI PSRAM**
    - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**
    - USB CDC On Boot: **Enabled**
-3. Upload. The firmware is about 1.8 MB.
+3. Upload. The firmware is about 2.7 MB.
+
+### With voice search
+
+[Voice search](Voice-Search) needs its speech models in a flash partition of their own. Change two settings:
+
+- Flash Size: **16MB (128Mb)**
+- Partition Scheme: **ESP SR 16M (3MB APP/6MB SPIFFS/3.9MB MODEL)** (core 3.2.0: *ESP SR 16M (3MB APP/7MB SPIFFS/2.9MB MODEL)*)
+
+The IDE then also writes the models (`srmodels.bin`, about 3.3 MB) on every upload. With Huge APP everything else works the same and the microphone button is simply not shown.
 
 The first build takes a few extra minutes because LVGL is compiled too; later builds are quick.
 
@@ -32,6 +41,8 @@ arduino-cli compile --upload -p /dev/cu.usbmodem1101 \
   --fqbn "esp32:esp32:esp32s3:PSRAM=opi,FlashSize=4M,PartitionScheme=huge_app,CDCOnBoot=cdc" \
   FlacPlayer
 ```
+
+For voice search use `FlashSize=16M,PartitionScheme=esp_sr_16` instead.
 
 Replace the port with yours (`arduino-cli board list` shows it). Serial output is at 115200 baud; it is where crash reports are printed (see [Troubleshooting](Troubleshooting)).
 
@@ -45,6 +56,7 @@ Everything you might want to change is in `src/config.h`:
 | `HP_DETECT_PIN` | 2 | Headphone detect pin, `-1` if your jack has no detect contact |
 | `HP_DETECT_PLUGGED` | 0 | Level read when headphones are plugged in |
 | `PAUSE_ON_UNPLUG_DEFAULT` | true | Pause when headphones are unplugged (also in Settings) |
+| `I2S_PIN_DIN` | 6 | Data from the codec: the microphone, for voice search |
 | `BAT_ADC_PIN` | 9 | Battery voltage pin, `-1` to disable battery support |
 | `BAT_OFFSET_MV` | 0 | Correction if the displayed voltage differs from a multimeter |
 | `BAT_CAPACITY_MAH`, `BAT_CHARGE_MA` | 1100, 300 | Used for the time-to-full estimate |

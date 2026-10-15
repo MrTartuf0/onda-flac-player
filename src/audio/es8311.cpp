@@ -114,3 +114,16 @@ void es8311_mute(bool mute) {
   if (mute) v |= 0x60; else v &= ~0x60;
   wr(0x31, v);
 }
+
+void es8311_mic(bool on, uint8_t pga) {
+  if (pga > 10) pga = 10;
+  if (on) {
+    wr(0x14, 0x10 | pga);   // ingresso MIC1P/N analogico, guadagno PGA
+    wr(0x16, 0x00);         // nessuna amplificazione digitale aggiuntiva
+    wr(0x17, 0xC8);         // volume ADC +4,5 dB (come negli esempi Freenove)
+    wr(0x1C, 0x6A);         // EQ ADC escluso, offset DC tolto in digitale
+  } else {
+    wr(0x17, 0x00);
+    wr(0x14, 0x00);
+  }
+}

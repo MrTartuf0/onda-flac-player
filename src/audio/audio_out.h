@@ -16,6 +16,11 @@ enum : uint32_t {
 bool audio_out_begin();
 void audio_out_suspend();   // libera I2S e DMA (es. durante il Wi-Fi); riprende con audio_out_resume
 bool audio_out_resume();
+// Microfono (ricerca vocale): sospende l'uscita e apre l'I2S in ricezione a `rate` Hz.
+// Con il player fermo e l'uscita in attesa (player_hold_output). mic_end riprende l'uscita.
+bool audio_out_mic_begin(uint32_t rate = 16000);
+size_t audio_out_mic_read(int16_t *out, size_t n, uint32_t timeout_ms);   // campioni mono
+void audio_out_mic_end();
 bool audio_out_set_rate(uint32_t sample_rate);   // riconfigura I2S + ES8311 se cambia
 uint32_t audio_out_rate();
 uint32_t audio_out_underruns();      // quante volte il buffer I2S si è svuotato

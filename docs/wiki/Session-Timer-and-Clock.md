@@ -2,13 +2,13 @@
 
 A stopwatch with a limit, made for not staying too long on a highline, but useful for any activity.
 
-<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-timer.png" alt="The control center with the session timer running" width="240"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-timer.png" alt="The session timer at the top of Settings, running" width="240"></p>
 
-It is the bottom row of the control center:
+It is the first section of **Settings**:
 
-- the elapsed time, with *running* or *over* underneath;
-- the limit: tap it to cycle through 10, 15, 20, 30, 45 min, 1 h, 1 h 30, 2 h or off;
-- the round button starts and stops it.
+- the elapsed time, with *Running*, *Over the limit* or *Stopped* underneath (stopped, it also shows how long the last session lasted);
+- the round button starts and stops it;
+- **Remind me after**: tap it to cycle through 10, 15, 20, 30, 45 min, 1 h, 1 h 30, 2 h or no limit.
 
 When the limit is reached you hear **three beeps over the music** (or on their own if it is paused) and a notice appears. After that, two beeps every 5 minutes until you stop it.
 

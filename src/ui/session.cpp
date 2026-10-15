@@ -9,6 +9,7 @@
 namespace {
 bool s_run = false;
 uint32_t s_t0 = 0, s_next = 0;   // inizio e prossimo avviso (ms dall'inizio)
+uint32_t s_last = 0;             // durata dell'ultima sessione
 int s_limit = -1;                // -1 = da leggere dalle preferenze
 constexpr uint32_t kRemindMs = 5 * 60000;
 
@@ -49,10 +50,20 @@ void session_start(bool beep) {
 void session_stop(bool beep) {
   if (!s_run) return;
   s_run = false;
+  s_last = plat_millis() - s_t0;
   char b[16];
-  fmt_duration(plat_millis() - s_t0, b, sizeof b);
+  fmt_duration(s_last, b, sizeof b);
   plat_event("sessione fermata", b);
   if (beep) player_beep(2);
+}
+
+uint32_t session_last_ms() { return s_last; }
+
+void session_fmt_limit(int m, char *b, size_t n) {
+  if (!m) snprintf(b, n, "%s", TR("Nessun limite"));
+  else if (m % 60 == 0) snprintf(b, n, TR("%d h"), m / 60);
+  else if (m > 60) snprintf(b, n, TR("%d h %d"), m / 60, m % 60);
+  else snprintf(b, n, TR("%d min"), m);
 }
 
 void session_toggle(bool beep) {

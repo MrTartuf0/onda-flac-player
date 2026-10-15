@@ -9,6 +9,7 @@
 - [Using the Player](Using-the-Player)
 - [Battery and Power](Battery-and-Power)
 - [Web Interface](Web-Interface)
+- [Voice Search](Voice-Search)
 - [Session Timer and Clock](Session-Timer-and-Clock)
 - [Language and Translations](Language-and-Translations)
 

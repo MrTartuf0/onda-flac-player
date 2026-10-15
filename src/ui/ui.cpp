@@ -11,6 +11,7 @@
 #include "../audio/audio_out.h"
 #include "../platform.h"
 #include "../hal/edge_swipe.h"
+#include "../voice/voice.h"
 
 namespace {
 
@@ -411,7 +412,7 @@ static bool edge_excluded(int x, int y) {
 
 // centro di controllo: dal bordo in basso, quando l'interfaccia è pronta e la
 // tastiera non occupa il fondo dello schermo
-static bool cc_allowed() { return s_main_built && s_chrome && !ui_cc_visible(); }
+static bool cc_allowed() { return s_main_built && s_chrome && !ui_cc_visible() && !ui_voice_visible(); }
 
 lv_obj_t *ui_page_root() { return s_pages; }
 
@@ -457,6 +458,7 @@ void ui_pop() {
 
 void ui_back() {
   if (ui_cc_close()) return;
+  if (ui_voice_close()) return;
   if (ui_transfer_back()) return;
   if (!s_main_built) return;
   if (ui_sheet_close()) return;
@@ -684,6 +686,8 @@ void ui_tick() {
   if (lp.state != LIB_READY) {
     if (lp.state == LIB_SCANNING) s_saw_scan = true;
     if (s_main_built && lp.state == LIB_SCANNING) {
+      ui_voice_close();
+      voice_library_changed();
       s_main_built = false;
       destroy_pages();
       lv_obj_remove_flag(s_boot, LV_OBJ_FLAG_HIDDEN);

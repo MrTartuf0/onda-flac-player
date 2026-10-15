@@ -48,6 +48,7 @@
 #define I2S_PIN_BCLK     5
 #define I2S_PIN_WS       7
 #define I2S_PIN_DOUT     8
+#define I2S_PIN_DIN      6                    // dati dal codec: microfono (ricerca vocale)
 #define ES8311_ADDR      0x18
 #define AMP_PIN_EN       1                    // SC8002B shutdown: LOW = acceso
 #define AMP_ON_LEVEL     0

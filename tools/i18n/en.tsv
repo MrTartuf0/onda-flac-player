@@ -28,9 +28,6 @@ non rilevata	not detected
 %d h	%d h
 %d h %d	%d h %d
 %d min	%d min
-Timer	Timer
-superato	over
-in corso	running
 Cuffie: oltre il 75% trascina	Headphones: drag past 75%
 AUTO	AUTO
 Ripetizione disattivata	Repeat off
@@ -76,7 +73,7 @@ Ascoltati di recente per primi	Recently played first
 Playlist \xE2\x80\xA2 %u brani	Playlist \xE2\x80\xA2 %u songs
 Genere \xE2\x80\xA2 %u brani	Genre \xE2\x80\xA2 %u songs
 Playlist \xE2\x80\xA2 1 brano	Playlist \xE2\x80\xA2 1 song
-Cosa vuoi ascoltare?	What to listen to?
+Cosa ascoltiamo?	What to listen to?
 Annulla	Cancel
 Cerca brani, album e artisti\nsulla tua scheda SD.	Search songs, albums and artists\non your SD card.
 Playlist	Playlist
@@ -125,7 +122,6 @@ Spegni lo schermo	Turn off the screen
 Riattiva toccando	Tap to wake
 Se lo schermo si è spento da solo	If the screen turned off by itself
 Tasto BOOT	BOOT button
-1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\nHold: power off (press again to turn it on)
 Spegnimento automatico	Auto power off
 Spegni ora	Power off now
 Si riaccende col tasto BOOT	Turn it back on with the BOOT button
@@ -202,10 +198,37 @@ Artisti	Artists
 Home	Home
 Cerca	Search
 Inserisci una scheda microSD\ncon i tuoi file .flac	Insert a microSD card\nwith your .flac files
-sessione	session
 1 album	1 album
 %u album	%u albums
 1 brano	1 song
 Si era bloccato all'avvio: non riprendo l'ultimo brano	It froze at startup: not resuming the last song
 Rete \"%s\" non raggiungibile: uso l'hotspot	\"%s\" is out of reach: using the hotspot
 Impossibile collegarsi a \"%s\": password errata?	Could not connect to \"%s\": wrong password?
+Limite superato	Limit reached
+In corso	Running
+Fermo \xE2\x80\xA2 l'ultima: %s	Stopped \xE2\x80\xA2 last one: %s
+Fermo	Stopped
+Timer della sessione	Session timer
+Avviso dopo	Remind me after
+Allo scadere: 3 bip sopra la musica, poi 2 bip ogni 5 minuti. In tasca: 3 clic sul tasto BOOT per avviarlo o fermarlo.	When time is up: 3 beeps over the music, then 2 beeps every 5 minutes. In your pocket: 3 clicks on the BOOT button start or stop it.
+1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\n3 clic: avvia o ferma il timer della sessione\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\n3 clicks: start or stop the session timer\nHold: power off (press again to turn it on)
+Nessun limite	No limit
+Genere	Genre
+Prova: \xE2\x80\x9C%s\xE2\x80\x9D	Try: \xE2\x80\x9C%s\xE2\x80\x9D
+Un attimo\xE2\x80\xA6	Just a moment\xE2\x80\xA6
+La prima volta prepara i nomi della libreria: qualche secondo	The first time it prepares your library names: a few seconds
+Ti ascolto\xE2\x80\xA6	Listening\xE2\x80\xA6
+Dì il nome di un artista, un album, una playlist o un brano	Say the name of an artist, album, playlist or song
+Non ho capito	Didn't catch that
+Tocca il microfono e riprova, scandendo bene il nome	Tap the mic and try again, saying the name clearly
+Trovato	Found it
+Forse cercavi	Did you mean
+Apro\xE2\x80\xA6	Opening\xE2\x80\xA6
+Tocca quello giusto	Tap the right one
+Ricerca vocale non disponibile	Voice search unavailable
+Senza internet \xE2\x80\xA2 capisce la pronuncia inglese	Works offline \xE2\x80\xA2 understands English pronunciation
+Modello vocale mancante: carica il firmware con lo schema \"ESP SR 16M\"	Voice model missing: flash the firmware with the \"ESP SR 16M\" scheme
+Modello vocale inglese non trovato	English voice model not found
+Memoria insufficiente per la ricerca vocale	Not enough memory for voice search
+Modello vocale non compatibile	Incompatible voice model
+Il microfono non risponde	The microphone isn't responding
