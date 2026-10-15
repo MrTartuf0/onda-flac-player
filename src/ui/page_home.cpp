@@ -72,6 +72,20 @@ class HomePage : public Page {
     if (i >= 0 && i < (int)self->card_ctx.size()) ui_open_context(self->card_ctx[i]);
   }
 
+  // pressione lunga su "Brani che ti piacciono" / "Tutti i brani": casuale subito
+  static void shuffle_long_cb(lv_event_t *e) {
+    HomePage *self = (HomePage *)lv_event_get_user_data(e);
+    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target_obj(e));
+    if (i < 0 || i >= (int)self->card_ctx.size()) return;
+    const PlayContext &c = self->card_ctx[i];
+    if (c.type == CTX_LIKED && lib_liked().empty()) {
+      ui_toast("Ancora nessun brano: tocca il cuore per aggiungerne");
+      return;
+    }
+    ui_play_context(c, -1, true);
+    ui_toast("In ordine casuale");
+  }
+
   int add_ctx(const PlayContext &c) {
     card_ctx.push_back(c);
     return card_ctx.size() - 1;
@@ -104,7 +118,12 @@ class HomePage : public Page {
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 44 + 7, 0);
     lv_obj_set_style_text_line_space(l, -1, 0);
     lv_obj_set_user_data(t, (void *)(intptr_t)add_ctx(c));
-    lv_obj_add_event_cb(t, ctx_click_cb, LV_EVENT_CLICKED, this);
+    if (c.type == CTX_LIKED || c.type == CTX_ALL) {
+      lv_obj_add_event_cb(t, ctx_click_cb, LV_EVENT_SHORT_CLICKED, this);   // non dopo la pressione lunga
+      lv_obj_add_event_cb(t, shuffle_long_cb, LV_EVENT_LONG_PRESSED, this);
+    } else {
+      lv_obj_add_event_cb(t, ctx_click_cb, LV_EVENT_CLICKED, this);
+    }
     // indicatore "in riproduzione"
     lv_obj_t *eq = ui_icon(t, &icons_14, IC_BARS, C_GREEN);
     lv_obj_align(eq, LV_ALIGN_RIGHT_MID, -6, 0);
@@ -120,7 +139,10 @@ class HomePage : public Page {
         if (x.type == c.type && x.key == c.key) return;
       if (lib_ctx_valid(c)) list.push_back(c);
     };
-    add(lib_ctx_liked());
+    // sempre per prime: Brani che ti piacciono e Tutti i brani (tenendole premute
+    // partono subito in ordine casuale)
+    list.push_back(lib_ctx_liked());
+    list.push_back(lib_ctx_all());
     for (auto &c : lib_recents()) add(c);
     // completa con gli album più ascoltati, poi con i primi della libreria
     std::vector<int> al(lib_albums().size());
@@ -130,7 +152,6 @@ class HomePage : public Page {
       if (list.size() >= 6) break;
       add(lib_ctx_album(a));
     }
-    if (list.size() < 6) add(lib_ctx_all());
     if (list.size() > 6) list.resize(6);
 
     lv_obj_t *g = ui_box(col);

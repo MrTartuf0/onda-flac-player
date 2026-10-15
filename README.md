@@ -9,7 +9,11 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 
 ## Funzioni
 
-- **Home**: scorciatoie recenti, "I più ascoltati", "Riscopri i tuoi album", artisti, generi
+- **Home**: "Brani che ti piacciono" e "Tutti i brani" sempre per primi (tenendoli premuti partono
+  subito in ordine casuale), poi scorciatoie recenti, "I più ascoltati", "Riscopri i tuoi album",
+  artisti, generi
+- **Timer della sessione** (es. highline) nel centro di controllo o con 3 clic sul tasto BOOT (vedi sotto)
+- **Orologio** in Impostazioni: l'ora arriva dal telefono/computer o da internet (vedi sotto)
 - **Cerca**: ricerca istantanea (senza accenti: "bjork" trova "Björk") e sotto la libreria con filtri
   Playlist / Album / Artisti / Generi e ordinamento recenti / alfabetico
 - **Impostazioni** come terza scheda della barra in basso (batteria, audio, schermo, Wi-Fi, libreria)
@@ -142,6 +146,25 @@ col gesto indietro.
   regolarlo con precisione; il volume è quello dell'uscita in uso. In cuffia, per sicurezza, il
   tocco non alza il volume oltre il 75%: più su si arriva solo trascinando
 
+## Timer della sessione
+
+Per non restare troppo a lungo su una highline (o in qualsiasi attività): nel centro di controllo
+c'è un cronometro con un limite (tocca il valore per cambiarlo: 10, 15, 20, 30, 45 min, 1 h,
+1 h 30, 2 h oppure off). Allo scadere senti **tre bip sopra la musica** (o da soli, se è in pausa)
+e compare un avviso; poi due bip ogni 5 minuti finché non lo fermi. Con il lettore in tasca si
+avvia e si ferma con **3 clic sul tasto BOOT** (1 bip = avviato, 2 bip = fermato). Mentre il
+timer è attivo il lettore non si spegne da solo.
+
+## Orologio
+
+La scheda non ha una batteria tampone per l'ora: la prende dal telefono o dal computer quando
+apri la pagina del **Trasferimento file**, oppure da internet se il lettore è collegato al
+Wi-Fi di casa (fuso orario italiano con ora legale automatica, `TIME_ZONE` in `src/config.h`).
+Poi la tiene il chip, anche a schermo spento, da spento col tasto e dopo un riavvio; si perde
+solo staccando la batteria. Da spento può perdere qualche minuto al giorno (il chip non ha il
+quarzo dell'orologio): si rimette a posto al trasferimento successivo. L'ora è in alto a destra
+in **Impostazioni**, con la data nella sezione *Data e ora*.
+
 ## Batteria
 
 Con una LiPo 3,7 V sul connettore **BAT** (testato con 1100 mAh) livello e stato di ricarica
@@ -178,6 +201,7 @@ Il tasto **BOOT** della scheda (IO0) fa da tasto di accensione, così non serve 
 |---|---|
 | 1 clic | spegne o riaccende lo schermo; la musica continua |
 | 2 clic | play / pausa (anche a schermo spento, ad esempio in tasca) |
+| 3 clic | timer della sessione: avvia (1 bip) / ferma (2 bip) |
 | tenuto premuto ~1 s | spegnimento completo (deep sleep); si riaccende premendolo di nuovo |
 
 - **Schermo che si spegne da solo** dopo 30 secondi senza toccarlo (Impostazioni → Schermo:
@@ -202,6 +226,8 @@ FlacPlayer/
   src/hal/display.*       ILI9341 via esp_lcd (SPI+DMA), touch FT6336U, driver LVGL
   src/hal/battery.*       lettura della batteria, stima di percentuale e stato di ricarica
   src/power.*             tasto BOOT, schermo spento, spegnimento (deep sleep), frequenza CPU
+  src/clock.*             orologio (ora dal browser o da internet, fuso orario)
+  src/session.h           timer della sessione (implementazione in src/ui/session.cpp)
   src/hal/edge_swipe.*    gesti dai bordi: "indietro" (sinistra) e centro di controllo (in basso)
   src/audio/es8311.*      codec dello speaker
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi

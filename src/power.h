@@ -4,6 +4,7 @@
 //
 // Tasto BOOT:  1 clic        schermo spento / acceso (la musica continua)
 //              2 clic        play / pausa (anche a schermo spento, es. in tasca)
+//              3 clic        timer della sessione: avvia (1 bip) / ferma (2 bip)
 //              tenuto 1,2 s  spegnimento completo; si riaccende premendolo di nuovo
 #pragma once
 #include <stdint.h>

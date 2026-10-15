@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <esp_heap_caps.h>
 #include <esp_random.h>
+#include <math.h>
 #include <esp_timer.h>
 #include <string.h>
 #include "audio_out.h"
@@ -637,6 +638,64 @@ void decoder_task(void *) {
   }
 }
 
+// --------------------------------------------------------------- bip ----
+// Avvisi (timer della sessione): bip da 150 ms a 880 Hz con 130 ms di pausa,
+// mescolati sopra la musica (che si abbassa mentre suonano) o da soli in pausa.
+volatile uint8_t s_beep_req = 0;   // bip chiesti (scritto da altri task)
+uint8_t s_beep_left = 0;
+uint32_t s_beep_t = 0;             // campioni dall'inizio del bip in corso
+uint32_t s_beep_phase = 0;
+int16_t s_sine[64];
+
+void beep_init() {
+  for (int i = 0; i < 64; i++) s_sine[i] = (int16_t)(32767 * sinf(i * 2 * (float)M_PI / 64));
+}
+
+// Mescola i bip nel blocco (music = false: il blocco è vuoto, solo bip).
+// Ritorna true se c'è stato un bip in questo blocco.
+bool beep_mix(int32_t *buf, uint32_t n, int32_t music_gain_q16, bool music) {
+  if (s_beep_req) {
+    s_beep_left = s_beep_req;
+    s_beep_req = 0;
+    s_beep_t = 0;
+  }
+  if (!s_beep_left) return false;
+  uint32_t rate = audio_out_rate() ? audio_out_rate() : 44100;
+  uint32_t on = rate * 150 / 1000, period = rate * 280 / 1000, ramp = rate / 200;   // 5 ms
+  uint32_t step = (uint32_t)((uint64_t)880 * 64 * 65536 / rate);                   // fase in 1/65536 di campione LUT
+  // volume del bip: segue quello della musica, ma mai muto del tutto
+  int32_t g = music_gain_q16 < 1300 ? 1300 : music_gain_q16;
+  int64_t amp = (int64_t)(0.35f * 2147483647.0f) * g >> 16;
+  for (uint32_t i = 0; i < n; i++) {
+    uint32_t t = s_beep_t++;
+    int32_t v = 0;
+    if (t < on) {
+      uint32_t env = t < ramp ? t * 256 / ramp : (on - t < ramp ? (on - t) * 256 / ramp : 256);
+      int32_t sv = s_sine[(s_beep_phase >> 16) & 63];
+      s_beep_phase += step;
+      v = (int32_t)(amp * sv / 32767 * env / 256);
+      if (music) {   // musica più bassa sotto il bip
+        buf[i * 2] = buf[i * 2] / 3;
+        buf[i * 2 + 1] = buf[i * 2 + 1] / 3;
+      }
+    }
+    if (music) {
+      buf[i * 2] += v;
+      buf[i * 2 + 1] += v;
+    } else {
+      buf[i * 2] = buf[i * 2 + 1] = v;
+    }
+    if (s_beep_t >= period) {
+      s_beep_t = 0;
+      if (--s_beep_left == 0) {
+        for (uint32_t k = i + 1; k < n && !music; k++) buf[k * 2] = buf[k * 2 + 1] = 0;
+        break;
+      }
+    }
+  }
+  return true;
+}
+
 // ------------------------------------------------------ task di uscita ----
 void output_task(void *) {
   int32_t gain = 0;
@@ -653,6 +712,11 @@ void output_task(void *) {
     if (s_hold || !playing) {
       s_out_idle = true;
       gain = 0;
+      // in pausa i bip suonano da soli
+      if (!s_hold && (s_beep_req || s_beep_left) && beep_mix(s_out, kOutFrames, audio_out_gain_q16(), false)) {
+        audio_out_write(s_out, kOutFrames, 200);
+        continue;
+      }
       vTaskDelay(pdMS_TO_TICKS(5));
       continue;
     }
@@ -696,6 +760,7 @@ void output_task(void *) {
       s_out[i * 2] = (int32_t)(((int64_t)s_out[i * 2] * gain) >> 16);
       s_out[i * 2 + 1] = (int32_t)(((int64_t)s_out[i * 2 + 1] * gain) >> 16);
     }
+    if (s_beep_req || s_beep_left) beep_mix(s_out, n, target, true);
     plat_where(1, 3);   // 3: scrittura I2S
     audio_out_write(s_out, n, 200);
     plat_where(1, 4);   // 4: aggiorna posizione (lock)
@@ -744,6 +809,7 @@ void player_begin(TrackPathFn resolver) {
   s_fbuf = (char *)heap_caps_malloc(kFileBuf, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   s_tmp = (int32_t *)heap_caps_malloc(kFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   s_mix = (int32_t *)heap_caps_malloc(kFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  beep_init();
   s_out = (int32_t *)heap_caps_malloc(kOutFrames * 2 * 4, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (!s_ring || !s_fbuf || !s_tmp || !s_mix || !s_out) Serial.println("[player] memoria insufficiente");
   // uscita: priorità alta, core 0. Decoder: priorità media, qualunque core libero.
@@ -764,6 +830,7 @@ void player_play_list(const std::vector<uint16_t> &tracks, int start, const Play
   send(C_PLAY, start_paused ? 1 : 0, start_ms);
 }
 
+void player_beep(int n) { s_beep_req = n < 1 ? 1 : n > 9 ? 9 : n; }
 void player_toggle() { send(C_TOGGLE); }
 void player_pause() { send(C_PAUSE); }
 void player_resume() { send(C_RESUME); }

@@ -24,6 +24,7 @@
 #include "../config.h"
 #include "../platform.h"
 #include "web_index.h"
+#include "../clock.h"
 
 namespace {
 
@@ -391,6 +392,20 @@ esp_err_t h_dl(httpd_req_t *req) {
   return r;
 }
 
+// La pagina manda l'ora del telefono/computer appena si apre (ms dal 1970)
+esp_err_t h_time(httpd_req_t *req) {
+  char b[24] = {0};
+  int n = httpd_req_recv(req, b, std::min<size_t>(req->content_len, sizeof b - 1));
+  if (n <= 0) return fail(req, "400 Bad Request", "Ora mancante");
+  b[n] = 0;
+  int64_t ms = strtoll(b, nullptr, 10);
+  // da internet è più precisa: il browser la sovrascrive solo se è passata più di un'ora
+  if (!(clock_source() == CLOCK_NTP && llabs((long long)(ms / 1000 - time(nullptr))) < 5 &&
+        time(nullptr) - clock_synced_at() < 3600))
+    clock_set(ms, CLOCK_BROWSER);
+  return ok(req);
+}
+
 esp_err_t h_done(httpd_req_t *req) {
   locked([](XferStatus &s) { s.done_req = true; });
   return ok(req);
@@ -402,7 +417,7 @@ void http_start() {
   cfg.stack_size = 8192;
   cfg.task_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT;   // lo stack in PSRAM: la RAM interna è poca
   cfg.core_id = 0;
-  cfg.max_uri_handlers = 12;
+  cfg.max_uri_handlers = 24;
   cfg.max_open_sockets = 5;
   cfg.lru_purge_enable = true;
   cfg.recv_wait_timeout = 10;
@@ -420,6 +435,7 @@ void http_start() {
     {"/", HTTP_GET, h_index},          {"/api/info", HTTP_GET, h_info}, {"/api/ls", HTTP_GET, h_ls},
     {"/api/up", HTTP_POST, h_upload},  {"/api/mkdir", HTTP_POST, h_mkdir}, {"/api/rm", HTTP_POST, h_rm},
     {"/api/mv", HTTP_POST, h_mv},      {"/api/dl", HTTP_GET, h_dl},    {"/api/done", HTTP_POST, h_done},
+    {"/api/time", HTTP_POST, h_time},
   };
   for (auto &r : routes) {
     httpd_uri_t u = {};
@@ -503,6 +519,7 @@ bool start_sta(const char *ssid, const char *pass) {
   });
   mdns_restart();
   http_start();
+  clock_ntp_start();   // con internet l'ora si rimette da sola
   plat_log("[xfer] collegato a %s: http://%s (http://" APP_NAME ".local)", ssid, ip.toString().c_str());
   return true;
 }
@@ -585,6 +602,7 @@ void xfer_task(void *) {
     }
   }
   http_stop();
+  clock_ntp_stop();
   MDNS.end();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);

@@ -28,6 +28,7 @@
 #include "src/hal/battery.h"
 #include "src/net/xfer.h"
 #include "src/power.h"
+#include "src/clock.h"
 #include "src/audio/audio_out.h"
 #include "src/audio/player.h"
 #include "src/lib/library.h"
@@ -200,6 +201,7 @@ void setup() {
   gpio_hold_dis((gpio_num_t)AMP_PIN_EN);
   rtc_gpio_deinit((gpio_num_t)BTN_BOOT_PIN);
   rtc_gpio_deinit((gpio_num_t)TP_PIN_INT);
+  clock_begin();   // fuso orario; l'ora (se impostata) sopravvive a deep sleep e riavvii
   Serial.begin(115200);
   // Se il Mac/PC non sta leggendo la porta, le stampe vengono scartate invece di
   // bloccare il programma (di default aspetterebbero fino a 100 ms ciascuna).

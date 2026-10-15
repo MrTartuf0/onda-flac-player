@@ -5,9 +5,9 @@
 //                         [ ==== ]  maniglia
 //   [ Wi-Fi  | Altoparlante ]  [   anello batteria     ]
 //   [ Cuffie | Automatico   ]  [   stato di carica     ]
-//   [                       ]  [                       ]
 //   [        volume         ]  [      luminosità       ]
 //   [                       ]  [                       ]
+//   [ ⏱ 12:34  sessione            30 min   ( ▶ / ■ )  ]   timer della sessione
 //
 // I due cursori si usano come su iPhone: si trascina il dito su o giù partendo da
 // un punto qualsiasi (movimento relativo, ~1,6 px per 1%).
@@ -18,6 +18,7 @@
 #include "../net/xfer.h"
 #include "../lib/library.h"
 #include "../platform.h"
+#include "../session.h"
 
 #define IOS_BLUE lv_color_hex(0x0A84FF)
 #define IOS_GREEN lv_color_hex(0x30D158)
@@ -30,7 +31,9 @@ constexpr int M = 14, GAP = 10;
 constexpr int TW = (SCR_W - 2 * M - GAP) / 2;   // lato dei riquadri (101)
 constexpr int Y_ROW1 = 28;                      // sopra: la maniglia
 constexpr int Y_ROW2 = Y_ROW1 + TW + GAP;
-constexpr int SL_H = SCR_H - 14 - Y_ROW2;       // altezza dei cursori (165)
+constexpr int TM_H = 48;                        // riga del timer della sessione
+constexpr int SL_H = SCR_H - 14 - Y_ROW2 - TM_H - GAP;   // altezza dei cursori (109)
+constexpr int Y_ROW3 = Y_ROW2 + SL_H + GAP;
 constexpr int BG_OPA = 255;                     // da aperto copre tutto (durante il gesto sfuma)
 constexpr int RB = 40;                          // pulsanti rotondi
 
@@ -47,6 +50,7 @@ lv_obj_t *grip;                 // la "maniglia" disegnata
 int h_y0 = 0;                   // trascinamento della maniglia
 bool h_drag = false;
 lv_obj_t *b_wifi, *b_spk, *b_hp, *b_auto;
+lv_obj_t *tm_time, *tm_sub, *tm_lim, *tm_btn;   // timer della sessione
 lv_obj_t *bat_arc, *bat_pct, *bat_l1, *bat_l2;
 Slider s_vol, s_bri;
 bool cc_on = false;   // aperto, in apertura o trascinato
@@ -170,9 +174,65 @@ void refresh_sliders(bool force = false) {
   }
 }
 
+// ------------------------------------------------- timer sessione ----
+void fmt_limit(int m, char *b, size_t n) {
+  if (!m) snprintf(b, n, "off");
+  else if (m % 60 == 0) snprintf(b, n, "%d h", m / 60);
+  else if (m > 60) snprintf(b, n, "%d h %d", m / 60, m % 60);
+  else snprintf(b, n, "%d min", m);
+}
+
+void refresh_session(bool force = false) {
+  static int32_t last_s = -2, last_lim = -1;
+  static bool last_over = false;
+  int32_t sec = session_running() ? (int32_t)(session_elapsed_ms() / 1000) : -1;
+  int lim = session_limit_min();
+  bool over = session_over();
+  if (!force && sec == last_s && lim == last_lim && over == last_over) return;
+  bool run_changed = (sec < 0) != (last_s < 0) || force;
+  last_s = sec;
+  last_lim = lim;
+  last_over = over;
+  char b[24];
+  if (sec < 0) {
+    lv_label_set_text(tm_time, "Timer");
+    lv_label_set_text(tm_sub, "sessione");
+  } else {
+    if (sec >= 3600) snprintf(b, sizeof b, "%d:%02d:%02d", (int)(sec / 3600), (int)(sec / 60 % 60), (int)(sec % 60));
+    else snprintf(b, sizeof b, "%d:%02d", (int)(sec / 60), (int)(sec % 60));
+    lv_label_set_text(tm_time, b);
+    lv_label_set_text(tm_sub, over ? "superato" : "in corso");
+  }
+  lv_obj_set_style_text_color(tm_time, over ? IOS_RED : C_TEXT, 0);
+  lv_obj_set_style_text_color(tm_sub, over ? IOS_RED : C_SUB, 0);
+  fmt_limit(lim, b, sizeof b);
+  lv_label_set_text(lv_obj_get_child(tm_lim, 0), b);
+  if (run_changed) {
+    bool run = sec >= 0;
+    lv_obj_set_style_bg_color(tm_btn, run ? IOS_RED : IOS_GREEN, 0);
+    lv_label_set_text(lv_obj_get_child(tm_btn, 0), run ? IC_STOP : IC_PLAY);
+    lv_obj_set_style_translate_x(lv_obj_get_child(tm_btn, 0), run ? 0 : 2, 0);
+  }
+}
+
+void tm_btn_cb(lv_event_t *) {
+  session_toggle(false);
+  refresh_session(true);
+}
+
+// tocco sul limite: passa al valore successivo
+void tm_lim_cb(lv_event_t *) {
+  static const int opts[] = {10, 15, 20, 30, 45, 60, 90, 120, 0};
+  int cur = session_limit_min(), n = sizeof opts / sizeof opts[0], i = 0;
+  while (i < n && opts[i] != cur) i++;
+  session_set_limit_min(opts[(i + 1) % n]);
+  refresh_session(true);
+}
+
 void timer_cb(lv_timer_t *) {
   refresh_status();
   refresh_sliders();
+  refresh_session();
 }
 
 // ------------------------------------------------- apertura/chiusura ----
@@ -225,6 +285,7 @@ void show() {
     tint();
     refresh_status(true);
     refresh_sliders(true);
+    refresh_session(true);
     set_pos(SCR_H);
     lv_obj_remove_flag(cc, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_to_index(cc, -1);
@@ -489,6 +550,40 @@ void ui_cc_build() {
   // volume e luminosità
   slider_build(s_vol, M, IC_SPEAKER, 0);
   slider_build(s_bri, M + TW + GAP, IC_SUN, 10);
+
+  // timer della sessione (es. highline): tempo trascorso, limite, avvia/ferma
+  lv_obj_t *t3 = tile(M, Y_ROW3, SCR_W - 2 * M, TM_H, TM_H / 2);
+  lv_obj_t *sw = ui_icon(t3, &icons_18, IC_STOPWATCH, C_TEXT);
+  lv_obj_align(sw, LV_ALIGN_LEFT_MID, 16, 0);
+  tm_time = ui_label(t3, &font_b16, C_TEXT, "");
+  lv_obj_align(tm_time, LV_ALIGN_LEFT_MID, 42, -7);
+  tm_sub = ui_label(t3, &font_r10, C_SUB, "");
+  lv_obj_align(tm_sub, LV_ALIGN_LEFT_MID, 42, 10);
+  constexpr int TB = 36;
+  tm_btn = ui_box(t3);
+  lv_obj_set_size(tm_btn, TB, TB);
+  lv_obj_align(tm_btn, LV_ALIGN_RIGHT_MID, -6, 0);
+  lv_obj_set_style_radius(tm_btn, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(tm_btn, LV_OPA_COVER, 0);
+  lv_obj_add_flag(tm_btn, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(tm_btn, 6);
+  lv_obj_set_style_transform_scale(tm_btn, 232, LV_STATE_PRESSED);
+  lv_obj_set_style_transform_pivot_x(tm_btn, TB / 2, 0);
+  lv_obj_set_style_transform_pivot_y(tm_btn, TB / 2, 0);
+  lv_obj_add_event_cb(tm_btn, tm_btn_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_center(ui_icon(tm_btn, &icons_14, IC_PLAY, C_BLACK));
+  tm_lim = ui_box(t3);
+  lv_obj_set_size(tm_lim, 54, 28);
+  lv_obj_align(tm_lim, LV_ALIGN_RIGHT_MID, -6 - TB - 8, 0);
+  lv_obj_set_style_radius(tm_lim, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(tm_lim, lv_color_white(), 0);
+  lv_obj_set_style_bg_opa(tm_lim, 52, 0);
+  lv_obj_set_style_bg_opa(tm_lim, 90, LV_STATE_PRESSED);
+  lv_obj_add_flag(tm_lim, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(tm_lim, 6);
+  lv_obj_add_event_cb(tm_lim, tm_lim_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_center(ui_label(tm_lim, &font_b12, C_TEXT, ""));
+  refresh_session(true);
 
   lv_obj_add_flag(cc, LV_OBJ_FLAG_HIDDEN);
 }

@@ -1,6 +1,7 @@
 // Struttura principale: pagine con navigazione a schede (Home / Cerca / Impostazioni),
 // mini player, barra di navigazione, schermata di avvio/scansione, notifiche.
 #include "ui.h"
+#include "../session.h"
 #include "ui_internal.h"
 #include <stdio.h>
 #include <string.h>
@@ -752,6 +753,7 @@ void ui_tick() {
     s_res_t = plat_millis();
     plat_resume_note(lib_tracks()[s_ps.track].path_hash, s_ps.pos_ms, s_ps.playing);
   }
+  session_poll();   // timer della sessione: avvisi anche a schermo spento
   plat_where(0, 14);   // 14: avanzamento e schermata in riproduzione
   update_mini_progress();
   ui_nowplaying_tick();

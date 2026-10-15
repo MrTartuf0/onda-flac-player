@@ -292,6 +292,8 @@ $('bDone').onclick=async()=>{
 if(busy&&!await dialog({title:'Caricamento in corso',text:'Se chiudi adesso i file non ancora caricati andranno persi.',ok:'Chiudi comunque',danger:true}))return;
 if(xhr)xhr.abort();try{await api('/api/done',{},{method:'POST'})}catch(e){}$('off').className='off on'};
 addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue=''}});
+// l'orologio del lettore prende l'ora da qui (non ha una batteria tampone)
+fetch('/api/time',{method:'POST',body:String(Date.now())}).catch(()=>{});
 const h=decodeURIComponent(location.hash.slice(1));load(h&&h[0]==='/'?h:'/');info();
 })();
 </script>

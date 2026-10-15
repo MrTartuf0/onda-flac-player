@@ -83,6 +83,11 @@
 //  per i FLAC fino a 48 kHz, sopra si usa 160. Metti 0 per lasciarlo a 240 MHz.
 #define SCREEN_OFF_CPU_MHZ   80
 
+// ------------------------------------------------------------- Orologio ----
+//  Fuso orario in formato POSIX (Italia: CET/CEST con ora legale automatica).
+//  L'ora arriva dal telefono/computer (pagina del trasferimento file) o da internet.
+#define TIME_ZONE "CET-1CEST,M3.5.0,M10.5.0/3"
+
 // ------------------------------------------------------------------ Varie ----
 #define LED_RGB_PIN      42
 #define BTN_BOOT_PIN     0

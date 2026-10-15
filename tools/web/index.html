@@ -299,6 +299,8 @@ $('bDone').onclick=async()=>{
  if(xhr)xhr.abort();try{await api('/api/done',{},{method:'POST'})}catch(e){}$('off').className='off on'};
 addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue=''}});
 
+// l'orologio del lettore prende l'ora da qui (non ha una batteria tampone)
+fetch('/api/time',{method:'POST',body:String(Date.now())}).catch(()=>{});
 const h=decodeURIComponent(location.hash.slice(1));load(h&&h[0]==='/'?h:'/');info();
 })();
 </script>

@@ -1,12 +1,14 @@
 // Impostazioni: batteria, uscita audio, rilevamento cuffie, luminosità, libreria.
 #include "ui_internal.h"
 #include <stdio.h>
+#include <string.h>
 #include "../lib/library.h"
 #include "../audio/audio_out.h"
 #include "../audio/player.h"
 #include "../platform.h"
 #include "../hal/battery.h"
 #include "../power.h"
+#include "../clock.h"
 
 namespace {
 
@@ -16,6 +18,7 @@ class SettingsPage : public Page {
   lv_obj_t *bat_lvl = nullptr, *bat_state = nullptr, *bat_icon = nullptr, *bat_load = nullptr;
   lv_timer_t *bat_timer = nullptr;
   lv_obj_t *scr_val = nullptr, *off_val = nullptr;
+  lv_obj_t *clk = nullptr, *date_t = nullptr, *date_s = nullptr;
 
   SettingsPage() { build(); }
   ~SettingsPage() override {
@@ -35,7 +38,37 @@ class SettingsPage : public Page {
     audio_out_set_detect_inverted(on);
     plat_kv_set("hp_inv", on);
   }
-  static void bat_timer_cb(lv_timer_t *t) { ((SettingsPage *)lv_timer_get_user_data(t))->bat_update(); }
+  static void bat_timer_cb(lv_timer_t *t) {
+    SettingsPage *p = (SettingsPage *)lv_timer_get_user_data(t);
+    p->bat_update();
+    p->clock_update();
+  }
+
+  // ora in alto a destra e riga "Data e ora"
+  void clock_update() {
+    struct tm t;
+    char b[64], hm[8];
+    if (!clock_local(&t)) {
+      lv_label_set_text(clk, "");
+      lv_label_set_text(date_t, "Ora non impostata");
+      lv_label_set_text(date_s, "Si prende da sola dal telefono o dal computer aprendo Trasferimento file");
+      return;
+    }
+    clock_fmt_time(t, hm, sizeof hm);
+    lv_label_set_text(clk, hm);
+    clock_fmt_date(t, b, sizeof b);
+    if (b[0] >= 'a' && b[0] <= 'z') b[0] -= 32;   // "Giovedì 15 ottobre 2026"
+    lv_label_set_text(date_t, b);
+    time_t at = (time_t)clock_synced_at();
+    struct tm st;
+    localtime_r(&at, &st);
+    char when[24];
+    clock_fmt_time(st, when, sizeof when);
+    if (st.tm_yday != t.tm_yday || st.tm_year != t.tm_year)
+      snprintf(when + strlen(when), sizeof when - strlen(when), " del %d/%d", st.tm_mday, st.tm_mon + 1);
+    snprintf(b, sizeof b, "%s alle %s", clock_source() == CLOCK_NTP ? "Da internet" : "Dal telefono/computer", when);
+    lv_label_set_text(date_s, b);
+  }
 
   void bat_update() {
     BatteryInfo b = battery_info();
@@ -172,9 +205,13 @@ class SettingsPage : public Page {
     lv_obj_set_style_pad_bottom(col, BOTTOM_PAD, 0);
 
     // scheda principale (barra in basso): titolo grande come le altre schede
-    lv_obj_t *t = ui_label(col, &font_b20, C_TEXT, "Impostazioni");
+    lv_obj_t *hd = ui_box(col);
+    lv_obj_set_size(hd, SCR_W, LV_SIZE_CONTENT);
+    lv_obj_t *t = ui_label(hd, &font_b20, C_TEXT, "Impostazioni");
     lv_obj_set_style_pad_left(t, 12, 0);
     lv_obj_set_style_pad_top(t, 12, 0);
+    clk = ui_label(hd, &font_b16, C_SUB, "");   // orologio
+    lv_obj_align(clk, LV_ALIGN_TOP_RIGHT, -14, 16);
 
     section("Batteria");
     lv_obj_t *bl = row("Livello", "-", nullptr);
@@ -188,6 +225,19 @@ class SettingsPage : public Page {
     lv_obj_set_width(bat_load, SCR_W - 28);
     lv_obj_set_width(bat_state, SCR_W - 28);
     bat_update();
+
+    section("Data e ora");
+    // come le altre righe, ma alta quanto serve: la nota può andare a capo
+    lv_obj_t *dr = ui_box(col);
+    lv_obj_set_size(dr, SCR_W, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(dr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_hor(dr, 14, 0);
+    lv_obj_set_style_pad_ver(dr, 8, 0);
+    lv_obj_set_style_pad_row(dr, 2, 0);
+    date_t = ui_label(dr, &font_r14, C_TEXT, "");
+    date_s = ui_label(dr, &font_r12, C_SUB, "");
+    lv_obj_set_width(date_s, SCR_W - 28);
+    clock_update();
     bat_timer = lv_timer_create(bat_timer_cb, 1000, this);
 
     section("Audio");

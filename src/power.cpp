@@ -2,6 +2,7 @@
 #include "config.h"
 #include "platform.h"
 #include "ui/ui.h"
+#include "session.h"
 
 namespace {
 int s_timeout_s = 30;
@@ -132,7 +133,10 @@ void button_poll(uint32_t now) {
     power_off(PWR_USER);
   }
   if (!down && s_clicks && now - s_up_t > kDoubleMs) {
-    if (s_clicks >= 2) {
+    if (s_clicks >= 3) {
+      plat_event("tasto: timer sessione");
+      session_toggle(true);   // 1 bip = avviato, 2 bip = fermato
+    } else if (s_clicks == 2) {
       plat_event("tasto: play/pausa");
       player_toggle();
     } else if (s_off == ON) {
@@ -204,8 +208,8 @@ void power_poll() {
   if (s_off == ON && s_timeout_s > 0 && !xfer && idle > (uint32_t)s_timeout_s * 1000) screen_off(OFF_TIMEOUT);
 
   // in pausa e a batteria da troppo tempo: spegnimento completo
-  if (s_auto_off_min > 0 && !playing && !xfer && now - s_last_busy > (uint32_t)s_auto_off_min * 60000 &&
-      battery_info().state == BAT_DISCHARGING)
+  if (s_auto_off_min > 0 && !playing && !xfer && !session_running() &&
+      now - s_last_busy > (uint32_t)s_auto_off_min * 60000 && battery_info().state == BAT_DISCHARGING)
     power_off(PWR_AUTO);
 
   // la frequenza giusta può cambiare col brano (es. un file a 96 kHz a schermo spento)

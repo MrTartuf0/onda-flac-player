@@ -33,6 +33,7 @@ typedef const char *(*TrackPathFn)(int track);
 void player_begin(TrackPathFn resolver);
 void player_play_list(const std::vector<uint16_t> &tracks, int start, const PlayContext &ctx,
                       bool start_paused = false, uint32_t start_ms = 0);
+void player_beep(int count);   // avviso sonoro (sopra la musica, o da solo in pausa)
 void player_toggle();
 void player_pause();
 void player_resume();
