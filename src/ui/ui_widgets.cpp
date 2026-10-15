@@ -127,6 +127,9 @@ lv_color_t genre_color(int g) { return kGenreColors[(g < 0 ? 0 : g) % 12]; }
 
 lv_obj_t *ui_cover(lv_obj_t *parent, int size, int radius) {
   lv_obj_t *c = ui_box(parent);
+  // un oggetto LVGL nasce cliccabile: la copertina "mangerebbe" il tocco della riga,
+  // della scheda o del mini player che la contiene (chi la vuole cliccabile lo dice)
+  lv_obj_remove_flag(c, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_size(c, size, size);
   lv_obj_set_style_radius(c, radius, 0);
   lv_obj_set_style_clip_corner(c, radius > 0, 0);

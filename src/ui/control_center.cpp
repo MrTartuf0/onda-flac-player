@@ -40,6 +40,7 @@ constexpr int RB = 40;                          // pulsanti rotondi
 
 struct Slider {
   lv_obj_t *box, *fill, *icon, *val;
+  lv_obj_t *icon2, *val2;   // copie grigie dentro al riempimento: dove il bianco le copre si vedono loro
   int v = 0, v0 = 0, y0 = 0, min = 0;
   bool drag = false;    // dito sul cursore
   bool moved = false;   // il dito si è spostato: trascinamento (relativo), non tocco
@@ -97,10 +98,14 @@ void slider_show(Slider &S) {
   int h = (S.v * SL_H + 50) / 100;
   lv_obj_set_height(S.fill, h);
   lv_label_set_text_fmt(S.val, "%d%%", S.v);
-  if (&S == &s_vol) lv_label_set_text(S.icon, vol_icon(audio_out_active(), S.v));
-  // come su iPhone: dove il riempimento bianco copre il simbolo, il simbolo diventa grigio
-  lv_obj_set_style_text_color(S.icon, h > 32 ? IOS_GLYPH : C_TEXT, 0);
-  lv_obj_set_style_text_color(S.val, h > SL_H - 22 ? IOS_GLYPH : C_TEXT, 0);
+  lv_label_set_text(S.val2, lv_label_get_text(S.val));
+  if (&S == &s_vol) {
+    lv_label_set_text(S.icon, vol_icon(audio_out_active(), S.v));
+    lv_label_set_text(S.icon2, lv_label_get_text(S.icon));
+  }
+  // come su iPhone: la parte di simbolo e percentuale coperta dal bianco è grigia,
+  // anche a metà (la copia grigia sta dentro al riempimento, che la ritaglia)
+  lv_obj_align(S.val2, LV_ALIGN_TOP_MID, 0, 12 - (SL_H - h));
 }
 
 // ----------------------------------------------------------- aggiorna ----
@@ -463,16 +468,19 @@ void slider_build(Slider &S, int x, const char *ic, int min) {
   lv_obj_add_flag(S.box, LV_OBJ_FLAG_PRESS_LOCK);
   lv_obj_remove_flag(S.box, LV_OBJ_FLAG_GESTURE_BUBBLE);   // trascinare il cursore non chiude
   lv_obj_add_event_cb(S.box, slider_cb, LV_EVENT_ALL, &S);
+  S.icon = ui_icon(S.box, &icons_22, ic, C_TEXT);
+  lv_obj_align(S.icon, LV_ALIGN_BOTTOM_MID, 0, -14);
+  S.val = ui_label(S.box, &font_b12, C_TEXT, "");
+  lv_obj_align(S.val, LV_ALIGN_TOP_MID, 0, 12);
   S.fill = ui_box(S.box);
   lv_obj_set_size(S.fill, TW, 0);
   lv_obj_align(S.fill, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_set_style_bg_color(S.fill, lv_color_white(), 0);
   lv_obj_set_style_bg_opa(S.fill, LV_OPA_COVER, 0);
   lv_obj_remove_flag(S.fill, LV_OBJ_FLAG_CLICKABLE);
-  S.icon = ui_icon(S.box, &icons_22, ic, C_TEXT);
-  lv_obj_align(S.icon, LV_ALIGN_BOTTOM_MID, 0, -14);
-  S.val = ui_label(S.box, &font_b12, C_TEXT, "");
-  lv_obj_align(S.val, LV_ALIGN_TOP_MID, 0, 12);
+  S.icon2 = ui_icon(S.fill, &icons_22, ic, IOS_GLYPH);
+  lv_obj_align(S.icon2, LV_ALIGN_BOTTOM_MID, 0, -14);
+  S.val2 = ui_label(S.fill, &font_b12, IOS_GLYPH, "");
 }
 
 }  // namespace

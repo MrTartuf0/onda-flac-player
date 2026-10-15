@@ -82,8 +82,11 @@ class ArtistPage : public Page {
     lv_obj_update_layout(name);
     int y = 166 + lv_obj_get_height(name) + 2;
 
-    char buf[64];
-    snprintf(buf, sizeof buf, TR("%u album \xE2\x80\xA2 %u brani"), (unsigned)A.albums.size(), (unsigned)A.tracks.size());
+    char na[24], nt[24], buf[64];
+    unsigned albums = A.albums.size(), tracks = A.tracks.size();
+    snprintf(na, sizeof na, albums == 1 ? TR("1 album") : TR("%u album"), albums);
+    snprintf(nt, sizeof nt, tracks == 1 ? TR("1 brano") : TR("%u brani"), tracks);
+    snprintf(buf, sizeof buf, "%s \xE2\x80\xA2 %s", na, nt);
     lv_obj_t *meta = ui_label(r, &font_r12, C_SUB, buf);
     lv_obj_set_pos(meta, 12, y);
     y += 22;

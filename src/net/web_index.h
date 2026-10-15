@@ -123,7 +123,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--g);cursor:pointer
 .full{margin-bottom:12px}.full textarea{min-height:90px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
 input.miss{border-color:#f0a24c}
 .tech{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;background:#1f1f1f;border-radius:8px;padding:12px 14px;margin:10px 0 14px}
-.tech dt{color:var(--sub)}.tech dd{margin:0;word-break:break-all}
+.tech dt{color:var(--sub)}.tech dd{margin:0;overflow-wrap:anywhere}
 .pics{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.pics figure{margin:0;font-size:11px;color:var(--sub);width:96px}
 .pics img{width:96px;height:96px;object-fit:cover;border-radius:6px;background:#333;display:block;margin-bottom:4px}
 .prog{height:4px;background:#333;border-radius:2px;overflow:hidden;margin:8px 0}.prog i{display:block;height:100%;width:0;background:var(--g);transition:width .2s}

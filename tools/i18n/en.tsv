@@ -47,7 +47,6 @@ Ripeti	Repeat
 Ripeti brano	Repeat one
 IN RIPRODUZIONE DA %s	PLAYING FROM %s
 FLAC %u bit \xE2\x80\xA2 %u.%u kHz	FLAC %u-bit \xE2\x80\xA2 %u.%u kHz
-%u album \xE2\x80\xA2 %u brani	%u albums \xE2\x80\xA2 %u songs
 Popolari	Popular
 1 ascolto	1 play
 %u ascolti	%u plays
@@ -204,3 +203,6 @@ Home	Home
 Cerca	Search
 Inserisci una scheda microSD\ncon i tuoi file .flac	Insert a microSD card\nwith your .flac files
 sessione	session
+1 album	1 album
+%u album	%u albums
+1 brano	1 song

@@ -543,7 +543,10 @@ static std::map<std::string, int32_t> s_kv;
 void *plat_alloc_big(size_t n) { return malloc(n); }
 void *plat_alloc_fast(size_t n) { return malloc(n); }
 void plat_free(void *p) { free(p); }
+// il simulatore può fornire il suo orologio (tempo simulato)
+__attribute__((weak)) uint32_t sim_clock_ms();
 uint32_t plat_millis() {
+  if (sim_clock_ms) return sim_clock_ms();
   using namespace std::chrono;
   static auto t0 = steady_clock::now();
   return (uint32_t)duration_cast<milliseconds>(steady_clock::now() - t0).count();
