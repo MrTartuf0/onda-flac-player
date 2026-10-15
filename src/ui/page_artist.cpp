@@ -15,6 +15,8 @@ class ArtistPage : public Page {
   std::vector<lv_obj_t *> pop_rows;
   lv_obj_t *play_btn, *shuffle_btn, *topbar, *topbar_title;
 
+  uint64_t ident() const override { return (uint64_t)ctx.type << 32 | ctx.key; }
+
   explicit ArtistPage(int a) : artist(a) {
     ctx = lib_ctx_artist(a);
     build();

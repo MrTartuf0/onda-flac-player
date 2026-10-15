@@ -428,6 +428,13 @@ lv_obj_t *ui_page_scroll(Page *p) {
 
 void ui_push(Page *p) {
   auto &st = s_stack[s_tab];
+  // la stessa pagina è già quella in cima (es. dall'album tocchi la copertina in
+  // "In riproduzione"): si mostra quella, senza doppioni da chiudere col "indietro"
+  if (!st.empty() && p->ident() && st.back()->ident() == p->ident()) {
+    delete p;
+    show_only_top();
+    return;
+  }
   st.push_back(p);
   // cronologia limitata: le pagine restano in memoria per il "indietro", oltre
   // una certa profondità si libera la più vecchia (la radice della scheda resta)

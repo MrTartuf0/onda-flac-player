@@ -16,6 +16,7 @@ class CollectionPage : public Page {
   std::vector<uint16_t> tracks;
   VList list;
   int album = -1;          // se è un album
+  uint64_t ident() const override { return (uint64_t)ctx.type << 32 | ctx.key; }
   bool show_covers = true;
   lv_obj_t *topbar, *topbar_title, *play_btn, *shuffle_btn, *heart = nullptr;
   lv_color_t color;

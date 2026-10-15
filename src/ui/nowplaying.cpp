@@ -90,6 +90,25 @@ void more_cb(lv_event_t *) {
   int t = ui_current_track();
   if (t >= 0) ui_track_menu(t);
 }
+// copertina: tocco = album (come il titolo), pressione lunga = menu del brano
+void cover_cb(lv_event_t *) {
+  if (after_gesture()) return;   // scorrendo sulla copertina si cambia brano
+  int t = ui_current_track();
+  if (t >= 0) ui_open_album(lib_tracks()[t].album);
+}
+// intestazione "In riproduzione da ...": apre la playlist / l'album / l'artista da cui suona
+void ctx_cb(lv_event_t *) {
+  if (after_gesture()) return;
+  int t = ui_current_track();
+  if (t < 0) return;
+  PlayContext c = player_context();
+  if (c.type == CTX_NONE || c.type == CTX_SEARCH || !lib_ctx_valid(c)) {
+    ui_open_album(lib_tracks()[t].album);
+    return;
+  }
+  ui_nowplaying_close();
+  ui_open_context(c);
+}
 void gesture_cb(lv_event_t *) {
   lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_active());
   if (d == LV_DIR_BOTTOM) ui_nowplaying_close();
@@ -125,6 +144,10 @@ lv_obj_t *ctrl(lv_obj_t *p, const lv_font_t *f, const char *ic, lv_event_cb_t cb
 
 // ---------------------------------------------------------------- coda ----
 void q_close_cb(lv_event_t *) { slide(q_view, false); }
+void q_gesture_cb(lv_event_t *) {
+  // giù (partendo dall'intestazione o dai pulsanti in fondo) chiude la coda
+  if (lv_indev_get_gesture_dir(lv_indev_active()) == LV_DIR_BOTTOM) slide(q_view, false);
+}
 void q_row_cb(lv_event_t *e) {
   int i = ui_row_index(lv_event_get_current_target_obj(e));
   if (i >= 0 && i < (int)q_items.size()) player_jump(i);
@@ -170,10 +193,17 @@ void build_queue(lv_obj_t *scr) {
   lv_obj_set_size(q_view, SCR_W, SCR_H);
   lv_obj_set_style_bg_color(q_view, C_BG, 0);
   lv_obj_set_style_bg_opa(q_view, LV_OPA_COVER, 0);
+  // i gesti si fermano qui (in LVGL 9 risalirebbero fino allo schermo)
+  lv_obj_remove_flag(q_view, LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(q_view, q_gesture_cb, LV_EVENT_GESTURE, nullptr);
+  // tutta l'intestazione chiude la coda (non solo la freccia)
   lv_obj_t *top = ui_box(q_view);
   lv_obj_set_size(top, SCR_W, 44);
-  lv_obj_t *x = ui_icon_btn(top, &icons_18, IC_DOWN, C_TEXT, q_close_cb);
-  lv_obj_align(x, LV_ALIGN_LEFT_MID, 14, 0);
+  lv_obj_add_flag(top, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_opa(top, LV_OPA_60, LV_STATE_PRESSED);
+  lv_obj_add_event_cb(top, q_close_cb, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *x = ui_icon(top, &icons_18, IC_DOWN, C_TEXT);
+  lv_obj_align(x, LV_ALIGN_LEFT_MID, 18, 0);
   lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, "Coda");
   lv_obj_center(t);
 
@@ -188,6 +218,7 @@ void build_queue(lv_obj_t *scr) {
   lv_obj_set_pos(h1, 12, 4);
   q_now_row = ui_row(sc, 56, 44, false, false);
   lv_obj_set_y(q_now_row, 26);
+  lv_obj_add_event_cb(q_now_row, q_close_cb, LV_EVENT_CLICKED, nullptr);   // torna a "In riproduzione"
   lv_obj_set_style_text_color(ui_row_parts(q_now_row).title, C_GREEN, 0);
   q_head_next = ui_label(sc, &font_b14, C_TEXT, "");
   ui_dot(q_head_next);
@@ -253,10 +284,17 @@ void ui_nowplaying_build(lv_obj_t *scr) {
 
   lv_obj_t *dn = ui_icon_btn(np, &icons_18, IC_DOWN, C_TEXT, close_cb);
   lv_obj_set_pos(dn, 14, 10);
-  np_ctx_type = ui_label(np, &font_b8, C_SUB, "");
+  // "In riproduzione da ..." in alto: toccandolo si apre la playlist/album/artista
+  lv_obj_t *cx = ui_box(np);
+  lv_obj_set_size(cx, SCR_W - 96, 36);
+  lv_obj_align(cx, LV_ALIGN_TOP_MID, 0, 0);
+  lv_obj_add_flag(cx, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_opa(cx, LV_OPA_60, LV_STATE_PRESSED);
+  lv_obj_add_event_cb(cx, ctx_cb, LV_EVENT_CLICKED, nullptr);
+  np_ctx_type = ui_label(cx, &font_b8, C_SUB, "");
   lv_obj_set_style_text_letter_space(np_ctx_type, 1, 0);
   lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 7);
-  np_ctx_name = ui_label(np, &font_b12, C_TEXT, "");
+  np_ctx_name = ui_label(cx, &font_b12, C_TEXT, "");
   ui_dot(np_ctx_name);
   lv_obj_set_width(np_ctx_name, SCR_W - 96);
   lv_obj_set_style_text_align(np_ctx_name, LV_TEXT_ALIGN_CENTER, 0);
@@ -265,18 +303,23 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   np_cover = ui_cover(np, CV, 4);
   lv_obj_align(np_cover, LV_ALIGN_TOP_MID, 0, Y_COVER);
   lv_obj_add_flag(np_cover, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_opa(np_cover, LV_OPA_80, LV_STATE_PRESSED);
+  lv_obj_add_event_cb(np_cover, cover_cb, LV_EVENT_SHORT_CLICKED, nullptr);
+  lv_obj_add_event_cb(np_cover, more_cb, LV_EVENT_LONG_PRESSED, nullptr);
 
   np_title = ui_label(np, &font_b16, C_TEXT, "");
   lv_label_set_long_mode(np_title, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
   lv_obj_set_width(np_title, SCR_W - 24 - 34);
   lv_obj_set_pos(np_title, 12, Y_TITLE);
   lv_obj_add_flag(np_title, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(np_title, 3);   // un po' più facile da centrare col dito
   lv_obj_add_event_cb(np_title, title_cb, LV_EVENT_SHORT_CLICKED, nullptr);   // non dopo la pressione lunga
   np_artist = ui_label(np, &font_r12, C_SUB, "");
   ui_dot(np_artist);
   lv_obj_set_width(np_artist, SCR_W - 24 - 34);
   lv_obj_set_pos(np_artist, 12, Y_TITLE + 21);
   lv_obj_add_flag(np_artist, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_ext_click_area(np_artist, 3);
   lv_obj_add_event_cb(np_artist, artist_cb, LV_EVENT_CLICKED, nullptr);
   np_heart = ui_icon_btn(np, &icons_18, IC_HEART_O, C_TEXT, heart_cb);
   lv_obj_set_pos(np_heart, SCR_W - 12 - 20, Y_TITLE + 8);

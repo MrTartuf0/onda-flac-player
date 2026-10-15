@@ -15,8 +15,11 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 - **Impostazioni** come terza scheda della barra in basso (batteria, audio, schermo, Wi-Fi, libreria)
 - Pagine **album**, **artista** (Popolari + Discografia), **playlist** `.m3u`, **Brani che ti piacciono**
 - **In riproduzione**: copertina, gradiente col colore dell'album, seek, casuale, coda,
-  swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*)
-- **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
+  swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*);
+  tocca copertina o titolo per l'album, l'artista per la sua pagina, "In riproduzione da" in alto per
+  la playlist/album da cui suona (pressione lunga su copertina o titolo: menu del brano)
+- **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista);
+  si chiude toccando l'intestazione, scorrendo giù su di essa o toccando il brano in riproduzione
 - **Gesto indietro** come su Android: trascina dal bordo sinistro verso l'interno
 - **Centro di controllo** come su iPhone: scorri su dal bordo in basso (vedi sotto)
 - **Trasferimento file via Wi-Fi** dal browser (vedi sotto)

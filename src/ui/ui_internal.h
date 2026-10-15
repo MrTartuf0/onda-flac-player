@@ -94,6 +94,9 @@ class Page {
   virtual void refresh(uint32_t what) { (void)what; }
   virtual void on_show() {}
   virtual bool on_back() { return false; }   // gesto "indietro": true = gestito dalla pagina
+  // cosa mostra (album, artista, playlist...): 0 = niente di identificabile.
+  // Serve a non aprire due volte di fila la stessa pagina.
+  virtual uint64_t ident() const { return 0; }
 };
 
 enum Tab : uint8_t { TAB_HOME = 0, TAB_SEARCH = 1, TAB_SETTINGS = 2 };
