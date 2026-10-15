@@ -1,6 +1,6 @@
 # onda
 
-<img src="docs/images/tour.gif" align="right" width="260" alt="A tour of the player: home, album, now playing, queue, control center, search and settings">
+<img src="docs/images/tour.gif" align="right" width="260" hspace="24" alt="A tour of the player: home, album, now playing, queue, control center, search and settings">
 
 **A pocket FLAC player for the Freenove ESP32-S3 Display (FNK0104B).**
 
