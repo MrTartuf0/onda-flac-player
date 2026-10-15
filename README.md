@@ -59,7 +59,8 @@ Sul retro del modulo i ponticelli devono essere: **FLT = L, DEMP = L, XSMT = H, 
 
 Il segnale I2S è lo stesso che va all'ES8311: il firmware lo **duplica** sui pin 21/14/3 tramite la
 GPIO matrix dell'ESP32-S3, quindi il cambio di uscita è istantaneo, senza riconfigurare nulla. Quando
-sono attive le cuffie l'ampli dello speaker viene spento e il DAC dell'ES8311 messo in muto.
+sono attive le cuffie l'ampli dello speaker viene spento e il DAC dell'ES8311 messo in muto;
+quando è attivo lo speaker i pin del PCM5102 vengono staccati dall'I2S e il modulo va in standby.
 
 ### Rilevamento automatico delle cuffie
 

@@ -33,29 +33,58 @@ portMUX_TYPE s_mux = portMUX_INITIALIZER_UNLOCKED;
 int s_last_raw = -1;
 uint32_t s_raw_since = 0;
 
+const struct { int pin; uint32_t sig; } kMirror[] = {
+  {DAC_PIN_BCK, I2S0O_BCK_OUT_IDX},
+  {DAC_PIN_LRCK, I2S0O_WS_OUT_IDX},
+  {DAC_PIN_DIN, I2S0O_SD_OUT_IDX},   // ultimo: è il primo a essere staccato
+};
+bool s_mirror = false;
+
 void route_mirror_pins() {
-  // Duplica BCK / WS / DATA dell'I2S0 sui pin del PCM5102.
-  const struct { int pin; uint32_t sig; } map[] = {
-    {DAC_PIN_BCK, I2S0O_BCK_OUT_IDX},
-    {DAC_PIN_LRCK, I2S0O_WS_OUT_IDX},
-    {DAC_PIN_DIN, I2S0O_SD_OUT_IDX},
-  };
-  for (auto &m : map) {
+  // Pin del PCM5102 come uscite ferme a 0; mirror() ci collega l'I2S0 solo
+  // quando servono le cuffie.
+  for (auto &m : kMirror) {
     if (m.pin < 0) continue;
     esp_rom_gpio_pad_select_gpio(m.pin);
     gpio_set_direction((gpio_num_t)m.pin, GPIO_MODE_OUTPUT);
     gpio_set_drive_capability((gpio_num_t)m.pin, GPIO_DRIVE_CAP_2);
-    esp_rom_gpio_connect_out_signal(m.pin, m.sig, false, false);
+    esp_rom_gpio_connect_out_signal(m.pin, SIG_GPIO_OUT_IDX, false, false);
+    gpio_set_level((gpio_num_t)m.pin, 0);
+  }
+  s_mirror = false;
+}
+
+// Duplica (o smette di duplicare) BCK / WS / DATA dell'I2S0 sui pin del PCM5102.
+// Spento: prima i dati a 0 (il DAC suona silenzio), poi i clock fermi: il PCM5102
+// rileva lo stop dei clock e va in standby (niente audio in cuffia, consuma meno).
+// Acceso: prima i clock, poi i dati; il DAC si riaggancia da solo con la sua
+// rampa anti-click.
+void mirror(bool on) {
+  if (on == s_mirror) return;
+  s_mirror = on;
+  if (on) {
+    for (auto &m : kMirror)
+      if (m.pin >= 0) esp_rom_gpio_connect_out_signal(m.pin, m.sig, false, false);
+    return;
+  }
+  for (int i = 2; i >= 0; i--) {
+    const auto &m = kMirror[i];
+    if (m.pin < 0) continue;
+    esp_rom_gpio_connect_out_signal(m.pin, SIG_GPIO_OUT_IDX, false, false);
+    gpio_set_level((gpio_num_t)m.pin, 0);
+    if (i == 2) delay(3);   // il silenzio arriva all'uscita prima di fermare i clock
   }
 }
 
 void apply_device(OutputDev d) {
   if (d == DEV_SPEAKER) {
+    mirror(false);   // altrimenti le cuffie continuano a suonare insieme allo speaker
     es8311_mute(false);
     digitalWrite(AMP_PIN_EN, AMP_ON_LEVEL);
   } else {
     digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);
     es8311_mute(true);   // meno consumi/rumore: lo speaker non serve
+    mirror(true);
   }
 }
 
@@ -128,6 +157,7 @@ void audio_out_suspend() {
   if (!s_tx) return;
   digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);
   es8311_mute(true);
+  mirror(false);
   i2s_chan_handle_t t = s_tx;
   s_tx = nullptr;
   i2s_channel_disable(t);
