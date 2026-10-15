@@ -40,6 +40,22 @@ LibState s_last_lib = LIB_IDLE;
 bool s_restore_pending = false;   // ripristina la sessione al termine della prossima scansione
 bool s_saw_scan = false;
 
+// ---------------------------------------------------------- preferenze ----
+// Volume, luminosità e uscita scelti dal centro di controllo: durante la
+// riproduzione la scrittura in flash si rimanda (ferma entrambi i core per
+// qualche ms); si salva appena la musica è in pausa o al cambio brano.
+struct PendingPref {
+  const char *key;
+  int32_t v;
+};
+PendingPref s_pend[6];
+int s_pend_n = 0;
+
+void prefs_flush() {
+  for (int i = 0; i < s_pend_n; i++) plat_kv_set(s_pend[i].key, s_pend[i].v);
+  s_pend_n = 0;
+}
+
 // ------------------------------------------------------------- sessione ----
 void save_session(bool with_pos) {
   plat_event("salva sessione");
@@ -553,11 +569,23 @@ static uint8_t s_bright = 80;
 
 void ui_set_brightness(uint8_t pct, bool save) {
   s_bright = pct;
-  if (save) plat_kv_set("bright", pct);
+  if (save) ui_pref_set("bright", pct);
   if (s_bright_fn) s_bright_fn(pct);
 }
 
 uint8_t ui_brightness() { return s_bright; }
+
+void ui_pref_set(const char *key, int32_t v) {
+  int i = 0;
+  while (i < s_pend_n && strcmp(s_pend[i].key, key)) i++;
+  if (i == s_pend_n) {
+    if (s_pend_n == (int)(sizeof s_pend / sizeof s_pend[0])) prefs_flush();
+    i = s_pend_n++;
+    s_pend[i].key = key;
+  }
+  s_pend[i].v = v;
+  if (!s_ps.playing) prefs_flush();
+}
 
 void ui_session_save() { save_session(true); }
 
@@ -674,6 +702,7 @@ void ui_tick() {
       update_mini_track();
       plat_where(0, 12);   // 12: nuovo brano: salva la sessione
       save_session(false);
+      prefs_flush();
     }
     what |= RF_PLAYER;
   }
@@ -709,6 +738,7 @@ void ui_tick() {
   // e al cambio brano. Le scritture in flash fermano entrambi i core per qualche
   // ms e sono tra i sospettati dei blocchi.
   uint32_t now = plat_millis();
+  if (!s_ps.playing && s_pend_n) prefs_flush();
   if (!s_ps.playing && now - s_last_save > 30000) {
     s_last_save = now;
     plat_event("sd salva libreria");

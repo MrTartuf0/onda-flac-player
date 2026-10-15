@@ -139,6 +139,7 @@ void ui_nowplaying_tick();
 void ui_nowplaying_build(lv_obj_t *scr);
 void ui_set_brightness(uint8_t pct, bool save = true);   // save: scrive in flash
 uint8_t ui_brightness();
+void ui_pref_set(const char *key, int32_t v);   // salva in flash (rimandato durante la riproduzione)
 void ui_request_rescan(bool force = true);
 // Trasferimento file via Wi-Fi (src/ui/transfer.cpp)
 void ui_transfer_open();

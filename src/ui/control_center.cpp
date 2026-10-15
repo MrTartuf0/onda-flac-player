@@ -210,6 +210,7 @@ void show() {
   cc_closing = false;
   if (!cc_on) {
     cc_on = true;
+    plat_event("centro controllo");
     tint();
     refresh_status(true);
     refresh_sliders(true);
@@ -273,6 +274,7 @@ void handle_cb(lv_event_t *e) {
 
 void wifi_cb(lv_event_t *) {
   if (!real_click()) return;
+  plat_event("cc wifi");
   bool active = xfer_status().state != XF_OFF;
   hide();
   if (!active && !ui_transfer_visible()) ui_transfer_open();
@@ -283,7 +285,8 @@ void out_cb(lv_event_t *e) {
   lv_obj_t *b = lv_event_get_target_obj(e);
   OutputMode m = b == b_spk ? OUT_SPEAKER : b == b_hp ? OUT_HEADPHONES : OUT_AUTO;
   audio_out_set_mode(m);
-  plat_kv_set("mode", m);
+  plat_event("cc uscita", m == OUT_SPEAKER ? "altoparlante" : m == OUT_HEADPHONES ? "cuffie" : "auto");
+  ui_pref_set("mode", m);
   refresh_status(true);
   refresh_sliders(true);   // il volume è per uscita
 }
@@ -313,8 +316,10 @@ void slider_cb(lv_event_t *e) {
     // si salva solo al rilascio: niente scritture in flash a ogni passo
     if (&S == &s_vol) {
       OutputDev d = audio_out_active();
-      plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
+      plat_event("cc volume");
+      ui_pref_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
     } else {
+      plat_event("cc luminosita");
       ui_set_brightness(S.v, true);
     }
   }

@@ -250,8 +250,10 @@ void loop() {
     last_sig_t = millis();
     sig = load_signature();
   }
+  plat_where(0, 4);   // 4: batteria (lettura ADC)
   battery_poll(sig);
   if (stage == 2 && battery_info().critical) battery_power_off(false);
+  plat_where(0, 5);   // 5: diagnostica RAM
   plat_heap_check();
   static uint32_t last_perf = 0;
   if (millis() - last_perf > 3000) {

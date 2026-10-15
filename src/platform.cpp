@@ -55,6 +55,8 @@ struct BootCrumbs {
   char wdt_tasks[48];   // task in esecuzione sui due core quando scatta il watchdog
   char stall[96];       // ultimo blocco del core 0 visto dal monitor (core 1)
   char nvs[24];         // operazione NVS (flash) in corso, vuoto se nessuna
+  char hang[96];        // blocco totale visto dall'interrupt del tick (vedi hang_hook)
+  char flash_by[20];    // task che sta usando la flash (cache spenta), vuoto se nessuno
   // "scatola nera": ultimi eventi con l'istante (ms dall'avvio)
   struct Ev {
     uint32_t t;
@@ -84,8 +86,11 @@ void plat_event(const char *what, const char *detail) {
   portEXIT_CRITICAL(&s_evmux);
 }
 
+static volatile uint32_t s_progress = 0;   // cresce a ogni battito di qualsiasi task
+
 void plat_beat(int who) {
   if (who >= 0 && who < 4) s_bc.beat[who] = millis();
+  s_progress = s_progress + 1;
 }
 
 void plat_where(int who, uint8_t code) {
@@ -186,7 +191,13 @@ uint32_t plat_boot_check(const char **reason) {
     size_t n = strlen(s_panic_text);
     if (s_bc.stall[0]) n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sMonitor: %s", n ? "\n" : "", s_bc.stall);
     if (n < sizeof s_panic_text && s_bc.nvs[0])
-      snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sScrittura flash in corso: %s", n ? "\n" : "", s_bc.nvs);
+      n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sScrittura flash in corso: %s", n ? "\n" : "", s_bc.nvs);
+    s_bc.hang[sizeof s_bc.hang - 1] = 0;
+    s_bc.flash_by[sizeof s_bc.flash_by - 1] = 0;
+    if (n < sizeof s_panic_text && s_bc.hang[0])
+      n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sBlocco: %s", n ? "\n" : "", s_bc.hang);
+    if (n < sizeof s_panic_text && s_bc.flash_by[0])
+      snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sFlash in uso da: %s", n ? "\n" : "", s_bc.flash_by);
   }
   s_blackbox[0] = 0;
   if (crash) build_blackbox();
@@ -195,6 +206,8 @@ uint32_t plat_boot_check(const char **reason) {
   memset(s_bc.where, 0, sizeof s_bc.where);
   s_bc.stall[0] = 0;
   s_bc.nvs[0] = 0;
+  s_bc.hang[0] = 0;
+  s_bc.flash_by[0] = 0;
   s_bc.wdt_tasks[0] = 0;
   s_bc.bt_len = 0;
   s_bc.panic_reason[0] = 0;
@@ -316,7 +329,95 @@ static void stall_monitor(void *) {
     }
   }
 }
+// ---------------------------------------------------------------------------
+// Blocco totale (tutti i task fermi): il watchdog riavvia la scheda senza che il
+// suo interrupt (in flash) riesca a girare, quindi senza lasciare tracce. Gli
+// interrupt del tick invece girano anche con la cache della flash spenta: da lì,
+// dopo 2 s senza battiti, si annota in RTC chi occupa i due core, dove si trova
+// (PC) e se la cache è spenta. Solo codice in IRAM e dati in DRAM/RTC.
+// ---------------------------------------------------------------------------
+#include <esp_memory_utils.h>
+#include <esp_flash.h>
+#include <esp_private/cache_utils.h>
+
+DRAM_ATTR static const char kHex[] = "0123456789abcdef";
+static uint32_t s_hang_last[2], s_hang_cnt[2];
+static volatile bool s_hang_done = false;
+
+static IRAM_ATTR char *put_str(char *d, char *end, const char *s) {
+  while (s && *s && d < end) *d++ = *s++;
+  return d;
+}
+static IRAM_ATTR char *put_hex(char *d, char *end, uint32_t v) {
+  for (int i = 28; i >= 0 && d < end; i -= 4) *d++ = kHex[(v >> i) & 15];
+  return d;
+}
+static IRAM_ATTR char *put_task(char *d, char *end, TaskHandle_t t) {
+  if (t && esp_ptr_internal(t)) return put_str(d, end, pcTaskGetName(t));
+  return put_str(d, end, DRAM_STR("?"));
+}
+
+static IRAM_ATTR void hang_hook() {
+  int c = xPortGetCoreID();
+  uint32_t p = s_progress;
+  if (p != s_hang_last[c]) {
+    s_hang_last[c] = p;
+    s_hang_cnt[c] = 0;
+    return;
+  }
+  if (++s_hang_cnt[c] != 2000 || s_hang_done) return;   // 2 s (tick a 1 kHz)
+  s_hang_done = true;
+  char *d = s_bc.hang, *end = s_bc.hang + sizeof s_bc.hang - 1;
+  for (int k = 0; k < 2; k++) {
+    d = put_str(d, end, k ? DRAM_STR(", core1 ") : DRAM_STR("core0 "));
+    TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(k);
+    d = put_task(d, end, t);
+    if (k == c && t && esp_ptr_internal(t)) {
+      // entrando nell'interrupt il task ha salvato i registri sul suo stack:
+      // pxTopOfStack (primo campo del TCB) punta al frame, il PC è la 2a parola
+      uint32_t *frame = *(uint32_t **)t;
+      if (esp_ptr_internal(frame)) {
+        d = put_str(d, end, DRAM_STR(" pc "));
+        d = put_hex(d, end, frame[1]);
+      }
+    }
+  }
+  if (!spi_flash_cache_enabled()) d = put_str(d, end, DRAM_STR(", cache flash spenta"));
+  *d = 0;
+}
+
+// Chi usa la flash: le operazioni sulla flash (NVS, partizioni) passano da qui e
+// spengono la cache; se la scheda si blocca durante una di esse lo si legge al riavvio.
+static esp_flash_os_functions_t s_fos;
+static const esp_flash_os_functions_t *s_fos_orig = nullptr;
+
+static IRAM_ATTR esp_err_t fos_start(void *arg) {
+  char *d = s_bc.flash_by, *end = s_bc.flash_by + sizeof s_bc.flash_by - 1;
+  d = put_task(d, end, xTaskGetCurrentTaskHandle());
+  *d = 0;
+  return s_fos_orig->start(arg);
+}
+static IRAM_ATTR esp_err_t fos_end(void *arg) {
+  esp_err_t r = s_fos_orig->end(arg);
+  s_bc.flash_by[0] = 0;
+  return r;
+}
+
+static void diag_hooks_install() {
+  esp_register_freertos_tick_hook_for_cpu(hang_hook, 0);
+  esp_register_freertos_tick_hook_for_cpu(hang_hook, 1);
+  esp_flash_t *f = esp_flash_default_chip;
+  if (f && f->os_func && f->os_func->start && f->os_func->end) {
+    s_fos = *f->os_func;
+    s_fos_orig = f->os_func;
+    s_fos.start = fos_start;
+    s_fos.end = fos_end;
+    f->os_func = &s_fos;
+  }
+}
+
 void plat_monitor_start() {
+  diag_hooks_install();
   esp_register_freertos_idle_hook_for_cpu(idle0_hook, 0);
   xTaskCreatePinnedToCore(stall_monitor, "monitor", 3072, nullptr, configMAX_PRIORITIES - 2, nullptr, 1);
 }

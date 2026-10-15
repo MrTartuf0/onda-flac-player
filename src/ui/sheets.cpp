@@ -127,7 +127,7 @@ void device_build();
 void mode_cb(lv_event_t *e) {
   OutputMode m = (OutputMode)(intptr_t)lv_event_get_user_data(e);
   audio_out_set_mode(m);
-  plat_kv_set("mode", m);
+  ui_pref_set("mode", m);
   device_build();   // ricostruisce il contenuto del foglio aperto
 }
 
@@ -136,7 +136,7 @@ void vol_cb(lv_event_t *e) {
   OutputDev d = audio_out_active();
   audio_out_set_volume(d, lv_slider_get_value(s));
   if (lv_event_get_code(e) == LV_EVENT_RELEASED)
-    plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", lv_slider_get_value(s));
+    ui_pref_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", lv_slider_get_value(s));
 }
 
 void device_fill(lv_obj_t *sh) {
