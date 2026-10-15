@@ -137,8 +137,9 @@ col gesto indietro.
 - **Altoparlante / Cuffie / AUTO**: sceglie l'uscita audio (AUTO = cuffie quando le inserisci)
 - **Batteria**: anello con la percentuale, autonomia stimata (a batteria) o tempo alla carica
   completa (in carica)
-- **Volume** e **Luminosità**: trascina il dito su o giù partendo da un punto qualsiasi del
-  riquadro; il volume è quello dell'uscita in uso
+- **Volume** e **Luminosità**: tocca un punto del riquadro per andare subito a quel livello
+  (arrotondato al 5%), oppure trascina il dito su o giù partendo da un punto qualsiasi per
+  regolarlo con precisione; il volume è quello dell'uscita in uso
 
 ## Batteria
 

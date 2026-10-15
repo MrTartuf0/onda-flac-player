@@ -37,7 +37,9 @@ constexpr int RB = 40;                          // pulsanti rotondi
 struct Slider {
   lv_obj_t *box, *fill, *icon, *val;
   int v = 0, v0 = 0, y0 = 0, min = 0;
-  bool drag = false;
+  bool drag = false;    // dito sul cursore
+  bool moved = false;   // il dito si è spostato: trascinamento (relativo), non tocco
+  bool anim = false;    // riempimento in animazione verso il valore toccato
 };
 
 lv_obj_t *cc = nullptr, *panel;
@@ -157,12 +159,12 @@ void refresh_status(bool force = false) {
 void refresh_sliders(bool force = false) {
   static OutputDev last_dev = DEV_SPEAKER;
   OutputDev d = audio_out_active();
-  if (!s_vol.drag && (force || d != last_dev || s_vol.v != audio_out_volume(d))) {
+  if (!s_vol.drag && !s_vol.anim && (force || d != last_dev || s_vol.v != audio_out_volume(d))) {
     s_vol.v = audio_out_volume(d);
     slider_show(s_vol);
   }
   last_dev = d;
-  if (!s_bri.drag && (force || s_bri.v != ui_brightness())) {
+  if (!s_bri.drag && !s_bri.anim && (force || s_bri.v != ui_brightness())) {
     s_bri.v = ui_brightness();
     slider_show(s_bri);
   }
@@ -300,6 +302,33 @@ void out_cb(lv_event_t *e) {
   refresh_sliders(true);   // il volume è per uscita
 }
 
+// Applica il valore (volume dell'uscita in uso o luminosità), senza salvare
+void slider_apply(Slider &S, int v) {
+  if (&S == &s_vol) audio_out_set_volume(audio_out_active(), v);
+  else ui_set_brightness(v, false);
+}
+
+// Salvataggio al rilascio: niente scritture in flash a ogni passo
+void slider_save(Slider &S) {
+  if (&S == &s_vol) {
+    OutputDev d = audio_out_active();
+    plat_event("cc volume");
+    ui_pref_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
+  } else {
+    plat_event("cc luminosita");
+    ui_set_brightness(S.v, true);
+  }
+}
+
+void fill_anim_cb(void *var, int32_t v) {
+  Slider &S = *(Slider *)var;
+  S.v = v;
+  slider_show(S);
+}
+void fill_anim_done(lv_anim_t *a) { ((Slider *)a->var)->anim = false; }
+
+// Un tocco porta il cursore dove hai toccato (arrotondato al 5%); trascinando
+// invece si sposta di quanto muovi il dito, da qualsiasi punto parti.
 void slider_cb(lv_event_t *e) {
   Slider &S = *(Slider *)lv_event_get_user_data(e);
   lv_event_code_t c = lv_event_get_code(e);
@@ -307,30 +336,51 @@ void slider_cb(lv_event_t *e) {
   if (!in) return;
   lv_point_t p;
   lv_indev_get_point(in, &p);
+  constexpr int kMove = 6;   // oltre questi pixel è un trascinamento
   if (c == LV_EVENT_PRESSED) {
     if (cc_closing) return;
+    lv_anim_delete(&S, fill_anim_cb);
+    S.anim = false;
     S.drag = true;
+    S.moved = false;
     S.y0 = p.y;
     S.v0 = S.v;
   } else if (c == LV_EVENT_PRESSING && S.drag) {
+    if (!S.moved) {
+      if (LV_ABS(p.y - S.y0) <= kMove) return;
+      S.moved = true;
+      S.y0 = p.y;   // si parte da qui: nessun salto quando inizia il trascinamento
+    }
     int v = S.v0 + (S.y0 - p.y) * 100 / SL_H;
     v = v < S.min ? S.min : v > 100 ? 100 : v;
     if (v == S.v) return;
     S.v = v;
-    if (&S == &s_vol) audio_out_set_volume(audio_out_active(), v);
-    else ui_set_brightness(v, false);
+    slider_apply(S, v);
     slider_show(S);
   } else if ((c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) && S.drag) {
     S.drag = false;
-    // si salva solo al rilascio: niente scritture in flash a ogni passo
-    if (&S == &s_vol) {
-      OutputDev d = audio_out_active();
-      plat_event("cc volume");
-      ui_pref_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
-    } else {
-      plat_event("cc luminosita");
-      ui_set_brightness(S.v, true);
+    if (!S.moved && c == LV_EVENT_RELEASED) {
+      lv_area_t a;
+      lv_obj_get_coords(S.box, &a);
+      int v = (a.y2 - p.y) * 100 / SL_H;
+      v = (v + 2) / 5 * 5;
+      v = v < S.min ? S.min : v > 100 ? 100 : v;
+      if (v == S.v) return;
+      slider_apply(S, v);   // il volume ha già la sua rampa: niente salti bruschi
+      // il riempimento scorre fino al punto toccato
+      S.anim = true;
+      lv_anim_t an;
+      lv_anim_init(&an);
+      lv_anim_set_var(&an, &S);
+      lv_anim_set_exec_cb(&an, fill_anim_cb);
+      lv_anim_set_values(&an, S.v, v);
+      lv_anim_set_duration(&an, 160);
+      lv_anim_set_path_cb(&an, lv_anim_path_ease_out);
+      lv_anim_set_completed_cb(&an, fill_anim_done);
+      lv_anim_start(&an);
+      S.v = v;   // valore vero subito (l'animazione lo ridisegna passo passo)
     }
+    slider_save(S);
   }
 }
 
