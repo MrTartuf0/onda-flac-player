@@ -55,7 +55,12 @@ struct BootCrumbs {
   char wdt_tasks[48];   // task in esecuzione sui due core quando scatta il watchdog
   char stall[96];       // ultimo blocco del core 0 visto dal monitor (core 1)
   char nvs[24];         // operazione NVS (flash) in corso, vuoto se nessuna
-  char hang[96];        // blocco totale visto dall'interrupt del tick (vedi hang_hook)
+  char hang[2][56];     // blocco totale visto dall'interrupt del tick di ciascun core (vedi hang_hook)
+  uint32_t hang_ms;     // quando è stato visto (ms dall'avvio)
+  uint32_t hang_tick;   // contatore dei tick di FreeRTOS in quel momento (fermo = tick bloccato)
+  uint32_t freeze;      // 1 = riavvio fatto da hang_hook dopo 3 s di blocco totale
+  // dove eri (brano, posizione, in riproduzione): per ripartire da lì dopo un crash
+  uint32_t res_track, res_pos, res_play, res_valid;
   char flash_by[20];    // task che sta usando la flash (cache spenta), vuoto se nessuno
   // "scatola nera": ultimi eventi con l'istante (ms dall'avvio)
   struct Ev {
@@ -68,7 +73,7 @@ struct BootCrumbs {
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4445;
+constexpr uint32_t kMagic = 0x4F4E4446;
 
 static portMUX_TYPE s_evmux = portMUX_INITIALIZER_UNLOCKED;
 static char s_blackbox[1100];
@@ -122,7 +127,7 @@ void plat_mark(int slot, const char *what, const char *detail) {
 const char *plat_mark_get(int slot) { return s_prev[slot]; }
 
 // Chiamata dal gestore di panic di Arduino: salva motivo e backtrace in RTC.
-static char s_panic_text[420];
+static char s_panic_text[640];
 static void panic_hook(arduino_panic_info_t *info, void *) {
   const char *r = info->reason ? info->reason : "?";
   size_t i = 0;
@@ -151,6 +156,25 @@ extern "C" void esp_task_wdt_isr_user_handler(void) {
   *d = 0;
 }
 
+static bool s_res_ok = false;
+static uint32_t s_res_track, s_res_pos, s_res_play;
+
+void plat_resume_note(uint32_t track_hash, uint32_t pos_ms, bool playing) {
+  s_bc.res_track = track_hash;
+  s_bc.res_pos = pos_ms;
+  s_bc.res_play = playing;
+  s_bc.res_valid = kMagic;
+}
+
+bool plat_resume_get(uint32_t *track_hash, uint32_t *pos_ms, bool *playing) {
+  if (!s_res_ok) return false;
+  s_res_ok = false;   // una volta sola
+  *track_hash = s_res_track;
+  *pos_ms = s_res_pos;
+  *playing = s_res_play;
+  return true;
+}
+
 uint32_t plat_boot_check(const char **reason) {
   esp_reset_reason_t r = esp_reset_reason();
   const char *txt = "sconosciuto";
@@ -167,11 +191,19 @@ uint32_t plat_boot_check(const char **reason) {
     case ESP_RST_BROWNOUT: txt = "CALO DI TENSIONE (brownout)"; crash = true; break;
     default: break;
   }
-  if (reason) *reason = txt;
   if (s_bc.magic != kMagic) {
     memset(&s_bc, 0, sizeof s_bc);
     s_bc.magic = kMagic;
   }
+  if (crash && s_bc.freeze) txt = "BLOCCO (riavvio automatico dopo 3 s)";
+  s_bc.freeze = 0;
+  if (reason) *reason = txt;
+  // dove eri: vale solo per questo avvio e solo dopo un crash
+  s_res_ok = crash && s_bc.res_valid == kMagic;
+  s_res_track = s_bc.res_track;
+  s_res_pos = s_bc.res_pos;
+  s_res_play = s_bc.res_play;
+  s_bc.res_valid = 0;
   s_panic_text[0] = 0;
   if (crash && s_bc.bt_len > 0 && s_bc.bt_len <= 12) {
     s_bc.panic_reason[sizeof s_bc.panic_reason - 1] = 0;
@@ -192,10 +224,13 @@ uint32_t plat_boot_check(const char **reason) {
     if (s_bc.stall[0]) n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sMonitor: %s", n ? "\n" : "", s_bc.stall);
     if (n < sizeof s_panic_text && s_bc.nvs[0])
       n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sScrittura flash in corso: %s", n ? "\n" : "", s_bc.nvs);
-    s_bc.hang[sizeof s_bc.hang - 1] = 0;
+    s_bc.hang[0][sizeof s_bc.hang[0] - 1] = 0;
+    s_bc.hang[1][sizeof s_bc.hang[1] - 1] = 0;
     s_bc.flash_by[sizeof s_bc.flash_by - 1] = 0;
-    if (n < sizeof s_panic_text && s_bc.hang[0])
-      n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sBlocco: %s", n ? "\n" : "", s_bc.hang);
+    if (n < sizeof s_panic_text && (s_bc.hang[0][0] || s_bc.hang[1][0]))
+      n += snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sBlocco a %u ms (tick %u): %s / %s", n ? "\n" : "",
+                    (unsigned)s_bc.hang_ms, (unsigned)s_bc.hang_tick, s_bc.hang[0][0] ? s_bc.hang[0] : "core0 -",
+                    s_bc.hang[1][0] ? s_bc.hang[1] : "core1 -");
     if (n < sizeof s_panic_text && s_bc.flash_by[0])
       snprintf(s_panic_text + n, sizeof s_panic_text - n, "%sFlash in uso da: %s", n ? "\n" : "", s_bc.flash_by);
   }
@@ -206,7 +241,8 @@ uint32_t plat_boot_check(const char **reason) {
   memset(s_bc.where, 0, sizeof s_bc.where);
   s_bc.stall[0] = 0;
   s_bc.nvs[0] = 0;
-  s_bc.hang[0] = 0;
+  s_bc.hang[0][0] = s_bc.hang[1][0] = 0;
+  s_bc.hang_ms = s_bc.hang_tick = 0;
   s_bc.flash_by[0] = 0;
   s_bc.wdt_tasks[0] = 0;
   s_bc.bt_len = 0;
@@ -339,10 +375,15 @@ static void stall_monitor(void *) {
 #include <esp_memory_utils.h>
 #include <esp_flash.h>
 #include <esp_private/cache_utils.h>
+#include <esp_private/system_internal.h>
+#include <esp_timer.h>
 
 DRAM_ATTR static const char kHex[] = "0123456789abcdef";
-static uint32_t s_hang_last[2], s_hang_cnt[2];
-static volatile bool s_hang_done = false;
+static uint32_t s_hang_last[2], s_win_n[2], s_win_rate[2];
+static int64_t s_hang_since[2], s_win_t[2];
+static bool s_hang_rec[2];
+static volatile bool s_freeze_reset = false;
+constexpr int64_t kHangNoteUs = 2000000, kHangResetUs = 3000000;
 
 static IRAM_ATTR char *put_str(char *d, char *end, const char *s) {
   while (s && *s && d < end) *d++ = *s++;
@@ -352,38 +393,76 @@ static IRAM_ATTR char *put_hex(char *d, char *end, uint32_t v) {
   for (int i = 28; i >= 0 && d < end; i -= 4) *d++ = kHex[(v >> i) & 15];
   return d;
 }
+static IRAM_ATTR char *put_dec(char *d, char *end, uint32_t v) {
+  char tmp[10];
+  int n = 0;
+  do {
+    tmp[n++] = kHex[v % 10];
+    v /= 10;
+  } while (v && n < 10);
+  while (n && d < end) *d++ = tmp[--n];
+  return d;
+}
 static IRAM_ATTR char *put_task(char *d, char *end, TaskHandle_t t) {
   if (t && esp_ptr_internal(t)) return put_str(d, end, pcTaskGetName(t));
   return put_str(d, end, DRAM_STR("?"));
 }
 
-static IRAM_ATTR void hang_hook() {
-  int c = xPortGetCoreID();
-  uint32_t p = s_progress;
-  if (p != s_hang_last[c]) {
-    s_hang_last[c] = p;
-    s_hang_cnt[c] = 0;
-    return;
-  }
-  if (++s_hang_cnt[c] != 2000 || s_hang_done) return;   // 2 s (tick a 1 kHz)
-  s_hang_done = true;
-  char *d = s_bc.hang, *end = s_bc.hang + sizeof s_bc.hang - 1;
-  for (int k = 0; k < 2; k++) {
-    d = put_str(d, end, k ? DRAM_STR(", core1 ") : DRAM_STR("core0 "));
-    TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(k);
-    d = put_task(d, end, t);
-    if (k == c && t && esp_ptr_internal(t)) {
-      // entrando nell'interrupt il task ha salvato i registri sul suo stack:
-      // pxTopOfStack (primo campo del TCB) punta al frame, il PC è la 2a parola
-      uint32_t *frame = *(uint32_t **)t;
-      if (esp_ptr_internal(frame)) {
-        d = put_str(d, end, DRAM_STR(" pc "));
-        d = put_hex(d, end, frame[1]);
-      }
+// Ogni core annota il proprio stato: task interrotto dal tick, il suo PC e quante
+// volte gira l'interrupt del tick ogni 10 ms (normale 10; molte di più = il tick
+// non riesce più a uscire dall'interrupt).
+static IRAM_ATTR void hang_note(int c, int64_t now) {
+  char *d = s_bc.hang[c], *end = s_bc.hang[c] + sizeof s_bc.hang[c] - 1;
+  d = put_str(d, end, c ? DRAM_STR("core1 ") : DRAM_STR("core0 "));
+  TaskHandle_t t = xTaskGetCurrentTaskHandleForCore(c);
+  d = put_task(d, end, t);
+  if (t && esp_ptr_internal(t)) {
+    // entrando nell'interrupt il task ha salvato i registri sul suo stack:
+    // pxTopOfStack (primo campo del TCB) punta al frame, il PC è la 2a parola
+    uint32_t *frame = *(uint32_t **)t;
+    if (esp_ptr_internal(frame)) {
+      d = put_str(d, end, DRAM_STR(" pc "));
+      d = put_hex(d, end, frame[1]);
     }
   }
-  if (!spi_flash_cache_enabled()) d = put_str(d, end, DRAM_STR(", cache flash spenta"));
+  d = put_str(d, end, DRAM_STR(" tick/10ms "));
+  d = put_dec(d, end, s_win_n[c] > s_win_rate[c] ? s_win_n[c] : s_win_rate[c]);
+  if (!spi_flash_cache_enabled()) d = put_str(d, end, DRAM_STR(" cache spenta"));
   *d = 0;
+  s_bc.hang_ms = (uint32_t)(now / 1000);
+  s_bc.hang_tick = xTaskGetTickCountFromISR();
+}
+
+static IRAM_ATTR void hang_hook() {
+  int c = xPortGetCoreID();
+  int64_t now = esp_timer_get_time();
+  s_win_n[c]++;
+  if (now - s_win_t[c] >= 10000) {
+    s_win_rate[c] = s_win_n[c];
+    s_win_n[c] = 0;
+    s_win_t[c] = now;
+  }
+  uint32_t p = s_progress;
+  if (p != s_hang_last[c] || !s_hang_since[c]) {
+    s_hang_last[c] = p;
+    s_hang_since[c] = now;
+    s_hang_rec[c] = false;
+    return;
+  }
+  int64_t dt = now - s_hang_since[c];
+  if (dt >= kHangNoteUs && !s_hang_rec[c]) {
+    s_hang_rec[c] = true;
+    hang_note(c, now);
+  }
+  // Nessun task si muove da 3 s (il monitor batte ogni 100 ms con priorità
+  // altissima): non si riprende da solo. Si riavvia subito, senza aspettare il
+  // watchdog; all'avvio si riparte dal punto del brano in cui eri.
+  if (dt >= kHangResetUs && !s_freeze_reset) {
+    s_freeze_reset = true;
+    s_bc.freeze = 1;
+    esp_reset_reason_set_hint(ESP_RST_TASK_WDT);
+    esp_restart_noos();
+  }
 }
 
 // Chi usa la flash: le operazioni sulla flash (NVS, partizioni) passano da qui e
@@ -481,6 +560,8 @@ uint32_t plat_boot_check(const char **reason) {
   return 0;
 }
 void plat_boot_ok() {}
+void plat_resume_note(uint32_t, uint32_t, bool) {}
+bool plat_resume_get(uint32_t *, uint32_t *, bool *) { return false; }
 void plat_heap_check() {}
 int32_t plat_kv_get(const char *key, int32_t def) {
   auto it = s_kv.find(key);

@@ -15,3 +15,4 @@ void ui_power_off_screen();
 // Salva una preferenza in flash; durante la riproduzione la scrittura si rimanda
 // alla pausa o al cambio brano (non scrive se il valore non è cambiato).
 void ui_pref_set(const char *key, int32_t v);
+void ui_crash_notice();     // avvio dopo un blocco: avvisa quando l'interfaccia è pronta

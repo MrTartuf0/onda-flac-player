@@ -212,6 +212,15 @@ tools/gen_fonts.sh        rigenera i font con lv_font_conv
 tools/web/                pagina web del trasferimento file (+ embed.py)
 ```
 
+## Se si blocca
+
+Se il lettore si blocca (nessun task risponde per 3 secondi) o va in crash, si riavvia da solo
+e riparte dal brano e dal punto in cui eri, in riproduzione se stava suonando; un avviso lo
+segnala. Il resoconto tecnico (motivo, ultimi eventi, cosa stava facendo ciascun core) viene
+stampato sulla seriale e aggiunto in fondo a `/.onda/crash.log` sulla microSD: è quello da
+mandare per capire il problema. Solo se si blocca di nuovo appena riavviato resta fermo sulla
+schermata *Avvio interrotto* con il resoconto (premi RESET per riprovare).
+
 ## Limiti noti
 
 - Copertine PNG o JPEG progressive non vengono mostrate (compare il segnaposto).

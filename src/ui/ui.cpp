@@ -37,6 +37,7 @@ bool s_last_playing = false;
 uint32_t s_last_save = 0;
 uint32_t s_last_pos_save = 0;
 LibState s_last_lib = LIB_IDLE;
+bool s_crash_notice = false;      // riavviato dopo un blocco: lo si dice una volta pronta l'interfaccia
 bool s_restore_pending = false;   // ripristina la sessione al termine della prossima scansione
 bool s_saw_scan = false;
 
@@ -89,15 +90,19 @@ void restore_session() {
   std::vector<uint16_t> tr;
   lib_context_tracks(c, tr);
   if (tr.empty()) return;
-  uint32_t th = (uint32_t)plat_kv_get("trk", 0);
+  // dopo un crash: brano e punto esatto in cui eri (e se stava suonando)
+  uint32_t rh = 0, rpos = 0;
+  bool rplay = false;
+  bool crash = plat_resume_get(&rh, &rpos, &rplay);
+  uint32_t th = crash ? rh : (uint32_t)plat_kv_get("trk", 0);
   int start = 0;
   for (size_t k = 0; k < tr.size(); k++)
     if (lib_tracks()[tr[k]].path_hash == th) start = k;
   player_set_shuffle(plat_kv_get("shuf", 0));
   player_set_repeat((RepeatMode)plat_kv_get("rep", 0));
-  uint32_t pos = (uint32_t)plat_kv_get("pos", 0);
+  uint32_t pos = crash ? rpos : (uint32_t)plat_kv_get("pos", 0);
   if (lib_tracks()[tr[start]].path_hash != th) pos = 0;
-  player_play_list(tr, start, c, true, pos);
+  player_play_list(tr, start, c, !(crash && rplay), pos);
 }
 
 // ----------------------------------------------------------- navigazione ----
@@ -588,6 +593,7 @@ void ui_pref_set(const char *key, int32_t v) {
 }
 
 void ui_session_save() { save_session(true); }
+void ui_crash_notice() { s_crash_notice = true; }
 
 void ui_after_transfer(bool changed) {
   if (changed) {
@@ -679,6 +685,10 @@ void ui_tick() {
     build_main();
     if (s_last_track == -2) {
       restore_session();
+      if (s_crash_notice) {
+        s_crash_notice = false;
+        ui_toast("Si era bloccato: riavviato, riprendo da dove eri");
+      }
     } else if (s_restore_pending && s_saw_scan) {
       s_restore_pending = false;
       restore_session();
@@ -728,6 +738,12 @@ void ui_tick() {
     plat_where(0, 13);   // 13: aggiorna le pagine visibili
     update_mini_state();
     refresh_visible(what);
+  }
+  // dove sei, in RAM RTC: se il lettore si blocca riparte da qui (nessuna scrittura in flash)
+  static uint32_t s_res_t = 0;
+  if (plat_millis() - s_res_t >= 1000 && s_ps.track >= 0 && s_ps.track < (int)lib_tracks().size()) {
+    s_res_t = plat_millis();
+    plat_resume_note(lib_tracks()[s_ps.track].path_hash, s_ps.pos_ms, s_ps.playing);
   }
   plat_where(0, 14);   // 14: avanzamento e schermata in riproduzione
   update_mini_progress();

@@ -20,6 +20,7 @@
 #include <driver/gpio.h>
 #include <driver/rtc_io.h>
 #include <driver/usb_serial_jtag.h>
+#include <sys/stat.h>
 #include "src/lvgl/lvgl.h"
 #include "src/config.h"
 #include "src/platform.h"
@@ -40,19 +41,51 @@ SET_LOOP_TASK_STACK_SIZE(32 * 1024);
 #include "src/fonts/fonts.h"
 
 // ---------------------------------------------------------------------------
-// Modalità diagnostica: se l'avvio precedente è finito in crash/watchdog,
-// invece di ripartire in loop mostriamo sullo schermo dove si è fermato.
+// Dopo un crash/blocco: il resoconto va sulla seriale e in /.onda/crash.log e il
+// lettore riparte da dove eri. Solo se si blocca di nuovo appena riavviato
+// (prima dei 20 s di avvio sano) si ferma sulla schermata con il resoconto,
+// per non finire in un ciclo di riavvii.
 // ---------------------------------------------------------------------------
-static void safe_mode(uint32_t crashes, const char *reason) {
-  static char msg[1600];
-  snprintf(msg, sizeof msg,
+static char s_crash_msg[1600];
+static volatile bool s_crash_log_pending = false;
+static bool s_crash_reprint = false;
+
+static void build_crash_report(uint32_t crashes, const char *reason) {
+  snprintf(s_crash_msg, sizeof s_crash_msg,
            "Riavvio dopo: %s (x%u)\nFirmware del " __DATE__ " " __TIME__ "\n%s\n%s\n"
            "Interfaccia: %s\nScansione SD: %s\nPlayer: %s",
            reason, (unsigned)crashes, plat_panic_text(), plat_blackbox_text(),
            plat_mark_get(0)[0] ? plat_mark_get(0) : "-",
            plat_mark_get(1)[0] ? plat_mark_get(1) : "-",
            plat_mark_get(2)[0] ? plat_mark_get(2) : "-");
-  bool lcd = crashes < 4 && strncmp(plat_mark_get(0), "display", 7) != 0;
+}
+
+static void print_crash_report() {
+  Serial.print("\n=== RIAVVIO DOPO UN BLOCCO ===\n");
+  for (const char *p = s_crash_msg; *p;) {
+    const char *e = strchr(p, '\n');
+    size_t len = e ? (size_t)(e - p) : strlen(p);
+    Serial.write((const uint8_t *)p, len);
+    Serial.print("\n");
+    p += len + (e ? 1 : 0);
+  }
+  Serial.print("=== fine resoconto (anche in /.onda/crash.log) ===\n");
+}
+
+// In fondo a /.onda/crash.log (dal task della scansione, appena la SD è montata)
+static void write_crash_log() {
+  mkdir(APP_DIR, 0777);
+  struct stat st;
+  bool big = stat(APP_DIR "/crash.log", &st) == 0 && st.st_size > 64 * 1024;
+  FILE *f = fopen(APP_DIR "/crash.log", big ? "w" : "a");
+  if (!f) return;
+  fprintf(f, "\n==========\n%s\n", s_crash_msg);
+  fclose(f);
+}
+
+static void safe_mode() {
+  const char *msg = s_crash_msg;
+  bool lcd = strncmp(plat_mark_get(0), "display", 7) != 0;
   if (lcd && display_begin()) {
     lv_obj_t *scr = lv_screen_active();
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x121212), 0);
@@ -146,6 +179,10 @@ static void scan_task(void *) {
       s_scan_req = 0;
       plat_mark(1, "SD: montaggio");
       if (!s_sd_ok) s_sd_ok = mount_sd();
+      if (s_sd_ok && s_crash_log_pending) {
+        s_crash_log_pending = false;
+        write_crash_log();
+      }
       if (!lib_scan(r == 2)) s_sd_ok = false;   // nessuna SD: alla prossima richiesta rimonta
     }
     vTaskDelay(pdMS_TO_TICKS(50));
@@ -178,7 +215,13 @@ void setup() {
   const char *reason = "";
   uint32_t crashes = plat_boot_check(&reason);
   Serial.printf("Motivo dell'ultimo riavvio: %s\n", reason);
-  if (crashes > 0) safe_mode(crashes, reason);
+  if (crashes > 0) {
+    build_crash_report(crashes, reason);
+    if (crashes >= 2) safe_mode();   // di nuovo appena riavviato: ci si ferma qui
+    print_crash_report();
+    s_crash_log_pending = true;
+    s_crash_reprint = true;
+  }
   plat_monitor_start();
 
   BOOT_STEP("I2C");
@@ -195,6 +238,7 @@ void setup() {
   if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) power_off(PWR_BATTERY_BOOT);
   BOOT_STEP("interfaccia");
   ui_init(request_rescan, display_set_brightness);
+  if (crashes > 0) ui_crash_notice();
   lv_timer_handler();   // disegna subito la schermata di avvio
 
   BOOT_STEP("audio");
@@ -226,6 +270,9 @@ void loop() {
   if (stage == 0) {
     stage = 1;
     BOOT_STEP("loop: in esecuzione");
+  } else if (stage == 1 && s_crash_reprint && millis() - t0 > 4000) {
+    s_crash_reprint = false;
+    print_crash_report();   // dopo il riavvio il monitor seriale si ricollega con un po' di ritardo
   } else if (stage == 1 && millis() - t0 > 20000) {
     stage = 2;
     plat_boot_ok();   // 20 s senza problemi

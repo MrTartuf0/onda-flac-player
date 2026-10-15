@@ -26,6 +26,11 @@ const char *plat_panic_text();   // motivo + backtrace dell'ultimo crash (o "")
 // Da chiamare all'inizio di setup(): ritorna il numero di crash consecutivi
 uint32_t plat_boot_check(const char **reason);
 void plat_boot_ok();   // l'avvio è andato bene: azzera il contatore
+// Dove eri (brano = path_hash, posizione, in riproduzione), annotato in RAM RTC:
+// dopo un crash il lettore riparte da lì. plat_resume_get vale una volta sola e
+// solo nell'avvio che segue un crash.
+void plat_resume_note(uint32_t track_hash, uint32_t pos_ms, bool playing);
+bool plat_resume_get(uint32_t *track_hash, uint32_t *pos_ms, bool *playing);
 void plat_heap_check(); // registra il minimo di RAM interna libera (da chiamare spesso)
 void plat_monitor_start(); // sorveglia il core 0 dal core 1 (diagnostica watchdog)
 // Scatola nera (sopravvive al riavvio): ultimi eventi e ultimo "battito" di ogni task.
