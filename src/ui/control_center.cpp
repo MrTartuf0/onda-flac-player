@@ -365,7 +365,17 @@ void slider_cb(lv_event_t *e) {
       int v = (a.y2 - p.y) * 100 / SL_H;
       v = (v + 2) / 5 * 5;
       v = v < S.min ? S.min : v > 100 ? 100 : v;
-      if (v == S.v) return;
+      // Sicurezza per le orecchie: in cuffia un tocco non alza oltre il 75%.
+      // Più su si arriva solo trascinando (abbassare col tocco va sempre bene).
+      constexpr int kHpTapMax = 75;
+      if (&S == &s_vol && audio_out_active() == DEV_HEADPHONES && v > kHpTapMax) {
+        v = S.v > kHpTapMax ? S.v : kHpTapMax;
+        ui_toast("Cuffie: oltre il 75% trascina");
+      }
+      if (v == S.v) {
+        slider_save(S);
+        return;
+      }
       slider_apply(S, v);   // il volume ha già la sua rampa: niente salti bruschi
       // il riempimento scorre fino al punto toccato
       S.anim = true;

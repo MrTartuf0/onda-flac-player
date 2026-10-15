@@ -139,7 +139,8 @@ col gesto indietro.
   completa (in carica)
 - **Volume** e **Luminosità**: tocca un punto del riquadro per andare subito a quel livello
   (arrotondato al 5%), oppure trascina il dito su o giù partendo da un punto qualsiasi per
-  regolarlo con precisione; il volume è quello dell'uscita in uso
+  regolarlo con precisione; il volume è quello dell'uscita in uso. In cuffia, per sicurezza, il
+  tocco non alza il volume oltre il 75%: più su si arriva solo trascinando
 
 ## Batteria
 
