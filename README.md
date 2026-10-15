@@ -128,7 +128,8 @@ col gesto indietro.
 
 - **Wi-Fi**: apre il trasferimento file (blu quando è attivo)
 - **Altoparlante / Cuffie / AUTO**: sceglie l'uscita audio (AUTO = cuffie quando le inserisci)
-- **Batteria**: anello con la percentuale, stato di carica e tempo alla carica completa
+- **Batteria**: anello con la percentuale, autonomia stimata (a batteria) o tempo alla carica
+  completa (in carica)
 - **Volume** e **Luminosità**: trascina il dito su o giù partendo da un punto qualsiasi del
   riquadro; il volume è quello dell'uscita in uso
 
@@ -148,6 +149,12 @@ stimato alla carica completa.
 - **Batteria scarica**: avviso al 10% e al 5%. Sotto 3,3 V il lettore salva il punto in cui eri,
   mostra *Batteria scarica* e va in standby; dopo aver collegato il caricatore si riaccende
   toccando lo schermo, col tasto BOOT o con RESET. Se la batteria è ancora troppo scarica l'avviso ricompare.
+- **Autonomia**: il consumo viene stimato da cosa è acceso (luminosità, altoparlante o cuffie e
+  volume, riproduzione, Wi-Fi), quindi la stima cambia subito se alzi il volume o la luminosità.
+  I valori di partenza sono tipici di questa scheda; durante la scarica il lettore confronta il
+  consumo stimato con quanto cala davvero la batteria e si corregge da solo (dopo una ventina di
+  minuti a batteria la stima è più affidabile; la correzione resta salvata). In Impostazioni →
+  Batteria c'è anche il consumo stimato in mA.
 - La percentuale è una stima dalla curva tipica di una LiPo: durante l'ascolto può oscillare di
   qualche punto. Se la tensione mostrata in Impostazioni differisce da quella misurata col tester,
   correggila con `BAT_OFFSET_MV` in `src/config.h`.

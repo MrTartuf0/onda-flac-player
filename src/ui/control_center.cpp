@@ -100,12 +100,30 @@ void slider_show(Slider &S) {
 // Ridisegna solo se qualcosa è cambiato
 uint32_t s_sig = 0;
 
+// seconda riga della batteria: tempo alla carica completa, autonomia o tensione
+void bat_line2(const BatteryInfo &b, char *buf, size_t n) {
+  char t[24];
+  if (b.state == BAT_CHARGING) {
+    ui_fmt_minutes(b.minutes_to_full, t, sizeof t);
+    if (t[0]) snprintf(buf, n, "piena tra %s", t);
+    else buf[0] = 0;
+  } else if (b.state == BAT_DISCHARGING && b.minutes_left >= 0) {
+    ui_fmt_minutes(b.minutes_left, t, sizeof t);
+    snprintf(buf, n, "%s", t);
+  } else {
+    snprintf(buf, n, "%d,%02d V", b.mv / 1000, b.mv % 1000 / 10);
+  }
+}
+
 void refresh_status(bool force = false) {
   BatteryInfo b = battery_info();
-  uint32_t sig = (uint32_t)b.state | (uint32_t)(b.pct & 0xFF) << 2 | (uint32_t)b.low << 10 |
-                 (uint32_t)(b.mv / 10 & 0x1FF) << 11 | (uint32_t)audio_out_mode() << 20 |
-                 (uint32_t)audio_out_active() << 22 | (uint32_t)(xfer_status().state != XF_OFF) << 23 |
-                 (uint32_t)(b.minutes_to_full & 0xFF) << 24;
+  char l2[40];
+  bat_line2(b, l2, sizeof l2);
+  uint32_t sig = 2166136261u;   // impronta di tutto ciò che si vede
+  auto mix = [&](uint32_t v) { sig = (sig ^ v) * 16777619u; };
+  mix(b.state); mix(b.pct); mix(b.low); mix(audio_out_mode()); mix(audio_out_active());
+  mix(xfer_status().state != XF_OFF);
+  for (const char *c = l2; *c; c++) mix((uint8_t)*c);
   if (!force && sig == s_sig) return;
   s_sig = sig;
   bool have = b.state != BAT_NONE && b.pct >= 0;
@@ -119,7 +137,6 @@ void refresh_status(bool force = false) {
   round_set(b_auto, m == OUT_AUTO);
 
   // batteria
-  char buf[40];
   if (!have) {
     lv_arc_set_value(bat_arc, 0);
     lv_label_set_text(bat_pct, "--");
@@ -132,17 +149,9 @@ void refresh_status(bool force = false) {
   lv_obj_set_style_arc_color(bat_arc, b.low ? IOS_RED : IOS_GREEN, LV_PART_INDICATOR);
   lv_label_set_text_fmt(bat_pct, "%d%%", b.pct);
   lv_obj_set_style_text_color(bat_l1, chg ? IOS_GREEN : (b.low ? IOS_RED : C_TEXT), 0);
-  if (b.state == BAT_CHARGING) {
-    lv_label_set_text(bat_l1, IC_BOLT " In carica");
-    int mi = b.minutes_to_full;
-    if (mi >= 60) snprintf(buf, sizeof buf, "piena tra ~%d h %02d", mi / 60, mi % 60);
-    else if (mi > 0) snprintf(buf, sizeof buf, "piena tra ~%d min", mi);
-    else buf[0] = 0;
-  } else {
-    lv_label_set_text(bat_l1, b.state == BAT_FULL ? "Carica completa" : b.low ? "Batteria scarica" : "A batteria");
-    snprintf(buf, sizeof buf, "%d,%02d V", b.mv / 1000, b.mv % 1000 / 10);
-  }
-  lv_label_set_text(bat_l2, buf);
+  if (b.state == BAT_CHARGING) lv_label_set_text(bat_l1, IC_BOLT " In carica");
+  else lv_label_set_text(bat_l1, b.state == BAT_FULL ? "Carica completa" : b.low ? "Batteria scarica" : "A batteria");
+  lv_label_set_text(bat_l2, l2);
 }
 
 void refresh_sliders(bool force = false) {

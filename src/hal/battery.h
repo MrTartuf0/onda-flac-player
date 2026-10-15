@@ -23,13 +23,19 @@ struct BatteryInfo {
   bool low = false;        // a batteria e sotto il 10%
   bool critical = false;   // a batteria e sotto la soglia di spegnimento da un po'
   int minutes_to_full = -1;
+  int load_ma = 0;         // consumo stimato (modello del consumo x correzione imparata)
+  int minutes_left = -1;   // autonomia stimata a batteria, -1 = non nota
 };
 
 void battery_begin();
 // da chiamare spesso (loop): campiona una volta al secondo. load_sig riassume ciò
 // che consuma di più (play/pausa, volume, uscita, Wi-Fi, luminosità): quando cambia,
 // il salto di tensione che segue non viene scambiato per il cavo collegato/staccato.
-void battery_poll(uint32_t load_sig);
+// load_ma: consumo stimato dal modello (luminosità, volume, Wi-Fi...), serve per
+// l'autonomia; durante la scarica la stima viene corretta con quanto cala davvero.
+void battery_poll(uint32_t load_sig, int load_ma);
+void battery_set_load_factor(float k);   // correzione imparata, salvata tra un'accensione e l'altra
+float battery_load_factor();
 BatteryInfo battery_info();
 int battery_read_mv();          // lettura immediata (mV), 0 se non configurata
 
@@ -37,12 +43,17 @@ int battery_read_mv();          // lettura immediata (mV), 0 se non configurata
 class BatteryEstimator {
  public:
   // un campione al secondo: tensione della batteria (mV) e "computer collegato via USB"
-  void sample(uint32_t now_ms, int mv, bool usb_host);
+  // load_ma: consumo stimato in questo momento (0 = non noto)
+  void sample(uint32_t now_ms, int mv, bool usb_host, int load_ma = 0);
   // il consumo è cambiato di colpo (play/pausa, volume, Wi-Fi, luminosità): il salto
   // di tensione che segue non va scambiato per il cavo collegato o staccato
   void load_changed(uint32_t now_ms);
   BatteryInfo info() const { return info_; }
   bool external_power() const { return ext_; }
+  // il modello del consumo è approssimativo: il fattore k lo corregge confrontando
+  // la carica consumata secondo il modello con il calo reale della percentuale
+  float load_factor() const { return k_; }
+  void set_load_factor(float k) { k_ = k < 0.5f ? 0.5f : k > 2.0f ? 2.0f : k; }
 
  private:
   static constexpr int kHist = 37;   // una voce ogni 10 s: 6 minuti
@@ -72,6 +83,16 @@ class BatteryEstimator {
   int charge_rise_ = 60;
   bool allow_drop_ = false; // carica riconosciuta dall'andamento: la % letta prima era gonfiata
   void set_ext(bool on, uint32_t now, bool verify = false);
+  // autonomia: finestra di misura del consumo reale durante la scarica
+  float k_ = 1.0f;
+  int k_learned_ = 0;
+  uint32_t w_t0_ = 0, w_last_ = 0;
+  int w_p0_ = -1;
+  double w_mah_ = 0;     // carica consumata secondo il modello dall'inizio della finestra
+  float ma_avg_ = 0;     // consumo medio recente (per non far saltare la stima)
+  float comp_ma_ = 0;    // consumo che segue la tensione filtrata (stessa costante di tempo)
+  int last_load_ = 0;
+  void autonomy(uint32_t now, int load_ma);
   void clear_history();
 };
 

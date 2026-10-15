@@ -10,3 +10,6 @@ void ui_tick();             // chiamata da un lv_timer interno; esposta per il s
 // Batteria esaurita: salva la sessione, mette in pausa e mostra l'avviso a tutto
 // schermo (at_boot: all'accensione, prima che il resto dell'interfaccia esista).
 void ui_battery_empty_screen(bool at_boot);
+// Salva una preferenza in flash; durante la riproduzione la scrittura si rimanda
+// alla pausa o al cambio brano (non scrive se il valore non è cambiato).
+void ui_pref_set(const char *key, int32_t v);

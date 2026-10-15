@@ -131,16 +131,32 @@ static void battery_power_off(bool at_boot) {
   esp_deep_sleep_start();
 }
 
-// Cosa sta consumando: quando cambia, il salto di tensione della batteria non è
-// il cavo collegato o staccato (vedi battery_poll).
-static uint32_t load_signature() {
+// Cosa sta consumando.
+//  - sig: quando cambia, il salto di tensione della batteria non è il cavo
+//    collegato o staccato (vedi battery_poll);
+//  - ma: consumo stimato con valori tipici di questa scheda; serve per
+//    l'autonomia e viene corretto da solo durante la scarica (battery.cpp).
+static void load_probe(uint32_t *sig, int *ma) {
   OutputDev d = audio_out_active();
-  uint32_t sig = player_status().playing ? 1 : 0;
-  sig |= (uint32_t)d << 1;
-  sig |= (uint32_t)(audio_out_volume(d) / 8) << 2;   // gradini di volume
-  sig |= (uint32_t)(xfer_status().state != XF_OFF) << 7;
-  sig |= (uint32_t)(display_brightness() / 10) << 8;
-  return sig;
+  bool playing = player_status().playing;
+  bool wifi = xfer_status().state != XF_OFF;
+  uint8_t br = display_brightness();
+  *sig = (playing ? 1u : 0u) | (uint32_t)d << 1 | (uint32_t)(audio_out_volume(d) / 8) << 2 |
+         (uint32_t)wifi << 7 | (uint32_t)(br / 10) << 8;
+  float m = 70;                  // ESP32-S3 a 240 MHz con PSRAM, logica del display, touch
+  if (playing) m += 12;          // decodifica FLAC e letture dalla microSD
+  m += 4 + 0.66f * br;           // retroilluminazione (~70 mA al massimo)
+  if (d == DEV_SPEAKER) {
+    m += 6;                      // codec e amplificatore accesi
+    if (playing) {
+      float g = audio_out_gain_q16() / 65536.0f;   // la potenza cresce col quadrato dell'ampiezza
+      m += 150 * g * g;
+    }
+  } else {
+    m += 12;                     // DAC PCM5102
+  }
+  if (wifi) m += 110;
+  *ma = (int)m;
 }
 
 static volatile uint8_t s_scan_req = 1;   // 1 = normale, 2 = forzata
@@ -204,6 +220,7 @@ void setup() {
 
   // batteria troppo scarica per partire (a meno che sia collegato un computer)
   battery_begin();
+  battery_set_load_factor(plat_kv_get("bat_k", 1000) / 1000.0f);
   int bmv = battery_read_mv();
   Serial.printf("[bat] %d mV all'avvio\n", bmv);
   if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) battery_power_off(true);
@@ -245,13 +262,18 @@ void loop() {
     Serial.println("[boot] avvio completato senza errori");
   }
   audio_out_poll();
-  static uint32_t last_sig_t = 0, sig = 0;
+  static uint32_t last_sig_t = 0, sig = 0, last_k_t = 0;
+  static int load_ma = 0;
   if (millis() - last_sig_t >= 250) {
     last_sig_t = millis();
-    sig = load_signature();
+    load_probe(&sig, &load_ma);
   }
   plat_where(0, 4);   // 4: batteria (lettura ADC)
-  battery_poll(sig);
+  battery_poll(sig, load_ma);
+  if (millis() - last_k_t >= 60000) {   // correzione del consumo imparata: si conserva
+    last_k_t = millis();
+    ui_pref_set("bat_k", (int32_t)(battery_load_factor() * 1000 + 0.5f));
+  }
   if (stage == 2 && battery_info().critical) battery_power_off(false);
   plat_where(0, 5);   // 5: diagnostica RAM
   plat_heap_check();

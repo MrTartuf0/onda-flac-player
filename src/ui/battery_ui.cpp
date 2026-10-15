@@ -55,6 +55,23 @@ void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c) {
   lv_obj_set_style_bg_color(fill, c, 0);
 }
 
+// "~45 min", "~3 h 20 min": arrotondato (è una stima)
+void ui_fmt_minutes(int m, char *buf, size_t n) {
+  if (m < 0) {
+    buf[0] = 0;
+  } else if (m < 10) {
+    snprintf(buf, n, "~%d min", m < 1 ? 1 : m);
+  } else if (m < 60) {
+    snprintf(buf, n, "~%d min", (m + 2) / 5 * 5);
+  } else if (m > 48 * 60) {
+    snprintf(buf, n, "oltre 2 giorni");
+  } else {
+    int r = (m + 5) / 10 * 10;
+    if (r % 60) snprintf(buf, n, "~%d h %02d min", r / 60, r % 60);
+    else snprintf(buf, n, "~%d h", r / 60);
+  }
+}
+
 const char *ui_battery_state_text(const BatteryInfo &b) {
   switch (b.state) {
     case BAT_CHARGING: return "In carica";

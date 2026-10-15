@@ -12,7 +12,7 @@ namespace {
 class SettingsPage : public Page {
  public:
   lv_obj_t *col, *out_val, *jack_val;
-  lv_obj_t *bat_lvl = nullptr, *bat_state = nullptr, *bat_icon = nullptr;
+  lv_obj_t *bat_lvl = nullptr, *bat_state = nullptr, *bat_icon = nullptr, *bat_load = nullptr;
   lv_timer_t *bat_timer = nullptr;
 
   SettingsPage() { build(); }
@@ -48,13 +48,23 @@ class SettingsPage : public Page {
     }
     snprintf(buf, sizeof buf, "%d%% \xE2\x80\xA2 %d,%02d V", b.pct, b.mv / 1000, b.mv % 1000 / 10);
     lv_label_set_text(bat_lvl, buf);
+    char t[24];
     if (b.state == BAT_CHARGING && b.minutes_to_full > 0) {
-      int m = b.minutes_to_full;
-      if (m >= 60) snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra ~%d h %02d min", m / 60, m % 60);
-      else snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra ~%d min", m);
+      ui_fmt_minutes(b.minutes_to_full, t, sizeof t);
+      snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra %s", t);
+      lv_label_set_text(bat_state, buf);
+    } else if (b.state == BAT_DISCHARGING && b.minutes_left >= 0) {
+      ui_fmt_minutes(b.minutes_left, t, sizeof t);
+      snprintf(buf, sizeof buf, "%s \xE2\x80\xA2 %s rimasti", ui_battery_state_text(b), t);
       lv_label_set_text(bat_state, buf);
     } else {
       lv_label_set_text(bat_state, ui_battery_state_text(b));
+    }
+    if (b.load_ma > 0) {
+      snprintf(buf, sizeof buf, "~%d mA", (b.load_ma + 5) / 10 * 10);
+      lv_label_set_text(bat_load, buf);
+    } else {
+      lv_label_set_text(bat_load, "-");
     }
     bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
     ui_battery_icon_set(bat_icon, b.pct, chg ? C_GREEN : (b.low ? lv_color_hex(0xF15E6C) : C_TEXT));
@@ -141,6 +151,9 @@ class SettingsPage : public Page {
     lv_obj_align(bat_icon, LV_ALIGN_RIGHT_MID, -16, 0);
     lv_obj_t *bs = row("Stato", "-", nullptr);
     bat_state = lv_obj_get_child(bs, 1);
+    lv_obj_t *bc = row("Consumo stimato", "-", nullptr);
+    bat_load = lv_obj_get_child(bc, 1);
+    lv_obj_set_width(bat_load, SCR_W - 28);
     lv_obj_set_width(bat_state, SCR_W - 28);
     bat_update();
     bat_timer = lv_timer_create(bat_timer_cb, 1000, this);

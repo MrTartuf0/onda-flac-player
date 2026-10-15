@@ -28,7 +28,8 @@ constexpr uint32_t kCvFullMs = 40 * 60 * 1000;   // durata tipica della fase fin
 constexpr int kStepMv = 40;          // salto improvviso = cavo collegato/staccato
 constexpr int kTrendUpMv = 35;       // salita lenta in 6 minuti (acceso già col cavo collegato)
 constexpr int kTrendDownMv = 30;     // discesa lenta in 6 minuti mentre risultava in carica
-constexpr int kLoadDropMv = 40;      // a batteria la tensione è più bassa di quella a vuoto
+constexpr int kLoadDropMv = 40;      // a batteria la tensione è più bassa di quella a vuoto (consumo non noto)
+constexpr float kRintOhm = 0.2f;     // resistenza interna tipica (cella + protezione + cavi)
 constexpr int kChargeRiseMv = 60;    // in carica è più alta (valore iniziale, poi misurato)
 constexpr uint32_t kVerifyMs = 20 * 60 * 1000;
 constexpr int kVerifyRiseMv = 4;     // in carica, in 20 minuti, la tensione sale almeno di tanto
@@ -65,7 +66,48 @@ void BatteryEstimator::load_changed(uint32_t now) {
   hist_i_ = 0;
 }
 
-void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host) {
+// Autonomia = carica rimasta / consumo. La carica rimasta viene dalla percentuale
+// (1% = 1/100 della capacità), il consumo dal modello moltiplicato per k. Durante
+// la scarica si misura quanto cala davvero la percentuale in almeno 20 minuti
+// (e almeno 6 punti) e si confronta con la carica prevista dal modello: il
+// rapporto aggiorna k, che quindi impara il consumo reale della scheda.
+void BatteryEstimator::autonomy(uint32_t now, int load_ma) {
+  info_.load_ma = load_ma > 0 ? (int)(load_ma * k_ + 0.5f) : 0;
+  if (info_.state != BAT_DISCHARGING || load_ma <= 0 || info_.pct < 0) {
+    info_.minutes_left = -1;
+    w_p0_ = -1;            // finestra interrotta (cavo collegato, stima ferma)
+    ma_avg_ = 0;
+    return;
+  }
+  // media del consumo su ~1 minuto: un cambio di volume si vede in fretta,
+  // i piccoli sbalzi no
+  ma_avg_ = ma_avg_ <= 0 ? load_ma : ma_avg_ + (load_ma - ma_avg_) / 60.0f;
+  float cur = ma_avg_ * k_;
+  info_.minutes_left = (int)(info_.pct * (float)BAT_CAPACITY_MAH / 100.0f / cur * 60.0f);
+
+  if (w_p0_ < 0) {
+    w_p0_ = info_.pct;
+    w_t0_ = w_last_ = now;
+    w_mah_ = 0;
+    return;
+  }
+  w_mah_ += load_ma * (double)(now - w_last_) / 3600000.0;
+  w_last_ = now;
+  int drop = w_p0_ - info_.pct;
+  if (drop >= 6 && now - w_t0_ >= 20 * 60 * 1000 && w_mah_ > 1) {
+    float real = drop * (float)BAT_CAPACITY_MAH / 100.0f;
+    float kn = real / (float)w_mah_;
+    if (kn < 0.5f) kn = 0.5f;
+    if (kn > 2.0f) kn = 2.0f;
+    k_ = k_learned_ ? k_ * 0.7f + kn * 0.3f : k_ * 0.4f + kn * 0.6f;
+    k_learned_++;
+    w_p0_ = info_.pct;
+    w_t0_ = now;
+    w_mah_ = 0;
+  }
+}
+
+void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host, int load_ma) {
   if (!init_) {
     init_ = true;
     fast_ = slow_ = mv;
@@ -76,6 +118,10 @@ void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host) {
   }
   fast_ += (mv - fast_) / 3.0f;     // ~3 s
   slow_ += (mv - slow_) / 40.0f;    // ~40 s
+  if (load_ma > 0) {
+    last_load_ = load_ma;
+    comp_ma_ = comp_ma_ <= 0 ? load_ma : comp_ma_ + (load_ma - comp_ma_) / 40.0f;
+  }
   bool holding = (int32_t)(now - hold_until_) < 0;
   if (!holding && resync_) {
     resync_ = false;
@@ -91,6 +137,7 @@ void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host) {
       step_pre_ = -1;
     }
     slow_ = fast_;
+    if (last_load_ > 0) comp_ma_ = last_load_;   // anche il consumo "filtrato" riparte da qui
   }
   int f = (int)(fast_ + 0.5f), s = (int)(slow_ + 0.5f);
 
@@ -191,7 +238,9 @@ void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host) {
     uint32_t el = now - cv_since_;
     p = cv_p0_ + (int)((99 - cv_p0_) * (uint64_t)(el < kCvFullMs ? el : kCvFullMs) / kCvFullMs);
   } else {
-    int ocv = s + (st == BAT_DISCHARGING ? kLoadDropMv : -charge_rise_);
+    // a batteria: tensione a vuoto = misurata + consumo x resistenza interna
+    int drop = comp_ma_ > 0 ? (int)(comp_ma_ * k_ * kRintOhm + 0.5f) : kLoadDropMv;
+    int ocv = s + (st == BAT_DISCHARGING ? drop : -charge_rise_);
     p = battery_pct_from_mv(ocv);
     if (st == BAT_CHARGING && p > 99) p = 99;
   }
@@ -209,6 +258,7 @@ void BatteryEstimator::sample(uint32_t now, int mv, bool usb_host) {
   info_.pct = p;
   info_.minutes_to_full =
       st == BAT_CHARGING ? (100 - p) * BAT_CAPACITY_MAH * 60 / 100 / BAT_CHARGE_MA * 115 / 100 : -1;
+  autonomy(now, load_ma);
 
   // --- batteria scarica ---
   info_.low = st == BAT_DISCHARGING && p <= 10;
@@ -268,7 +318,10 @@ int battery_read_mv() {
 #endif
 }
 
-void battery_poll(uint32_t load_sig) {
+void battery_set_load_factor(float k) { s_est.set_load_factor(k); }
+float battery_load_factor() { return s_est.load_factor(); }
+
+void battery_poll(uint32_t load_sig, int load_ma) {
 #if BAT_ADC_PIN >= 0
   uint32_t now = millis();
   if (s_sig_init && load_sig != s_sig) s_est.load_changed(now);
@@ -280,13 +333,14 @@ void battery_poll(uint32_t load_sig) {
 #if SOC_USB_SERIAL_JTAG_SUPPORTED
   host = usb_serial_jtag_is_connected();   // cavo verso un computer (non un caricatore)
 #endif
-  s_est.sample(now, battery_read_mv(), host);
+  s_est.sample(now, battery_read_mv(), host, load_ma);
   BatteryInfo i = s_est.info();
   portENTER_CRITICAL(&s_mux);
   s_info = i;
   portEXIT_CRITICAL(&s_mux);
 #else
   (void)load_sig;
+  (void)load_ma;
 #endif
 }
 
