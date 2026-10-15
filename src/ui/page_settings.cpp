@@ -20,7 +20,6 @@ class SettingsPage : public Page {
     if (bat_timer) lv_timer_delete(bat_timer);
   }
 
-  static void back_cb(lv_event_t *) { ui_pop(); }
   static void out_cb(lv_event_t *) { ui_device_sheet(); }
   static void rescan_cb(lv_event_t *) { ui_request_rescan(); }
   static void xfer_cb(lv_event_t *) { ui_transfer_open(); }
@@ -137,12 +136,10 @@ class SettingsPage : public Page {
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_bottom(col, BOTTOM_PAD, 0);
 
-    lv_obj_t *top = ui_box(col);
-    lv_obj_set_size(top, SCR_W, 46);
-    lv_obj_t *b = ui_icon_btn(top, &icons_18, IC_BACK, C_TEXT, back_cb);
-    lv_obj_align(b, LV_ALIGN_LEFT_MID, 14, 0);
-    lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, "Impostazioni");
-    lv_obj_center(t);
+    // scheda principale (barra in basso): titolo grande come le altre schede
+    lv_obj_t *t = ui_label(col, &font_b20, C_TEXT, "Impostazioni");
+    lv_obj_set_style_pad_left(t, 12, 0);
+    lv_obj_set_style_pad_top(t, 12, 0);
 
     section("Batteria");
     lv_obj_t *bl = row("Livello", "-", nullptr);

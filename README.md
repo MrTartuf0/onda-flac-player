@@ -10,8 +10,9 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 ## Funzioni
 
 - **Home**: scorciatoie recenti, "I più ascoltati", "Riscopri i tuoi album", artisti, generi
-- **Cerca**: ricerca istantanea (senza accenti: "bjork" trova "Björk") + "Sfoglia tutto" per genere
-- **La tua libreria**: filtri Playlist / Album / Artisti / Generi, ordinamento Recenti / Alfabetico
+- **Cerca**: ricerca istantanea (senza accenti: "bjork" trova "Björk") e sotto la libreria con filtri
+  Playlist / Album / Artisti / Generi e ordinamento recenti / alfabetico
+- **Impostazioni** come terza scheda della barra in basso (batteria, audio, schermo, Wi-Fi, libreria)
 - Pagine **album**, **artista** (Popolari + Discografia), **playlist** `.m3u`, **Brani che ti piacciono**
 - **In riproduzione**: copertina, gradiente col colore dell'album, seek, casuale, coda,
   swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*)
@@ -174,7 +175,7 @@ FlacPlayer/
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi
   src/audio/player.*      task di decodifica (dr_flac), coda, shuffle/repeat, rampe anti-click
   src/lib/                scansione SD, tag FLAC, indice, ricerca, preferiti, copertine (TJpgDec)
-  src/ui/                 pagine LVGL (Home, Cerca, Libreria, Album, Artista, In riproduzione,
+  src/ui/                 pagine LVGL (Home, Cerca, Impostazioni, Album, Artista, In riproduzione,
                           centro di controllo...)
   src/net/                trasferimento file: Wi-Fi, hotspot, mDNS, server HTTP e pagina web
   src/fonts/              font generati (Figtree + icone Font Awesome)

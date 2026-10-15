@@ -62,10 +62,9 @@ class HomePage : public Page {
     lv_obj_set_height(col, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_bottom(col, BOTTOM_PAD, 0);
+    lv_obj_set_style_pad_top(col, 10, 0);   // niente intestazione: si parte subito dalle scorciatoie
     build();
   }
-
-  static void settings_cb(lv_event_t *) { ui_push(page_settings_create()); }
 
   static void ctx_click_cb(lv_event_t *e) {
     HomePage *self = (HomePage *)lv_event_get_user_data(e);
@@ -76,23 +75,6 @@ class HomePage : public Page {
   int add_ctx(const PlayContext &c) {
     card_ctx.push_back(c);
     return card_ctx.size() - 1;
-  }
-
-  void header() {
-    lv_obj_t *h = ui_box(col);
-    lv_obj_set_size(h, SCR_W, 52);
-    lv_obj_t *av = ui_box(h);
-    lv_obj_set_size(av, 30, 30);
-    lv_obj_set_style_radius(av, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(av, C_GREEN, 0);
-    lv_obj_set_style_bg_opa(av, LV_OPA_COVER, 0);
-    lv_obj_align(av, LV_ALIGN_LEFT_MID, 12, 2);
-    lv_obj_t *al = ui_label(av, &font_b14, C_BLACK, "O");
-    lv_obj_center(al);
-    lv_obj_t *t = ui_label(h, &font_b20, C_TEXT, "Buon ascolto");
-    lv_obj_align(t, LV_ALIGN_LEFT_MID, 52, 2);
-    lv_obj_t *g = ui_icon_btn(h, &icons_18, IC_GEAR, C_TEXT, settings_cb);
-    lv_obj_align(g, LV_ALIGN_RIGHT_MID, -14, 2);
   }
 
   void tile(lv_obj_t *grid, const PlayContext &c) {
@@ -225,7 +207,6 @@ class HomePage : public Page {
     tiles.clear();
     tiles_ctx.clear();
     card_ctx.clear();
-    header();
     auto &albums = lib_albums();
     if (albums.empty()) {
       empty_state();

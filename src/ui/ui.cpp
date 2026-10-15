@@ -1,4 +1,4 @@
-// Struttura principale: pagine con navigazione a schede (Home / Cerca / Libreria),
+// Struttura principale: pagine con navigazione a schede (Home / Cerca / Impostazioni),
 // mini player, barra di navigazione, schermata di avvio/scansione, notifiche.
 #include "ui.h"
 #include "ui_internal.h"
@@ -230,8 +230,8 @@ void build_nav() {
   lv_obj_set_pos(s_nav, 0, SCR_H - NAV_H);
   lv_obj_set_style_bg_color(s_nav, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(s_nav, LV_OPA_90, 0);
-  static const char *icons[3] = {IC_HOME, IC_SEARCH, IC_LIBRARY};
-  static const char *names[3] = {"Home", "Cerca", "La tua libreria"};
+  static const char *icons[3] = {IC_HOME, IC_SEARCH, IC_GEAR};
+  static const char *names[3] = {"Home", "Cerca", "Impostazioni"};
   for (int i = 0; i < 3; i++) {
     lv_obj_t *it = ui_box(s_nav);
     lv_obj_set_size(it, SCR_W / 3, NAV_H);
@@ -333,7 +333,7 @@ void build_main() {
   destroy_pages();
   s_stack[TAB_HOME].push_back(page_home_create());
   s_stack[TAB_SEARCH].push_back(page_search_create());
-  s_stack[TAB_LIBRARY].push_back(page_library_create());
+  s_stack[TAB_SETTINGS].push_back(page_settings_create());
   s_main_built = true;
   s_tab = TAB_HOME;
   update_nav();

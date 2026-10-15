@@ -96,7 +96,7 @@ class Page {
   virtual bool on_back() { return false; }   // gesto "indietro": true = gestito dalla pagina
 };
 
-enum Tab : uint8_t { TAB_HOME = 0, TAB_SEARCH = 1, TAB_LIBRARY = 2 };
+enum Tab : uint8_t { TAB_HOME = 0, TAB_SEARCH = 1, TAB_SETTINGS = 2 };
 
 lv_obj_t *ui_page_root();            // dove creare le pagine
 lv_obj_t *ui_page_scroll(Page *p);   // radice scrollabile standard di una pagina
@@ -108,7 +108,6 @@ void ui_set_chrome_visible(bool vis);   // nasconde barra e mini player (tastier
 // Pagine
 Page *page_home_create();
 Page *page_search_create();
-Page *page_library_create();
 Page *page_collection_create(const PlayContext &ctx);
 Page *page_artist_create(int artist);
 Page *page_settings_create();

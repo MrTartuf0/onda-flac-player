@@ -1,9 +1,12 @@
-// Cerca: "Sfoglia tutto" (tile colorate per genere) + ricerca con tastiera.
+// Cerca: casella di ricerca (tastiera a schermo) + la libreria sotto, con
+// filtri a chip (Playlist / Album / Artisti / Generi), ordinamento recenti /
+// alfabetico e lista virtualizzata.
 #include "ui_internal.h"
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include "../lib/library.h"
-#include "../lib/artwork.h"
+#include "../lib/flac_meta.h"
 #include "../audio/player.h"
 
 namespace {
@@ -14,7 +17,15 @@ struct RItem {
   int index;
 };
 
-void img_release_cb(lv_event_t *e) { art_release((const lv_image_dsc_t *)lv_event_get_user_data(e)); }
+enum Filter { F_NONE = -1, F_PLAYLIST = 0, F_ALBUM, F_ARTIST, F_GENRE };
+struct Entry {
+  CtxType type;
+  int index;
+};
+
+constexpr int Y_CHIPS = 54;    // sotto la casella di ricerca
+constexpr int Y_LIST = 96;     // inizio della lista della libreria
+constexpr int LIB_ROW = 62;
 
 class SearchPage : public Page {
  public:
@@ -22,9 +33,14 @@ class SearchPage : public Page {
   VList list;
   SearchResult res;
   std::vector<RItem> items;
-  std::vector<PlayContext> tiles;
   lv_timer_t *debounce = nullptr;
   bool kb_visible = false;
+  // libreria
+  Filter filter = F_NONE;
+  bool alpha = false;
+  std::vector<Entry> lib_items;
+  VList lib_list;
+  lv_obj_t *chips[4];
 
   SearchPage() { build(); }
   ~SearchPage() override {
@@ -32,41 +48,136 @@ class SearchPage : public Page {
     ui_set_chrome_visible(true);
   }
 
-  // ------------------------------------------------------- sfoglia ----
+  // ------------------------------------------------------ libreria ----
   static void box_cb(lv_event_t *e) { ((SearchPage *)lv_event_get_user_data(e))->enter(); }
-  static void tile_cb(lv_event_t *e) {
+
+  static void chip_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
-    int i = (int)(intptr_t)lv_obj_get_user_data(lv_event_get_current_target_obj(e));
-    ui_open_context(p->tiles[i]);
+    lv_obj_t *c = lv_event_get_current_target_obj(e);
+    for (int i = 0; i < 4; i++)
+      if (p->chips[i] == c) p->filter = p->filter == i ? F_NONE : (Filter)i;
+    for (int i = 0; i < 4; i++) ui_chip_set(p->chips[i], p->filter == i);
+    p->reload();
+    lv_obj_scroll_to_y(p->browse, 0, LV_ANIM_OFF);
   }
 
-  void tile(lv_obj_t *grid, const PlayContext &c, lv_color_t col, int album) {
-    lv_obj_t *t = ui_box(grid);
-    lv_obj_set_size(t, (SCR_W - 24 - 8) / 2, 62);
-    lv_obj_set_style_radius(t, 6, 0);
-    lv_obj_set_style_clip_corner(t, true, 0);
-    lv_obj_set_style_bg_color(t, col, 0);
-    lv_obj_set_style_bg_opa(t, LV_OPA_COVER, 0);
-    lv_obj_add_flag(t, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_transform_scale(t, 245, LV_STATE_PRESSED);
-    lv_obj_set_user_data(t, (void *)(intptr_t)tiles.size());
-    tiles.push_back(c);
-    lv_obj_add_event_cb(t, tile_cb, LV_EVENT_CLICKED, this);
-    if (album >= 0) {
-      const lv_image_dsc_t *d = art_acquire(album, 48);
-      if (d) {
-        lv_obj_t *img = lv_image_create(t);
-        lv_image_set_src(img, d);
-        lv_image_set_pivot(img, 24, 24);
-        lv_image_set_rotation(img, 250);
-        lv_obj_set_pos(img, (SCR_W - 32) / 2 - 36, 26);
-        lv_obj_add_event_cb(img, img_release_cb, LV_EVENT_DELETE, (void *)d);
-      }
+  static void sort_cb(lv_event_t *e) {
+    SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
+    p->alpha = !p->alpha;
+    ui_toast(p->alpha ? "Ordine alfabetico" : "Ascoltati di recente per primi");
+    p->reload();
+  }
+
+  static void lib_row_cb(lv_event_t *e) {
+    SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
+    int i = ui_row_index(lv_event_get_current_target_obj(e));
+    if (i < 0 || i >= (int)p->lib_items.size()) return;
+    ui_open_context(ctx_of(p->lib_items[i]));
+  }
+
+  static PlayContext ctx_of(const Entry &e) {
+    switch (e.type) {
+      case CTX_ALBUM: return lib_ctx_album(e.index);
+      case CTX_ARTIST: return lib_ctx_artist(e.index);
+      case CTX_PLAYLIST: return lib_ctx_playlist(e.index);
+      case CTX_GENRE: return lib_ctx_genre(e.index);
+      case CTX_LIKED: return lib_ctx_liked();
+      default: return lib_ctx_all();
     }
-    lv_obj_t *l = ui_label(t, &font_b14, C_TEXT, c.name);
-    lv_label_set_long_mode(l, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_width(l, (SCR_W - 32) / 2 - 14);
-    lv_obj_set_pos(l, 8, 6);
+  }
+
+  static const char *name_of(const Entry &e) {
+    switch (e.type) {
+      case CTX_ALBUM: return lib_albums()[e.index].title;
+      case CTX_ARTIST: return lib_artists()[e.index].name;
+      case CTX_PLAYLIST: return lib_playlists()[e.index].name;
+      case CTX_GENRE: return lib_genres()[e.index].name;
+      case CTX_LIKED: return "Brani che ti piacciono";
+      default: return "Tutti i brani";
+    }
+  }
+
+  void reload() {
+    lib_items.clear();
+    bool all = filter == F_NONE;
+    if (all || filter == F_PLAYLIST) {
+      lib_items.push_back({CTX_LIKED, 0});
+      for (size_t i = 0; i < lib_playlists().size(); i++) lib_items.push_back({CTX_PLAYLIST, (int)i});
+    }
+    if (all) lib_items.push_back({CTX_ALL, 0});
+    if (all || filter == F_ALBUM)
+      for (size_t i = 0; i < lib_albums().size(); i++) lib_items.push_back({CTX_ALBUM, (int)i});
+    if (all || filter == F_ARTIST)
+      for (size_t i = 0; i < lib_artists().size(); i++) lib_items.push_back({CTX_ARTIST, (int)i});
+    if (filter == F_GENRE)
+      for (size_t i = 0; i < lib_genres().size(); i++) lib_items.push_back({CTX_GENRE, (int)i});
+
+    // "Brani che ti piacciono" resta sempre in cima
+    auto pinned = [](const Entry &e) { return e.type == CTX_LIKED; };
+    if (alpha) {
+      std::stable_sort(lib_items.begin(), lib_items.end(), [&](const Entry &a, const Entry &b) {
+        if (pinned(a) != pinned(b)) return pinned(a);
+        char fa[96], fb[96];
+        lib_fold(name_of(a), fa, sizeof fa);
+        lib_fold(name_of(b), fb, sizeof fb);
+        return strcmp(fa, fb) < 0;
+      });
+    } else {
+      auto &rec = lib_recents();
+      auto rank = [&](const Entry &e) {
+        if (pinned(e)) return -1;
+        PlayContext c = ctx_of(e);
+        for (size_t i = 0; i < rec.size(); i++)
+          if (rec[i].type == c.type && rec[i].key == c.key) return (int)i;
+        return 1000;
+      };
+      std::stable_sort(lib_items.begin(), lib_items.end(),
+                       [&](const Entry &a, const Entry &b) { return rank(a) < rank(b); });
+    }
+    lib_list.set_count(lib_items.size());
+  }
+
+  void bind_lib_row(lv_obj_t *row, int i) {
+    const Entry &e = lib_items[i];
+    RowParts p = ui_row_parts(row);
+    char sub[160];
+    bool cur = ui_context_is_current(ctx_of(e));
+    lv_obj_set_style_radius(p.cover, e.type == CTX_ARTIST ? LV_RADIUS_CIRCLE : 3, 0);
+    switch (e.type) {
+      case CTX_ALBUM: {
+        const Album &a = lib_albums()[e.index];
+        ui_cover_set(p.cover, COVER_ALBUM, e.index);
+        snprintf(sub, sizeof sub, "Album \xE2\x80\xA2 %s", a.artist);
+        break;
+      }
+      case CTX_ARTIST:
+        ui_cover_set(p.cover, COVER_ARTIST, e.index);
+        snprintf(sub, sizeof sub, "Artista");
+        break;
+      case CTX_PLAYLIST: {
+        const Playlist &pl = lib_playlists()[e.index];
+        ui_cover_set(p.cover, pl.tracks.empty() ? COVER_PLAYLIST : COVER_ALBUM,
+                     pl.tracks.empty() ? -1 : lib_tracks()[pl.tracks[0]].album);
+        snprintf(sub, sizeof sub, "Playlist \xE2\x80\xA2 %u brani", (unsigned)pl.tracks.size());
+        break;
+      }
+      case CTX_GENRE:
+        ui_cover_set(p.cover, COVER_GENRE, e.index);
+        snprintf(sub, sizeof sub, "Genere \xE2\x80\xA2 %u brani", (unsigned)lib_genres()[e.index].tracks.size());
+        break;
+      case CTX_LIKED:
+        ui_cover_set(p.cover, COVER_LIKED, 0);
+        snprintf(sub, sizeof sub, "Playlist \xE2\x80\xA2 %u bran%s", (unsigned)lib_liked().size(),
+                 lib_liked().size() == 1 ? "o" : "i");
+        break;
+      default:
+        ui_cover_set(p.cover, COVER_ALL, 0);
+        snprintf(sub, sizeof sub, "%u brani", (unsigned)lib_tracks().size());
+        break;
+    }
+    lv_label_set_text(p.title, name_of(e));
+    lv_obj_set_style_text_color(p.title, cur ? C_GREEN : C_TEXT, 0);
+    lv_label_set_text(p.sub, sub);
   }
 
   void build_browse() {
@@ -75,12 +186,12 @@ class SearchPage : public Page {
     lv_obj_add_flag(browse, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(browse, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(browse, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_t *t = ui_label(browse, &font_b20, C_TEXT, "Cerca");
-    lv_obj_set_pos(t, 12, 14);
+    lv_obj_add_flag(browse, LV_OBJ_FLAG_SCROLL_MOMENTUM);
 
+    // casella di ricerca (un tocco apre la tastiera) + ordinamento
     lv_obj_t *box = ui_box(browse);
-    lv_obj_set_size(box, SCR_W - 24, 40);
-    lv_obj_set_pos(box, 12, 50);
+    lv_obj_set_size(box, SCR_W - 24 - 40, 38);
+    lv_obj_set_pos(box, 12, 8);
     lv_obj_set_style_radius(box, 6, 0);
     lv_obj_set_style_bg_color(box, C_TEXT, 0);
     lv_obj_set_style_bg_opa(box, LV_OPA_COVER, 0);
@@ -90,27 +201,31 @@ class SearchPage : public Page {
     lv_obj_align(ic, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), "Cosa vuoi ascoltare?");
     lv_obj_align(ph, LV_ALIGN_LEFT_MID, 38, 0);
+    lv_obj_t *so = ui_icon_btn(browse, &icons_18, IC_SORT, C_TEXT, sort_cb, this);
+    lv_obj_set_pos(so, SCR_W - 12 - 26, 17);
+    lv_obj_set_ext_click_area(so, 10);
 
-    lv_obj_t *h = ui_label(browse, &font_b16, C_TEXT, "Sfoglia tutto");
-    lv_obj_set_pos(h, 12, 106);
+    lv_obj_t *cr = ui_box(browse);
+    lv_obj_set_size(cr, SCR_W, 34);
+    lv_obj_set_y(cr, Y_CHIPS);
+    lv_obj_add_flag(cr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(cr, LV_DIR_HOR);
+    lv_obj_set_scrollbar_mode(cr, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_flex_flow(cr, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cr, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_hor(cr, 12, 0);
+    lv_obj_set_style_pad_gap(cr, 8, 0);
+    static const char *names[4] = {"Playlist", "Album", "Artisti", "Generi"};
+    for (int i = 0; i < 4; i++) chips[i] = ui_chip(cr, names[i], chip_cb, this);
 
-    lv_obj_t *g = ui_box(browse);
-    lv_obj_set_size(g, SCR_W, LV_SIZE_CONTENT);
-    lv_obj_set_pos(g, 0, 136);
-    lv_obj_set_style_pad_hor(g, 12, 0);
-    lv_obj_set_style_pad_gap(g, 8, 0);
-    lv_obj_set_style_pad_bottom(g, BOTTOM_PAD, 0);
-    lv_obj_set_flex_flow(g, LV_FLEX_FLOW_ROW_WRAP);
-    tiles.clear();
-    tile(g, lib_ctx_all(), lv_color_hex(0x27856A), -1);
-    tile(g, lib_ctx_liked(), lv_color_hex(0x5038A0), -1);
-    auto &G = lib_genres();
-    for (size_t i = 0; i < G.size(); i++)
-      tile(g, lib_ctx_genre(i), genre_color(i), G[i].tracks.empty() ? -1 : lib_tracks()[G[i].tracks[0]].album);
-    for (size_t i = 0; i < lib_playlists().size(); i++) {
-      auto &pl = lib_playlists()[i];
-      tile(g, lib_ctx_playlist(i), genre_color(i + 5), pl.tracks.empty() ? -1 : lib_tracks()[pl.tracks[0]].album);
-    }
+    lib_list.create = [this](lv_obj_t *parent) {
+      lv_obj_t *row = ui_row(parent, LIB_ROW, 50, false, false);
+      lv_obj_add_event_cb(row, lib_row_cb, LV_EVENT_CLICKED, this);
+      return row;
+    };
+    lib_list.bind = [this](lv_obj_t *row, int i) { bind_lib_row(row, i); };
+    lib_list.init(browse, Y_LIST, LIB_ROW);
+    reload();
   }
 
   // ------------------------------------------------------- ricerca ----
@@ -374,6 +489,8 @@ class SearchPage : public Page {
   }
 
   void refresh(uint32_t what) override {
+    if (what & (RF_LIKED | RF_LIBRARY)) reload();
+    else lib_list.rebind_all();
     if (what & RF_PLAYER) list.rebind_all();
   }
 };
