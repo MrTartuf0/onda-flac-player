@@ -123,7 +123,8 @@ La pagina web è in `tools/web/index.html`; dopo averla modificata rigenera
 
 Scorri il dito verso l'alto partendo dal **bordo in basso** dello schermo (da qualsiasi
 schermata, anche In riproduzione): il pannello segue il dito, come su iPhone. Si chiude
-scorrendo giù, toccando uno spazio vuoto o col gesto indietro.
+trascinando giù (o toccando) la maniglia in alto, scorrendo giù, toccando uno spazio vuoto o
+col gesto indietro.
 
 - **Wi-Fi**: apre il trasferimento file (blu quando è attivo)
 - **Altoparlante / Cuffie / AUTO**: sceglie l'uscita audio (AUTO = cuffie quando le inserisci)

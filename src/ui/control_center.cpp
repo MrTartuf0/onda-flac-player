@@ -1,8 +1,8 @@
 // Centro di controllo in stile iPhone: si apre scorrendo dal bordo in basso
-// verso l'alto e segue il dito; si chiude scorrendo giù, toccando fuori dai
-// riquadri o col gesto "indietro".
+// verso l'alto e segue il dito; si chiude trascinando giù la maniglia in alto
+// (o toccandola), scorrendo giù, toccando fuori dai riquadri o col gesto "indietro".
 //
-//   [ stato: uscita audio                     batteria ]
+//                         [ ==== ]  maniglia
 //   [ Wi-Fi  | Altoparlante ]  [   anello batteria     ]
 //   [ Cuffie | Automatico   ]  [   stato di carica     ]
 //   [                       ]  [                       ]
@@ -28,7 +28,7 @@ namespace {
 
 constexpr int M = 14, GAP = 10;
 constexpr int TW = (SCR_W - 2 * M - GAP) / 2;   // lato dei riquadri (101)
-constexpr int Y_ROW1 = 30;
+constexpr int Y_ROW1 = 28;                      // sopra: la maniglia
 constexpr int Y_ROW2 = Y_ROW1 + TW + GAP;
 constexpr int SL_H = SCR_H - 14 - Y_ROW2;       // altezza dei cursori (165)
 constexpr int BG_OPA = 255;                     // da aperto copre tutto (durante il gesto sfuma)
@@ -41,7 +41,9 @@ struct Slider {
 };
 
 lv_obj_t *cc = nullptr, *panel;
-lv_obj_t *st_out, *st_pct, *st_bat;
+lv_obj_t *grip;                 // la "maniglia" disegnata
+int h_y0 = 0;                   // trascinamento della maniglia
+bool h_drag = false;
 lv_obj_t *b_wifi, *b_spk, *b_hp, *b_auto;
 lv_obj_t *bat_arc, *bat_pct, *bat_l1, *bat_l2;
 Slider s_vol, s_bri;
@@ -95,7 +97,7 @@ void slider_show(Slider &S) {
 }
 
 // ----------------------------------------------------------- aggiorna ----
-// Ridisegna solo se qualcosa è cambiato (lo sfondo semitrasparente costa)
+// Ridisegna solo se qualcosa è cambiato
 uint32_t s_sig = 0;
 
 void refresh_status(bool force = false) {
@@ -108,20 +110,7 @@ void refresh_status(bool force = false) {
   s_sig = sig;
   bool have = b.state != BAT_NONE && b.pct >= 0;
   bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
-  lv_color_t bc = chg ? IOS_GREEN : (b.low ? IOS_RED : C_TEXT);
-
-  // riga di stato
   OutputMode m = audio_out_mode();
-  lv_label_set_text(st_out, audio_out_active() == DEV_HEADPHONES ? "Cuffie" : "Altoparlante");
-  if (have) {
-    lv_label_set_text_fmt(st_pct, chg ? IC_BOLT " %d%%" : "%d%%", b.pct);
-    ui_battery_icon_set(st_bat, b.pct, bc);
-    lv_obj_remove_flag(st_pct, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(st_bat, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(st_pct, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(st_bat, LV_OBJ_FLAG_HIDDEN);
-  }
 
   // connessioni e uscita audio
   round_set(b_wifi, xfer_status().state != XF_OFF);
@@ -257,6 +246,31 @@ void bg_cb(lv_event_t *e) {
   }
 }
 
+// Maniglia: un tocco chiude; trascinandola il pannello scende col dito e al
+// rilascio si chiude (oltre ~40 px) o torna su
+void handle_cb(lv_event_t *e) {
+  lv_event_code_t c = lv_event_get_code(e);
+  lv_indev_t *in = lv_indev_active();
+  if (!in || !cc_on || cc_closing) return;
+  lv_point_t p;
+  lv_indev_get_point(in, &p);
+  if (c == LV_EVENT_PRESSED) {
+    h_drag = true;
+    h_y0 = p.y;
+    lv_anim_delete(cc, anim_cb);
+    lv_obj_set_style_bg_opa(grip, LV_OPA_80, 0);
+  } else if (c == LV_EVENT_PRESSING && h_drag) {
+    int dy = p.y - h_y0;
+    set_pos(dy < 0 ? 0 : dy);
+  } else if ((c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) && h_drag) {
+    h_drag = false;
+    lv_obj_set_style_bg_opa(grip, LV_OPA_40, 0);
+    int dy = p.y - h_y0;
+    if (dy < 6 || dy > 40) hide();   // tocco o trascinamento deciso
+    else animate(true);              // poco: torna su
+  }
+}
+
 void wifi_cb(lv_event_t *) {
   if (!real_click()) return;
   bool active = xfer_status().state != XF_OFF;
@@ -345,21 +359,22 @@ void ui_cc_build() {
   lv_obj_set_size(panel, SCR_W, SCR_H);
   lv_obj_remove_flag(panel, LV_OBJ_FLAG_CLICKABLE);
 
-  // riga di stato, come quella dell'iPhone quando il centro di controllo è aperto
-  st_out = ui_label(panel, &font_b12, C_TEXT, "");
-  lv_obj_set_pos(st_out, M + 4, 8);
-  lv_obj_t *sr = ui_box(panel);   // percentuale + pila, allineate a destra
-  lv_obj_set_size(sr, LV_SIZE_CONTENT, 16);
-  lv_obj_set_flex_flow(sr, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(sr, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(sr, 5, 0);
-  lv_obj_align(sr, LV_ALIGN_TOP_RIGHT, -(M + 2), 7);
-  lv_obj_remove_flag(sr, LV_OBJ_FLAG_CLICKABLE);
+  // maniglia in alto: zona larga e alta quanto basta per il dito, trattino al centro
+  lv_obj_t *hz = ui_box(panel);
+  lv_obj_set_size(hz, SCR_W, Y_ROW1);
+  lv_obj_add_flag(hz, LV_OBJ_FLAG_PRESS_LOCK);
+  lv_obj_remove_flag(hz, LV_OBJ_FLAG_GESTURE_BUBBLE);   // il trascinamento lo gestisce lei
+  lv_obj_add_event_cb(hz, handle_cb, LV_EVENT_ALL, nullptr);
+  grip = ui_box(hz);
+  lv_obj_set_size(grip, 36, 5);
+  lv_obj_align(grip, LV_ALIGN_TOP_MID, 0, 11);
+  lv_obj_set_style_radius(grip, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_color(grip, lv_color_white(), 0);
+  lv_obj_set_style_bg_opa(grip, LV_OPA_40, 0);
+  lv_obj_remove_flag(grip, LV_OBJ_FLAG_CLICKABLE);
   static lv_font_t pct_font;   // testo + fulmine (dal font delle icone)
   pct_font = font_b12;
   pct_font.fallback = &icons_14;
-  st_pct = ui_label(sr, &pct_font, C_TEXT, "");
-  st_bat = ui_battery_icon(sr, 20, 9);
 
   // connessioni + uscita audio (quattro pulsanti rotondi, come su iPhone)
   lv_obj_t *t1 = tile(M, Y_ROW1, TW, TW, 22);
