@@ -1,10 +1,16 @@
 # onda
 
-<img src="docs/images/tour.gif" align="right" width="300" alt="A tour of the player: home, album, now playing, queue, control center, search and settings">
+<img src="docs/images/tour.gif" align="right" width="260" alt="A tour of the player: home, album, now playing, queue, control center, search and settings">
 
 **A pocket FLAC player for the Freenove ESP32-S3 Display (FNK0104B).**
 
-onda plays FLAC files from the board's microSD card on the built-in speaker, or on headphones through an external PCM5102 DAC. When you plug the headphones in the sound moves to them; when you unplug them the music pauses, like on a phone. The touch interface is inspired by Spotify and written with LVGL 9.5, which is bundled in the project.
+onda plays FLAC files from the microSD card on the built-in speaker, or on headphones through a PCM5102 DAC. Plug the headphones in and the sound moves to them; unplug them and the music pauses, like on a phone.
+
+The touch interface is inspired by Spotify and written with LVGL 9.5. Over Wi-Fi, a web page lets you upload music, fix tags and covers with MusicBrainz, and build playlists.
+
+**[Wiki](https://github.com/MrTartuf0/onda-flac-player/wiki)** · [Hardware](https://github.com/MrTartuf0/onda-flac-player/wiki/Hardware) · [Build](https://github.com/MrTartuf0/onda-flac-player/wiki/Building-and-Flashing) · [Web interface](https://github.com/MrTartuf0/onda-flac-player/wiki/Web-Interface)
+
+<br clear="right">
 
 ## Features
 
@@ -20,8 +26,6 @@ onda plays FLAC files from the board's microSD card on the built-in speaker, or 
 - **Clock** set from your phone or from the internet
 - **Resumes** the same song at the same position after power-off, and even after a crash
 - **English and Italian** interface
-
-<br clear="right">
 
 ![Screenshots](docs/screenshots.png)
 
