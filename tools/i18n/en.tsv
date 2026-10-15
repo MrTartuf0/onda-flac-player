@@ -207,3 +207,5 @@ sessione	session
 %u album	%u albums
 1 brano	1 song
 Si era bloccato all'avvio: non riprendo l'ultimo brano	It froze at startup: not resuming the last song
+Rete \"%s\" non raggiungibile: uso l'hotspot	\"%s\" is out of reach: using the hotspot
+Impossibile collegarsi a \"%s\": password errata?	Could not connect to \"%s\": wrong password?

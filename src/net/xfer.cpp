@@ -810,9 +810,11 @@ void start_ap(const char *why) {
   plat_log("[xfer] hotspot %s (%s) %s", ssid, okk ? "attivo" : "ERRORE", ip.toString().c_str());
 }
 
-bool stop_pending() {
+// Dopo un tentativo fallito si passa all'hotspot solo se nel frattempo non è stato
+// chiesto altro: con "hotspot", "indietro" o un'altra rete in coda ci pensa quel comando.
+bool fallback_to_ap() {
   Cmd c;
-  return xQueuePeek(s_q, &c, 0) == pdTRUE && c.k == K_STOP;
+  return xQueuePeek(s_q, &c, 0) != pdTRUE || c.k == K_SCAN;
 }
 
 // Tenta la rete di casa; ritorna true se collegato.
@@ -829,8 +831,12 @@ bool start_sta(const char *ssid, const char *pass) {
   WiFi.begin(ssid, pass);
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000) {
+    // Un altro comando in coda (indietro, hotspot, altra rete, ricerca): si smette di
+    // aspettare. Prima xQueuePeek con un comando già in coda tornava subito e questo
+    // ciclo girava senza mai cedere la CPU fino al watchdog (riavvio dopo 5 s).
     Cmd c;
-    if (xQueuePeek(s_q, &c, pdMS_TO_TICKS(100)) == pdTRUE && c.k == K_STOP) return false;
+    if (xQueuePeek(s_q, &c, 0) == pdTRUE) return false;
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
   if (WiFi.status() != WL_CONNECTED) return false;
   IPAddress ip = WiFi.localIP();
@@ -853,9 +859,9 @@ void start_saved() {
     start_ap(nullptr);
     return;
   }
-  if (!start_sta(ssid, pass) && !stop_pending()) {
+  if (!start_sta(ssid, pass) && fallback_to_ap()) {
     char n[72];
-    snprintf(n, sizeof n, "Rete \"%s\" non raggiungibile: uso l'hotspot", ssid);
+    snprintf(n, sizeof n, TR("Rete \"%s\" non raggiungibile: uso l'hotspot"), ssid);
     start_ap(n);
   }
 }
@@ -903,9 +909,9 @@ void xfer_task(void *) {
         if (start_sta(c.ssid, c.pass)) {
           plat_kv_set_str("wifi_ssid", c.ssid);
           plat_kv_set_str("wifi_pass", c.pass);
-        } else if (!stop_pending()) {
+        } else if (fallback_to_ap()) {
           char n[72];
-          snprintf(n, sizeof n, "Impossibile collegarsi a \"%s\": password errata?", c.ssid);
+          snprintf(n, sizeof n, TR("Impossibile collegarsi a \"%s\": password errata?"), c.ssid);
           start_ap(n);
         }
         break;
