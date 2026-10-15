@@ -1,4 +1,6 @@
 // Vendored dr_flac (public domain / MIT-0) - https://github.com/mackron/dr_libs
+// Local change (search for "onda:"): the binary-search seek can no longer compute a target
+// before the start of its range (NaN/inf compression ratio), which aborted on the ESP32.
 // Configurazione per il lettore:
 #ifndef DR_FLAC_NO_OGG
 #define DR_FLAC_NO_OGG
@@ -5887,8 +5889,17 @@ static drflac_bool32 drflac__seek_to_approximate_flac_frame_to_byte(drflac* pFla
 {
     DRFLAC_ASSERT(pFlac != NULL);
     DRFLAC_ASSERT(pLastSuccessfulSeekOffset != NULL);
-    DRFLAC_ASSERT(targetByte >= rangeLo);
-    DRFLAC_ASSERT(targetByte <= rangeHi);
+
+    /* onda: never let a bad estimate abort the program; keep the target inside the range instead. */
+    if (rangeHi < rangeLo) {
+        rangeHi = rangeLo;
+    }
+    if (targetByte < rangeLo) {
+        targetByte = rangeLo;
+    }
+    if (targetByte > rangeHi) {
+        targetByte = rangeHi;
+    }
 
     *pLastSuccessfulSeekOffset = pFlac->firstFLACFramePosInBytes;
 
@@ -6053,16 +6064,31 @@ static drflac_bool32 drflac__seek_to_pcm_frame__binary_search_internal(drflac* p
                             break;  /* Failed to seek to FLAC frame. */
                         }
                     } else {
-                        const double approxCompressionRatio = (drflac_int64)(lastSuccessfulSeekOffset - pFlac->firstFLACFramePosInBytes) / ((drflac_int64)(pcmRangeLo * pFlac->channels * pFlac->bitsPerSample)/8.0);
+                        double approxCompressionRatio = (drflac_int64)(lastSuccessfulSeekOffset - pFlac->firstFLACFramePosInBytes) / ((drflac_int64)(pcmRangeLo * pFlac->channels * pFlac->bitsPerSample)/8.0);
+                        double approxDelta;
+
+                        /*
+                        onda: when the frame found is the first one (pcmRangeLo == 0) the ratio is 0/0 or x/0. Converting NaN or infinity to an
+                        unsigned integer is undefined; on the ESP32 it gives 0xFFFF..., the addition below wraps around and targetByte ends up
+                        *before* byteRangeLo, which trips the assert in drflac__seek_to_approximate_flac_frame_to_byte().
+                        */
+                        if (!(approxCompressionRatio > 0.0 && approxCompressionRatio < 4.0)) {
+                            approxCompressionRatio = DRFLAC_BINARY_SEARCH_APPROX_COMPRESSION_RATIO;
+                        }
 
                         byteRangeLo = lastSuccessfulSeekOffset;
                         if (byteRangeHi < byteRangeLo) {
                             byteRangeHi = byteRangeLo;
                         }
 
-                        targetByte = lastSuccessfulSeekOffset + (drflac_uint64)(((drflac_int64)((pcmFrameIndex-pcmRangeLo) * pFlac->channels * pFlac->bitsPerSample)/8.0) * approxCompressionRatio);
-                        if (targetByte > byteRangeHi) {
+                        approxDelta = ((drflac_int64)((pcmFrameIndex-pcmRangeLo) * pFlac->channels * pFlac->bitsPerSample)/8.0) * approxCompressionRatio;
+                        if (!(approxDelta > 0.0)) {
+                            approxDelta = 0.0;
+                        }
+                        if (approxDelta >= (double)(byteRangeHi - byteRangeLo)) {
                             targetByte = byteRangeHi;
+                        } else {
+                            targetByte = lastSuccessfulSeekOffset + (drflac_uint64)approxDelta;
                         }
 
                         if (closestSeekOffsetBeforeTargetPCMFrame < lastSuccessfulSeekOffset) {

@@ -61,6 +61,7 @@ struct BootCrumbs {
   uint32_t freeze;      // 1 = riavvio fatto da hang_hook dopo 3 s di blocco totale
   // dove eri (brano, posizione, in riproduzione): per ripartire da lì dopo un crash
   uint32_t res_track, res_pos, res_play, res_valid;
+  uint32_t up_ok;       // kMagic dopo 20 s senza problemi (plat_boot_ok): distingue un crash all'avvio
   char flash_by[20];    // task che sta usando la flash (cache spenta), vuoto se nessuno
   // "scatola nera": ultimi eventi con l'istante (ms dall'avvio)
   struct Ev {
@@ -73,7 +74,7 @@ struct BootCrumbs {
 };
 RTC_NOINIT_ATTR static BootCrumbs s_bc;
 static char s_prev[3][64];
-constexpr uint32_t kMagic = 0x4F4E4446;
+constexpr uint32_t kMagic = 0x4F4E4447;
 
 static portMUX_TYPE s_evmux = portMUX_INITIALIZER_UNLOCKED;
 static char s_blackbox[1100];
@@ -157,6 +158,7 @@ extern "C" void esp_task_wdt_isr_user_handler(void) {
 }
 
 static bool s_res_ok = false;
+static bool s_early = false;
 static uint32_t s_res_track, s_res_pos, s_res_play;
 
 void plat_resume_note(uint32_t track_hash, uint32_t pos_ms, bool playing) {
@@ -198,8 +200,11 @@ uint32_t plat_boot_check(const char **reason) {
   if (crash && s_bc.freeze) txt = "BLOCCO (riavvio automatico dopo 3 s)";
   s_bc.freeze = 0;
   if (reason) *reason = txt;
-  // dove eri: vale solo per questo avvio e solo dopo un crash
-  s_res_ok = crash && s_bc.res_valid == kMagic;
+  // crash nei primi 20 s: probabilmente causato da ciò che l'avvio riprende (brano, punto)
+  s_early = crash && s_bc.up_ok != kMagic;
+  s_bc.up_ok = 0;
+  // dove eri: vale solo per questo avvio, solo dopo un crash e non se è caduto proprio riprendendo
+  s_res_ok = crash && !s_early && s_bc.res_valid == kMagic;
   s_res_track = s_bc.res_track;
   s_res_pos = s_bc.res_pos;
   s_res_play = s_bc.res_play;
@@ -258,7 +263,11 @@ uint32_t plat_boot_check(const char **reason) {
   return s_bc.crashes;
 }
 
-void plat_boot_ok() { s_bc.crashes = 0; }
+void plat_boot_ok() {
+  s_bc.crashes = 0;
+  s_bc.up_ok = kMagic;
+}
+bool plat_boot_early_crash() { return s_early; }
 void plat_restart() {
   Serial.flush();
   esp_restart();
@@ -567,6 +576,7 @@ uint32_t plat_boot_check(const char **reason) {
   return 0;
 }
 void plat_boot_ok() {}
+bool plat_boot_early_crash() { return false; }
 void plat_restart() {}
 void plat_resume_note(uint32_t, uint32_t, bool) {}
 bool plat_resume_get(uint32_t *, uint32_t *, bool *) { return false; }

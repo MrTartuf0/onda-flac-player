@@ -86,6 +86,10 @@ static void write_crash_log() {
 }
 
 static void safe_mode() {
+  // al prossimo avvio (RESET) non si riprende niente: è l'unico modo di uscire dal giro
+  plat_kv_set("ctx_t", CTX_NONE);
+  plat_kv_set("trk", 0);
+  plat_kv_set("pos", 0);
   const char *msg = s_crash_msg;
   bool lcd = strncmp(plat_mark_get(0), "display", 7) != 0;
   if (lcd && display_begin()) {
@@ -229,9 +233,18 @@ void setup() {
   const char *reason = "";
   uint32_t crashes = plat_boot_check(&reason);
   Serial.printf("Motivo dell'ultimo riavvio: %s\n", reason);
+  bool early = crashes > 0 && plat_boot_early_crash();
   if (crashes > 0) {
     build_crash_report(crashes, reason);
-    if (crashes >= 2) safe_mode();   // di nuovo appena riavviato: ci si ferma qui
+    if (early) {
+      // Caduto nei primi secondi: quasi sempre per il brano (o il punto) ripreso
+      // all'avvio. Riprovarlo vorrebbe dire ricadere ogni volta: si riparte dal
+      // primo brano, in pausa; alla seconda volta senza riprendere nulla.
+      plat_kv_set("trk", 0);
+      plat_kv_set("pos", 0);
+      if (crashes >= 2) plat_kv_set("ctx_t", CTX_NONE);
+    }
+    if (crashes >= 3) safe_mode();   // ancora, anche senza riprendere nulla: ci si ferma qui
     print_crash_report();
     s_crash_log_pending = true;
     s_crash_reprint = true;
@@ -252,7 +265,7 @@ void setup() {
   if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) power_off(PWR_BATTERY_BOOT);
   BOOT_STEP("interfaccia");
   ui_init(request_rescan, display_set_brightness);
-  if (crashes > 0) ui_crash_notice();
+  if (crashes > 0) ui_crash_notice(!early);
   lv_timer_handler();   // disegna subito la schermata di avvio
 
   BOOT_STEP("audio");

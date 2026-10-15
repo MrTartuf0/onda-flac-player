@@ -39,6 +39,7 @@ uint32_t s_last_save = 0;
 uint32_t s_last_pos_save = 0;
 LibState s_last_lib = LIB_IDLE;
 bool s_crash_notice = false;      // riavviato dopo un blocco: lo si dice una volta pronta l'interfaccia
+bool s_crash_resumed = true;      // ... e se riprende da dove eri (no se è caduto all'avvio)
 bool s_restore_pending = false;   // ripristina la sessione al termine della prossima scansione
 bool s_saw_scan = false;
 
@@ -601,7 +602,10 @@ void ui_pref_set(const char *key, int32_t v) {
 }
 
 void ui_session_save() { save_session(true); }
-void ui_crash_notice() { s_crash_notice = true; }
+void ui_crash_notice(bool resumed) {
+  s_crash_notice = true;
+  s_crash_resumed = resumed;
+}
 
 void ui_after_transfer(bool changed) {
   if (changed) {
@@ -695,7 +699,8 @@ void ui_tick() {
       restore_session();
       if (s_crash_notice) {
         s_crash_notice = false;
-        ui_toast(TR("Si era bloccato: riavviato, riprendo da dove eri"));
+        ui_toast(s_crash_resumed ? TR("Si era bloccato: riavviato, riprendo da dove eri")
+                                 : TR("Si era bloccato all'avvio: non riprendo l'ultimo brano"));
       }
     } else if (s_restore_pending && s_saw_scan) {
       s_restore_pending = false;

@@ -153,6 +153,7 @@ const Entry kEn[] = {
     {0xb491f8d7u, "Repeat off"},
     {0xb6ec42dbu, "~%d h %02d min"},
     {0xb91b42cdu, "ARTIST"},
+    {0xba5f254cu, "It froze at startup: not resuming the last song"},
     {0xbaaa5d7cu, "running"},
     {0xbc6e4d4eu, "Screen"},
     {0xbe92d62bu, "No results for\n\"%s\""},

@@ -26,6 +26,7 @@ const char *plat_panic_text();   // motivo + backtrace dell'ultimo crash (o "")
 // Da chiamare all'inizio di setup(): ritorna il numero di crash consecutivi
 uint32_t plat_boot_check(const char **reason);
 void plat_boot_ok();   // l'avvio è andato bene: azzera il contatore
+bool plat_boot_early_crash();   // l'ultimo crash è avvenuto nei primi 20 s (prima di plat_boot_ok)
 void plat_restart();   // riavvio pulito (es. cambio lingua)
 // Dove eri (brano = path_hash, posizione, in riproduzione), annotato in RAM RTC:
 // dopo un crash il lettore riparte da lì. plat_resume_get vale una volta sola e
