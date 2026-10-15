@@ -10,8 +10,8 @@
 namespace {
 
 // Disposizione verticale (240x320): copertina grande, comandi in basso.
-constexpr int CV = 156;           // lato copertina
-constexpr int Y_COVER = 38;
+constexpr int CV = 154;           // lato copertina
+constexpr int Y_COVER = 40;
 constexpr int Y_TITLE = Y_COVER + CV + 8;
 constexpr int Y_SLIDER = Y_TITLE + 46;
 constexpr int Y_TIME = Y_SLIDER + 9;
@@ -425,17 +425,17 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_add_event_cb(np, gesture_cb, LV_EVENT_GESTURE, nullptr);
 
   lv_obj_t *dn = ui_icon_btn(np, &icons_18, IC_DOWN, C_TEXT, close_cb);
-  lv_obj_set_pos(dn, 14, 10);
+  lv_obj_set_pos(dn, 14, 13);   // sotto all'indicatore della batteria
   np_ctx_type = ui_label(np, &font_b8, C_SUB, "");
   lv_obj_set_style_text_letter_space(np_ctx_type, 1, 0);
-  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 7);
+  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 11);
   np_ctx_name = ui_label(np, &font_b12, C_TEXT, "");
   ui_dot(np_ctx_name);
   lv_obj_set_width(np_ctx_name, SCR_W - 96);
   lv_obj_set_style_text_align(np_ctx_name, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(np_ctx_name, LV_ALIGN_TOP_MID, 0, 18);
+  lv_obj_align(np_ctx_name, LV_ALIGN_TOP_MID, 0, 22);
   lv_obj_t *qb = ui_icon_btn(np, &icons_18, IC_QUEUE, C_TEXT, queue_cb);
-  lv_obj_align(qb, LV_ALIGN_TOP_RIGHT, -14, 10);
+  lv_obj_align(qb, LV_ALIGN_TOP_RIGHT, -14, 13);
 
   np_cover = ui_cover(np, CV, 4);
   lv_obj_align(np_cover, LV_ALIGN_TOP_MID, 0, Y_COVER);

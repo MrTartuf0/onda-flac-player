@@ -65,6 +65,19 @@
 #define HP_DETECT_PLUGGED    0     // livello letto quando le cuffie sono inserite (0 = verso GND)
 #define HP_DETECT_DEBOUNCE   120   // ms
 
+// --------------------------------------------------------------- Batteria ----
+//  LiPo 3,7 V sul connettore BAT: tensione letta da GPIO9 tramite partitore
+//  200k/200k, caricatore TP4054 (~300 mA). Metti BAT_ADC_PIN -1 per disattivare.
+#ifndef BAT_ADC_PIN
+#define BAT_ADC_PIN          9
+#endif
+#define BAT_DIVIDER_X100     200   // tensione batteria = tensione letta * 2
+#define BAT_OFFSET_MV        0     // correzione se la tensione mostrata differisce dal tester
+#define BAT_CAPACITY_MAH     1100  // solo per stimare il tempo di ricarica
+#define BAT_CHARGE_MA        300   // corrente di carica (R_PROG 3,3k del TP4054)
+#define BAT_SHUTDOWN_MV      3300  // sotto (a batteria, per 30 s): salva e va in standby
+#define BAT_BOOT_MIN_MV      3400  // all'accensione: sotto questa tensione non parte
+
 // ------------------------------------------------------------------ Varie ----
 #define LED_RGB_PIN      42
 #define BTN_BOOT_PIN     0

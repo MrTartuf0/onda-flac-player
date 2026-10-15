@@ -1,18 +1,24 @@
-// Impostazioni: uscita audio, rilevamento cuffie, luminosità, libreria.
+// Impostazioni: batteria, uscita audio, rilevamento cuffie, luminosità, libreria.
 #include "ui_internal.h"
 #include <stdio.h>
 #include "../lib/library.h"
 #include "../audio/audio_out.h"
 #include "../audio/player.h"
 #include "../platform.h"
+#include "../hal/battery.h"
 
 namespace {
 
 class SettingsPage : public Page {
  public:
   lv_obj_t *col, *out_val, *jack_val;
+  lv_obj_t *bat_lvl = nullptr, *bat_state = nullptr, *bat_icon = nullptr;
+  lv_timer_t *bat_timer = nullptr;
 
   SettingsPage() { build(); }
+  ~SettingsPage() override {
+    if (bat_timer) lv_timer_delete(bat_timer);
+  }
 
   static void back_cb(lv_event_t *) { ui_pop(); }
   static void out_cb(lv_event_t *) { ui_device_sheet(); }
@@ -28,6 +34,36 @@ class SettingsPage : public Page {
     audio_out_set_detect_inverted(on);
     plat_kv_set("hp_inv", on);
   }
+  static void batpct_cb(lv_event_t *e) {
+    ui_battery_set_show_pct(lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
+  }
+  static void bat_timer_cb(lv_timer_t *t) { ((SettingsPage *)lv_timer_get_user_data(t))->bat_update(); }
+
+  void bat_update() {
+    BatteryInfo b = battery_info();
+    char buf[64];
+    if (b.state == BAT_NONE || b.pct < 0) {
+      snprintf(buf, sizeof buf, "Non rilevata (%d,%02d V)", b.mv / 1000, b.mv % 1000 / 10);
+      lv_label_set_text(bat_lvl, buf);
+      lv_label_set_text(bat_state, "Collega una LiPo 3,7 V al connettore BAT");
+      lv_obj_add_flag(bat_icon, LV_OBJ_FLAG_HIDDEN);
+      return;
+    }
+    snprintf(buf, sizeof buf, "%d%% \xE2\x80\xA2 %d,%02d V", b.pct, b.mv / 1000, b.mv % 1000 / 10);
+    lv_label_set_text(bat_lvl, buf);
+    if (b.state == BAT_CHARGING && b.minutes_to_full > 0) {
+      int m = b.minutes_to_full;
+      if (m >= 60) snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra ~%d h %02d min", m / 60, m % 60);
+      else snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra ~%d min", m);
+      lv_label_set_text(bat_state, buf);
+    } else {
+      lv_label_set_text(bat_state, ui_battery_state_text(b));
+    }
+    bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
+    ui_battery_icon_set(bat_icon, b.pct, chg ? C_GREEN : (b.low ? lv_color_hex(0xF15E6C) : C_TEXT));
+    lv_obj_remove_flag(bat_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+
   static void bright_cb(lv_event_t *e) {
     lv_obj_t *s = lv_event_get_target_obj(e);
     ui_set_brightness(lv_slider_get_value(s));
@@ -99,6 +135,18 @@ class SettingsPage : public Page {
     lv_obj_align(b, LV_ALIGN_LEFT_MID, 14, 0);
     lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, "Impostazioni");
     lv_obj_center(t);
+
+    section("Batteria");
+    lv_obj_t *bl = row("Livello", "-", nullptr);
+    bat_lvl = lv_obj_get_child(bl, 1);
+    bat_icon = ui_battery_icon(bl, 26, 13);
+    lv_obj_align(bat_icon, LV_ALIGN_RIGHT_MID, -16, 0);
+    lv_obj_t *bs = row("Stato", "-", nullptr);
+    bat_state = lv_obj_get_child(bs, 1);
+    lv_obj_set_width(bat_state, SCR_W - 28);
+    toggle("Percentuale in alto", nullptr, ui_battery_show_pct(), batpct_cb);
+    bat_update();
+    bat_timer = lv_timer_create(bat_timer_cb, 1000, this);
 
     section("Audio");
     lv_obj_t *o = row("Uscita audio", out_name(), out_cb);

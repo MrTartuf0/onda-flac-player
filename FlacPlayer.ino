@@ -16,10 +16,16 @@
 #include <Wire.h>
 #include <SD_MMC.h>
 #include <esp_heap_caps.h>
+#include <esp_sleep.h>
+#include <driver/gpio.h>
+#include <driver/rtc_io.h>
+#include <driver/usb_serial_jtag.h>
 #include "src/lvgl/lvgl.h"
 #include "src/config.h"
 #include "src/platform.h"
 #include "src/hal/display.h"
+#include "src/hal/battery.h"
+#include "src/net/xfer.h"
 #include "src/audio/audio_out.h"
 #include "src/audio/player.h"
 #include "src/lib/library.h"
@@ -87,6 +93,56 @@ static void safe_mode(uint32_t crashes, const char *reason) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Batteria esaurita: avviso, poi standby profondo (consumo minimo). Si riaccende
+// toccando lo schermo o col tasto BOOT; se la batteria è ancora troppo scarica
+// mostra di nuovo l'avviso e torna in standby.
+// ---------------------------------------------------------------------------
+static void battery_power_off(bool at_boot) {
+  Serial.printf("[bat] batteria esaurita (%d mV): standby\n", battery_read_mv());
+  plat_event("batteria esaurita");
+  ui_battery_empty_screen(at_boot);   // salva la sessione e mette in pausa
+  for (uint32_t t0 = millis(); millis() - t0 < 5000;) {
+    lv_timer_handler();
+    delay(5);
+  }
+  if (!at_boot) {
+    audio_out_suspend();
+    SD_MMC.end();
+  }
+  display_sleep();
+  pinMode(AMP_PIN_EN, OUTPUT);
+  digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);   // amplificatore spento
+  gpio_hold_en((gpio_num_t)AMP_PIN_EN);
+  gpio_deep_sleep_hold_en();
+
+  // risveglio: tasto BOOT o tocco (il touch abbassa INT); se INT resta basso
+  // (dito sullo schermo o touch in un'altra modalità) aspetta, poi solo BOOT
+  uint64_t mask = 1ULL << BTN_BOOT_PIN;
+  for (uint32_t t0 = millis(); millis() - t0 < 3000 && digitalRead(TP_PIN_INT) == LOW;) delay(10);
+  if (digitalRead(TP_PIN_INT) == HIGH) mask |= 1ULL << TP_PIN_INT;
+  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);   // tiene le resistenze di pull-up
+  for (int pin : {BTN_BOOT_PIN, TP_PIN_INT}) {
+    rtc_gpio_pullup_en((gpio_num_t)pin);
+    rtc_gpio_pulldown_dis((gpio_num_t)pin);
+  }
+  esp_sleep_enable_ext1_wakeup(mask, ESP_EXT1_WAKEUP_ANY_LOW);
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
+// Cosa sta consumando: quando cambia, il salto di tensione della batteria non è
+// il cavo collegato o staccato (vedi battery_poll).
+static uint32_t load_signature() {
+  OutputDev d = audio_out_active();
+  uint32_t sig = player_status().playing ? 1 : 0;
+  sig |= (uint32_t)d << 1;
+  sig |= (uint32_t)(audio_out_volume(d) / 8) << 2;   // gradini di volume
+  sig |= (uint32_t)(xfer_status().state != XF_OFF) << 7;
+  sig |= (uint32_t)(display_brightness() / 10) << 8;
+  return sig;
+}
+
 static volatile uint8_t s_scan_req = 1;   // 1 = normale, 2 = forzata
 static bool s_sd_ok = false;
 
@@ -118,6 +174,10 @@ static void scan_task(void *) {
 static void request_rescan(bool force) { s_scan_req = force ? 2 : 1; }
 
 void setup() {
+  // dopo lo standby per batteria scarica: libera i pin tenuti fermi (retroilluminazione, amplificatore)
+  gpio_deep_sleep_hold_dis();
+  gpio_hold_dis((gpio_num_t)LCD_PIN_BL);
+  gpio_hold_dis((gpio_num_t)AMP_PIN_EN);
   Serial.begin(115200);
   // Se il Mac/PC non sta leggendo la porta, le stampe vengono scartate invece di
   // bloccare il programma (di default aspetterebbero fino a 100 ms ciascuna).
@@ -141,6 +201,12 @@ void setup() {
 
   BOOT_STEP("display");
   if (!display_begin()) Serial.println("[lcd] init fallita");
+
+  // batteria troppo scarica per partire (a meno che sia collegato un computer)
+  battery_begin();
+  int bmv = battery_read_mv();
+  Serial.printf("[bat] %d mV all'avvio\n", bmv);
+  if (bmv >= 2800 && bmv < BAT_BOOT_MIN_MV && !usb_serial_jtag_is_connected()) battery_power_off(true);
   BOOT_STEP("interfaccia");
   ui_init(request_rescan, display_set_brightness);
   lv_timer_handler();   // disegna subito la schermata di avvio
@@ -179,6 +245,13 @@ void loop() {
     Serial.println("[boot] avvio completato senza errori");
   }
   audio_out_poll();
+  static uint32_t last_sig_t = 0, sig = 0;
+  if (millis() - last_sig_t >= 250) {
+    last_sig_t = millis();
+    sig = load_signature();
+  }
+  battery_poll(sig);
+  if (stage == 2 && battery_info().critical) battery_power_off(false);
   plat_heap_check();
   static uint32_t last_perf = 0;
   if (millis() - last_perf > 3000) {

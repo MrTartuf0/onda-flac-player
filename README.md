@@ -18,6 +18,8 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 - **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
 - **Gesto indietro** come su Android: trascina dal bordo sinistro verso l'interno
 - **Trasferimento file via Wi-Fi** dal browser (vedi sotto)
+- **Batteria**: percentuale e stato di ricarica sempre visibili in alto a destra, avvisi al 10% e 5%,
+  standby automatico quando è esaurita (vedi sotto)
 - **Selettore dispositivo** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
 - Mini player sempre visibile, riprende brano e posizione (salvata in pausa) all'accensione
 - FLAC 8–32 bit, 8–96 kHz; i file a 176.4/192 kHz vengono decimati a 88.2/96 kHz
@@ -35,6 +37,7 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 | **PCM5102 LCK** | **IO21** | header P3 |
 | **PCM5102 DIN** | **IO3** | header P3 |
 | **Rilevamento cuffie** | **IO2** | header P3 |
+| Batteria (partitore 200k/200k) | IO9 | già sulla scheda, LiPo 3,7 V sul connettore BAT |
 
 ### Collegare il PCM5102
 
@@ -115,6 +118,29 @@ interna del chip. La velocità tipica è di circa 0,5-1 MB/s.
 La pagina web è in `tools/web/index.html`; dopo averla modificata rigenera
 `src/net/web_index.h` con `python3 tools/web/embed.py`.
 
+## Batteria
+
+Con una LiPo 3,7 V sul connettore **BAT** (testato con 1100 mAh) in alto a destra compaiono la
+percentuale e la pila; con il cavo collegato la pila diventa verde con il fulmine. In
+**Impostazioni → Batteria** ci sono tensione, stato, tempo stimato alla carica completa e
+l'opzione per nascondere la percentuale.
+
+- **Ricarica**: il caricatore della scheda (TP4054, circa 300 mA) carica una 1100 mAh in circa
+  4 ore; l'ultima parte (dal 90% circa) è più lenta.
+- **Come capisce se è in carica**: la scheda non collega al chip né il LED di carica né la
+  presenza del cavo, quindi lo stato si ricava dalla tensione (sale di colpo quando colleghi il
+  cavo, scende quando lo stacchi). Collegato a un computer lo riconosce subito; con un
+  alimentatore può servire qualche secondo, e se accendi il lettore col cavo già collegato
+  qualche minuto. "Carica completa" arriva quando la tensione si stabilizza a 4,2 V.
+- **Batteria scarica**: avviso al 10% e al 5%. Sotto 3,3 V il lettore salva il punto in cui eri,
+  mostra *Batteria scarica* e va in standby; dopo aver collegato il caricatore si riaccende
+  toccando lo schermo, col tasto BOOT o con RESET. Se la batteria è ancora troppo scarica l'avviso ricompare.
+- La percentuale è una stima dalla curva tipica di una LiPo: durante l'ascolto può oscillare di
+  qualche punto. Se la tensione mostrata in Impostazioni differisce da quella misurata col tester,
+  correggila con `BAT_OFFSET_MV` in `src/config.h`.
+- In standby la scheda consuma ancora un po' (display, DAC esterno): per lunghi periodi di
+  inutilizzo scollega la batteria.
+
 ## Struttura del progetto
 
 ```
@@ -122,6 +148,8 @@ FlacPlayer/
   FlacPlayer.ino          setup/loop, montaggio SD, task di scansione
   src/config.h            pin e opzioni
   src/hal/display.*       ILI9341 via esp_lcd (SPI+DMA), touch FT6336U, driver LVGL
+  src/hal/battery.*       lettura della batteria, stima di percentuale e stato di ricarica
+  src/hal/edge_swipe.*    gesto "indietro" dal bordo sinistro
   src/audio/es8311.*      codec dello speaker
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi
   src/audio/player.*      task di decodifica (dr_flac), coda, shuffle/repeat, rampe anti-click

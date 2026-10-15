@@ -1,4 +1,4 @@
-// Interfaccia pubblica della UI (LVGL 8.4)
+// Interfaccia pubblica della UI (LVGL 9)
 #pragma once
 #include <stdint.h>
 
@@ -7,3 +7,6 @@ typedef void (*BrightnessFn)(uint8_t pct);
 
 void ui_init(RescanFn rescan, BrightnessFn brightness);   // mostra la schermata di avvio
 void ui_tick();             // chiamata da un lv_timer interno; esposta per il simulatore
+// Batteria esaurita: salva la sessione, mette in pausa e mostra l'avviso a tutto
+// schermo (at_boot: all'accensione, prima che il resto dell'interfaccia esista).
+void ui_battery_empty_screen(bool at_boot);

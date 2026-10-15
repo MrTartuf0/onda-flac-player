@@ -148,3 +148,12 @@ void ui_transfer_tick();
 void ui_session_save();                  // salva contesto, brano e posizione
 void ui_after_transfer(bool changed);    // dopo il trasferimento: riscansione o ripristino
 const char *ctx_type_label(CtxType t);
+// Batteria (src/ui/battery_ui.cpp)
+struct BatteryInfo;
+void ui_battery_build();                 // indicatore in alto a destra
+void ui_battery_tick();
+lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h);
+void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c);
+const char *ui_battery_state_text(const BatteryInfo &b);
+void ui_battery_set_show_pct(bool on);
+bool ui_battery_show_pct();

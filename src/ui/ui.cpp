@@ -603,6 +603,7 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   lv_obj_set_width(tl, lv_pct(100));
   lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
 
+  ui_battery_build();
   edge_build();
   EdgeSwipeHooks h;
   h.update = edge_update;
@@ -615,6 +616,7 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
 }
 
 void ui_tick() {
+  ui_battery_tick();
   // ---- stato libreria ----
   LibProgress lp = lib_progress();
   if (lp.state != LIB_READY) {

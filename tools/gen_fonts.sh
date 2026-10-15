@@ -36,4 +36,7 @@ gen_ico icons_14 14
 gen_ico icons_18 18
 gen_ico icons_22 22
 gen_ico icons_28 28
+# 10 px solo il fulmine (batteria in carica, in alto a destra)
+lv_font_conv --font "$F/fa-solid-900.ttf" -r "0xf0e7" --size 10 --bpp 4 --format lvgl --no-compress \
+  --lv-include ../lvgl/lvgl.h --lv-font-name icons_10 -o "$OUT/icons_10.c"
 echo "Font generati in $OUT"

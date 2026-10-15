@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <driver/spi_master.h>
+#include <driver/gpio.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_heap_caps.h>
 #include "../lvgl/lvgl.h"
@@ -104,9 +105,29 @@ uint32_t tick_cb() { return millis(); }
 
 }  // namespace
 
+static uint8_t s_bright = 0;
+
 void display_set_brightness(uint8_t pct) {
   if (pct < 5) pct = 5;
+  s_bright = pct;
   ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
+}
+
+uint8_t display_brightness() { return s_bright; }
+
+void display_sleep() {
+  ledcWrite(LCD_PIN_BL, 0);
+  for (int i = 0; i < 50 && s_dma_busy; i++) delay(1);
+  if (s_io) {
+    esp_lcd_panel_io_tx_param(s_io, 0x28, nullptr, 0);   // display off
+    esp_lcd_panel_io_tx_param(s_io, 0x10, nullptr, 0);   // sleep in
+    delay(10);
+  }
+  // nel deep sleep i pin restano come sono: retroilluminazione spenta
+  ledcDetach(LCD_PIN_BL);
+  pinMode(LCD_PIN_BL, OUTPUT);
+  digitalWrite(LCD_PIN_BL, LOW);
+  gpio_hold_en((gpio_num_t)LCD_PIN_BL);
 }
 
 bool display_begin() {
