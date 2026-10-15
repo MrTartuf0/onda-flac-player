@@ -117,7 +117,38 @@ gestire la microSD dal browser (computer o telefono):
 - carica file o intere cartelle (anche trascinandole nella pagina), con avanzamento e velocità
 - crea cartelle, rinomina, sposta, elimina, scarica; i file nascosti (es. `/.onda`) solo su richiesta
 - **Aggiorna libreria** (nella pagina) oppure **indietro** sul lettore: il Wi-Fi si spegne,
-  vengono letti solo i file nuovi e la riproduzione riprende da dove eri
+  vengono letti solo i file nuovi (e quelli modificati) e la riproduzione riprende da dove eri
+
+### Libreria (nella pagina web)
+
+La scheda **Libreria** mostra tutti i brani raggruppati per album, con le informazioni tecniche
+(bit, kHz, durata, dimensione) e mette in evidenza ciò che manca: filtri *Dati mancanti* e
+*Senza copertina*, ricerca istantanea.
+
+- **Brano**: tocca una riga per vedere tutto del file (formato, campioni, bitrate medio,
+  encoder, MD5 dell'audio, blocchi, immagini incorporate) e modificare i tag: titolo, artista,
+  album, artista album, numero di traccia e disco, anno, genere, più tutti gli altri tag
+  (uno per riga, `CHIAVE=valore`).
+- **Modifica album**: album, artista album, artista, anno e genere per tutti i brani in un colpo,
+  più numero e titolo di ogni brano (*Numera i brani in ordine* li numera 1, 2, 3…).
+- **Copertina**: carica un'immagine (anche PNG, anche dalla galleria del telefono), usa quella
+  incorporata nel file oppure cercala su internet (MusicBrainz / Cover Art Archive, serve che
+  il lettore sia sul Wi-Fi di casa). Il browser la converte in un JPEG da 600 px e il lettore la
+  salva come `cover.jpg` nella cartella dell'album (ha la precedenza su quella incorporata).
+- **Sistema copertine**: in un colpo converte le copertine incorporate che il lettore non sa
+  leggere (PNG, JPEG progressivi) e le salva come `cover.jpg`.
+
+I tag vengono scritti **dentro il file FLAC** (commenti Vorbis standard), quindi li vedono anche
+gli altri lettori. L'audio non viene mai toccato: se nel file c'è spazio di riserva (quasi sempre)
+cambia solo l'intestazione, altrimenti il file viene ricopiato una volta (qualche secondo) con
+8 KB di riserva per le modifiche successive. Il lettore mostra i dati nuovi dopo
+**Aggiorna libreria**.
+
+### Playlist (nella pagina web)
+
+La scheda **Playlist** crea, modifica ed elimina playlist: cerca i brani, aggiungili col +,
+riordinali con le frecce. Vengono salvate come file `.m3u8` in `/Playlist` (quelle esistenti
+restano dove sono) e compaiono nel lettore in Cerca → Playlist dopo **Aggiorna libreria**.
 
 Rete: dalla schermata del lettore scegli la **rete di casa** (password con la tastiera a schermo);
 poi la pagina è su `http://onda.local` o sull'IP mostrato, con il codice QR. Senza rete salvata
@@ -232,7 +263,8 @@ FlacPlayer/
   src/audio/es8311.*      codec dello speaker
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi
   src/audio/player.*      task di decodifica (dr_flac), coda, shuffle/repeat, rampe anti-click
-  src/lib/                scansione SD, tag FLAC, indice, ricerca, preferiti, copertine (TJpgDec)
+  src/lib/                scansione SD, tag FLAC (lettura e scrittura), indice, ricerca, preferiti,
+                          copertine (TJpgDec)
   src/ui/                 pagine LVGL (Home, Cerca, Impostazioni, Album, Artista, In riproduzione,
                           centro di controllo...)
   src/net/                trasferimento file: Wi-Fi, hotspot, mDNS, server HTTP e pagina web

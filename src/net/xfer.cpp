@@ -25,6 +25,9 @@
 #include "../platform.h"
 #include "web_index.h"
 #include "../clock.h"
+#include "../lib/library.h"
+#include "../lib/artwork.h"
+#include "../lib/flac_tags.h"
 
 namespace {
 
@@ -392,6 +395,321 @@ esp_err_t h_dl(httpd_req_t *req) {
   return r;
 }
 
+// ------------------------------------------------- libreria e tag ----
+const char *rel_path(const char *full) {
+  size_t n = strlen(SD_MOUNT);
+  return strncmp(full, SD_MOUNT, n) == 0 ? full + n : full;
+}
+
+// JSON a pezzi (risposte lunghe senza tenerle tutte in memoria)
+struct Chunked {
+  httpd_req_t *req;
+  std::string o;
+  bool good = true;
+  void flush(bool all = false) {
+    if (o.size() < 1400 && !all) return;
+    if (good && !o.empty() && httpd_resp_send_chunk(req, o.data(), o.size()) != ESP_OK) good = false;
+    o.clear();
+  }
+  esp_err_t end() {
+    flush(true);
+    if (!good) return ESP_FAIL;
+    return httpd_resp_send_chunk(req, nullptr, 0);
+  }
+};
+
+void kv_num(std::string &o, const char *k, long long v) {
+  o += ",\"";
+  o += k;
+  o += "\":";
+  o += std::to_string(v);
+}
+void kv_str(std::string &o, const char *k, const char *v) {
+  o += ",\"";
+  o += k;
+  o += "\":";
+  json_str(o, v ? v : "");
+}
+
+// Tutta la libreria: brani (con formato e tag mancanti), album, playlist
+esp_err_t h_lib(httpd_req_t *req) {
+  if (lib_state() != LIB_READY) return fail(req, "503 Service Unavailable", "Libreria non ancora pronta");
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  Chunked j{req};
+  j.o = "{\"tracks\":[";
+  auto &T = lib_tracks();
+  for (size_t i = 0; i < T.size() && j.good; i++) {
+    const Track &t = T[i];
+    j.o += i ? ",{\"p\":" : "{\"p\":";
+    json_str(j.o, rel_path(t.path));
+    kv_str(j.o, "t", t.title);
+    kv_str(j.o, "a", t.artist);
+    kv_num(j.o, "al", t.album);
+    kv_str(j.o, "g", t.genre_tag);
+    kv_num(j.o, "y", t.year);
+    kv_num(j.o, "n", t.trackno);
+    kv_num(j.o, "d", t.disc);
+    kv_num(j.o, "ms", t.dur_ms);
+    kv_num(j.o, "sr", t.sample_rate);
+    kv_num(j.o, "b", t.bits);
+    kv_num(j.o, "s", t.size);
+    kv_num(j.o, "pk", t.pic_kind);
+    kv_num(j.o, "m", t.miss);
+    j.o += '}';
+    j.flush();
+  }
+  j.o += "],\"albums\":[";
+  auto &A = lib_albums();
+  for (size_t i = 0; i < A.size() && j.good; i++) {
+    const Album &a = A[i];
+    j.o += i ? ",{\"k\":" : "{\"k\":";
+    j.o += std::to_string(a.key);
+    kv_str(j.o, "t", a.title);
+    kv_str(j.o, "a", a.artist);
+    kv_str(j.o, "dir", rel_path(a.dir));
+    kv_str(j.o, "af", a.art_file ? rel_path(a.art_file) : "");
+    kv_num(j.o, "y", a.year);
+    kv_num(j.o, "cv", a.art_state == 1);
+    j.o += '}';
+    j.flush();
+  }
+  j.o += "],\"playlists\":[";
+  auto &P = lib_playlists();
+  for (size_t i = 0; i < P.size() && j.good; i++) {
+    const Playlist &p = P[i];
+    j.o += i ? ",{\"n\":" : "{\"n\":";
+    json_str(j.o, p.name);
+    kv_str(j.o, "p", p.path ? rel_path(p.path) : "");
+    j.o += ",\"tr\":[";
+    for (size_t k = 0; k < p.tracks.size(); k++) {
+      if (k) j.o += ',';
+      j.o += std::to_string(p.tracks[k]);
+      j.flush();
+    }
+    j.o += "]}";
+    j.flush();
+  }
+  j.o += "]}";
+  return j.end();
+}
+
+// Tutto su un file: formato, tag (tutti), immagini, struttura
+esp_err_t h_meta(httpd_req_t *req) {
+  std::string full, rel;
+  if (!query_path(req, "p", full, &rel)) return fail(req, "400 Bad Request", "Percorso non valido");
+  FlacInfo fi;
+  if (!flac_info(full.c_str(), fi)) return fail(req, "415 Unsupported Media Type", "Non è un file FLAC leggibile");
+  std::string o = "{\"p\":";
+  json_str(o, rel.c_str());
+  kv_num(o, "sr", fi.sample_rate);
+  kv_num(o, "ch", fi.channels);
+  kv_num(o, "bits", fi.bits);
+  kv_num(o, "samples", (long long)fi.total_samples);
+  kv_num(o, "size", fi.file_size);
+  kv_num(o, "audio", fi.audio_off);
+  kv_num(o, "padding", fi.padding);
+  kv_num(o, "minb", fi.min_block);
+  kv_num(o, "maxb", fi.max_block);
+  kv_num(o, "skipped", fi.skipped);
+  kv_str(o, "vendor", fi.vendor.c_str());
+  char md5[33];
+  for (int i = 0; i < 16; i++) snprintf(md5 + 2 * i, 3, "%02x", fi.md5[i]);
+  kv_str(o, "md5", md5);
+  o += ",\"tags\":[";
+  for (size_t i = 0; i < fi.comments.size(); i++) {
+    if (i) o += ',';
+    json_str(o, fi.comments[i].c_str());
+  }
+  o += "],\"pics\":[";
+  for (size_t i = 0; i < fi.pictures.size(); i++) {
+    const auto &p = fi.pictures[i];
+    o += i ? ",{\"t\":" : "{\"t\":";
+    o += std::to_string(p.type);
+    kv_str(o, "mime", p.mime.c_str());
+    kv_str(o, "desc", p.desc.c_str());
+    kv_num(o, "w", p.w);
+    kv_num(o, "h", p.h);
+    kv_num(o, "len", p.data_len);
+    o += '}';
+  }
+  o += "],\"blocks\":[";
+  for (size_t i = 0; i < fi.blocks.size(); i++) {
+    if (i) o += ',';
+    o += "[" + std::to_string(fi.blocks[i].type) + "," + std::to_string(fi.blocks[i].len) + "]";
+  }
+  o += "]}";
+  return send_json(req, o);
+}
+
+// Riscrive i tag: corpo = un campo per riga, "CHIAVE=valore" codificato come URI
+esp_err_t h_tags(httpd_req_t *req) {
+  std::string full, rel;
+  if (!query_path(req, "p", full, &rel)) return fail(req, "400 Bad Request", "Percorso non valido");
+  size_t len = req->content_len;
+  if (len > 256 * 1024) return fail(req, "413 Payload Too Large", "Tag troppo grandi");
+  std::string body(len, '\0');
+  size_t got = 0;
+  int timeouts = 0;
+  while (got < len) {
+    int r = httpd_req_recv(req, &body[got], len - got);
+    if (r == HTTPD_SOCK_ERR_TIMEOUT && ++timeouts < 6) continue;
+    if (r <= 0) return fail(req, "400 Bad Request", "Ricezione interrotta");
+    got += r;
+  }
+  std::vector<std::string> tags;
+  size_t a = 0;
+  while (a <= body.size()) {
+    size_t e = body.find('\n', a);
+    if (e == std::string::npos) e = body.size();
+    if (e > a) {
+      std::string line = body.substr(a, e - a);
+      url_decode(&line[0]);
+      line.resize(strlen(line.c_str()));
+      if (line.find('=') != std::string::npos) tags.push_back(line);
+    }
+    a = e + 1;
+  }
+  plat_event("web: tag", strrchr(rel.c_str(), '/') + 1);
+  std::string err;
+  bool rewrote = false;
+  uint32_t t0 = millis();
+  if (!flac_write_comments(full.c_str(), tags, err, &rewrote)) return fail(req, "500 Internal Server Error", err.c_str());
+  lib_mark_stale(full.c_str());
+  changed();
+  std::string o = "{\"ok\":true";
+  kv_num(o, "rewrote", rewrote);
+  kv_num(o, "ms", millis() - t0);
+  o += "}";
+  return send_json(req, o);
+}
+
+// Immagine incorporata n. i (per mostrarla e convertirla nel browser)
+esp_err_t h_pic(httpd_req_t *req) {
+  std::string full, rel;
+  if (!query_path(req, "p", full, &rel)) return fail(req, "400 Bad Request", "Percorso non valido");
+  int idx = 0;
+  {
+    size_t ql = httpd_req_get_url_query_len(req);
+    std::string q(ql + 1, '\0');
+    char v[8];
+    if (httpd_req_get_url_query_str(req, &q[0], ql + 1) == ESP_OK && httpd_query_key_value(q.c_str(), "i", v, sizeof v) == ESP_OK)
+      idx = atoi(v);
+  }
+  FlacInfo fi;
+  if (!flac_info(full.c_str(), fi) || idx < 0 || idx >= (int)fi.pictures.size())
+    return fail(req, "404 Not Found", "Nessuna immagine");
+  const auto &p = fi.pictures[idx];
+  FILE *f = fopen(full.c_str(), "rb");
+  if (!f) return fail(req, "404 Not Found", "File non trovato");
+  httpd_resp_set_type(req, p.mime.empty() ? "application/octet-stream" : p.mime.c_str());
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  fseek(f, p.data_off, SEEK_SET);
+  std::string buf(8192, '\0');
+  uint32_t left = p.data_len;
+  esp_err_t r = ESP_OK;
+  while (left && r == ESP_OK) {
+    size_t n = fread(&buf[0], 1, std::min<uint32_t>(left, buf.size()), f);
+    if (!n) break;
+    left -= n;
+    r = httpd_resp_send_chunk(req, buf.data(), n);
+  }
+  fclose(f);
+  return r == ESP_OK ? httpd_resp_send_chunk(req, nullptr, 0) : r;
+}
+
+// Miniatura dell'album (64x64) dalla cache del lettore, come BMP a 16 bit
+esp_err_t h_thumb(httpd_req_t *req) {
+  size_t ql = httpd_req_get_url_query_len(req);
+  std::string q(ql + 1, '\0');
+  char v[16];
+  if (httpd_req_get_url_query_str(req, &q[0], ql + 1) != ESP_OK || httpd_query_key_value(q.c_str(), "k", v, sizeof v) != ESP_OK)
+    return fail(req, "400 Bad Request", "Album mancante");
+  uint32_t key = strtoul(v, nullptr, 10);
+  char path[96];
+  art_cache_path(key, ART_SMALL, path, sizeof path);
+  FILE *f = fopen(path, "rb");
+  if (!f) return fail(req, "404 Not Found", "Nessuna copertina");
+  constexpr int S = ART_SMALL;
+  std::string out(66 + S * S * 2, '\0');
+  uint16_t hdr[4];
+  bool okr = fread(hdr, 2, 4, f) == 4 && hdr[0] == 0x414F && fread(&out[66], 2, S * S, f) == (size_t)(S * S);
+  fclose(f);
+  if (!okr) return fail(req, "404 Not Found", "Nessuna copertina");
+  uint8_t *b = (uint8_t *)&out[0];
+  auto w32 = [&](int o, uint32_t x) { for (int i = 0; i < 4; i++) b[o + i] = (x >> (8 * i)) & 0xFF; };
+  b[0] = 'B';
+  b[1] = 'M';
+  w32(2, out.size());
+  w32(10, 66);
+  w32(14, 40);
+  w32(18, S);
+  w32(22, (uint32_t)-S);   // dall'alto in basso
+  b[26] = 1;
+  b[28] = 16;
+  w32(30, 3);              // BI_BITFIELDS: RGB565
+  w32(34, S * S * 2);
+  w32(54, 0xF800);
+  w32(58, 0x07E0);
+  w32(62, 0x001F);
+  httpd_resp_set_type(req, "image/bmp");
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  return httpd_resp_send(req, out.data(), out.size());
+}
+
+// Copertina nuova per un album (JPEG già preparato dal browser): cover.jpg nella cartella
+esp_err_t h_cover(httpd_req_t *req) {
+  size_t ql = httpd_req_get_url_query_len(req);
+  std::string q(ql + 1, '\0');
+  char v[16];
+  if (httpd_req_get_url_query_str(req, &q[0], ql + 1) != ESP_OK || httpd_query_key_value(q.c_str(), "k", v, sizeof v) != ESP_OK)
+    return fail(req, "400 Bad Request", "Album mancante");
+  int ai = lib_album_by_key(strtoul(v, nullptr, 10));
+  if (ai < 0) return fail(req, "404 Not Found", "Album non trovato");
+  const Album &al = lib_albums()[ai];
+  size_t len = req->content_len;
+  if (len < 100 || len > 4 * 1024 * 1024) return fail(req, "400 Bad Request", "Immagine non valida");
+  std::string dst = std::string(al.dir) + "/cover.jpg", part = dst + ".part";
+  FILE *f = fopen(part.c_str(), "wb");
+  if (!f) return fail(req, "500 Internal Server Error", "Impossibile scrivere nella cartella dell'album");
+  std::string buf(8192, '\0');
+  size_t got = 0;
+  int timeouts = 0;
+  bool good = true;
+  while (got < len) {
+    int r = httpd_req_recv(req, &buf[0], std::min(buf.size(), len - got));
+    if (r == HTTPD_SOCK_ERR_TIMEOUT && ++timeouts < 6) continue;
+    if (r <= 0 || fwrite(buf.data(), 1, r, f) != (size_t)r) {
+      good = false;
+      break;
+    }
+    if (got == 0 && !((uint8_t)buf[0] == 0xFF && (uint8_t)buf[1] == 0xD8)) {
+      good = false;   // non è un JPEG
+      break;
+    }
+    got += r;
+  }
+  good = (fclose(f) == 0) && good;
+  if (!good) {
+    unlink(part.c_str());
+    return fail(req, "500 Internal Server Error", "Copertina non salvata");
+  }
+  unlink(dst.c_str());
+  if (rename(part.c_str(), dst.c_str()) != 0) {
+    unlink(part.c_str());
+    return fail(req, "500 Internal Server Error", "Copertina non salvata");
+  }
+  char cp[96];
+  art_cache_path(al.key, ART_SMALL, cp, sizeof cp);
+  unlink(cp);
+  art_cache_path(al.key, ART_LARGE, cp, sizeof cp);
+  unlink(cp);
+  lib_mark_art_stale(al.key);
+  plat_event("web: copertina", al.title);
+  changed();
+  return ok(req);
+}
+
 // La pagina manda l'ora del telefono/computer appena si apre (ms dal 1970)
 esp_err_t h_time(httpd_req_t *req) {
   char b[24] = {0};
@@ -435,7 +753,9 @@ void http_start() {
     {"/", HTTP_GET, h_index},          {"/api/info", HTTP_GET, h_info}, {"/api/ls", HTTP_GET, h_ls},
     {"/api/up", HTTP_POST, h_upload},  {"/api/mkdir", HTTP_POST, h_mkdir}, {"/api/rm", HTTP_POST, h_rm},
     {"/api/mv", HTTP_POST, h_mv},      {"/api/dl", HTTP_GET, h_dl},    {"/api/done", HTTP_POST, h_done},
-    {"/api/time", HTTP_POST, h_time},
+    {"/api/time", HTTP_POST, h_time},  {"/api/lib", HTTP_GET, h_lib},   {"/api/meta", HTTP_GET, h_meta},
+    {"/api/tags", HTTP_POST, h_tags},  {"/api/pic", HTTP_GET, h_pic},   {"/api/thumb", HTTP_GET, h_thumb},
+    {"/api/cover", HTTP_POST, h_cover},
   };
   for (auto &r : routes) {
     httpd_uri_t u = {};

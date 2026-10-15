@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <mutex>
 #include "flac_meta.h"
 #include "artwork.h"
 #include "../platform.h"
@@ -293,6 +295,24 @@ void save_db(const std::vector<Raw> &raws, uint32_t sig) {
 }
 
 // ------------------------------------------------------- costruzione ----
+std::mutex s_stale_mtx;
+std::unordered_set<uint32_t> s_stale;   // path_hash dei file modificati dalla pagina web
+
+std::unordered_set<uint32_t> s_art_stale;   // album con una copertina nuova (pagina web)
+
+bool take_stale(uint32_t h) {
+  std::lock_guard<std::mutex> l(s_stale_mtx);
+  return s_stale.erase(h) > 0;
+}
+bool any_stale() {
+  std::lock_guard<std::mutex> l(s_stale_mtx);
+  return !s_stale.empty();
+}
+bool take_art_stale(uint32_t key) {
+  std::lock_guard<std::mutex> l(s_stale_mtx);
+  return s_art_stale.erase(key) > 0;
+}
+
 const char *kUnknownArtist = "Artista sconosciuto";
 const char *kVarious = "Artisti vari";
 
@@ -312,6 +332,9 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
     if (g_tracks.size() >= 0xFFF0) break;
     Track t{};
     t.path = g_arena.dup(r.path);
+    t.miss = (r.title[0] ? 0 : LIB_MISS_TITLE) | (r.artist[0] ? 0 : LIB_MISS_ARTIST) |
+             (r.album[0] ? 0 : LIB_MISS_ALBUM) | (r.genre[0] ? 0 : LIB_MISS_GENRE) | (r.year ? 0 : LIB_MISS_YEAR) |
+             (r.trackno ? 0 : LIB_MISS_TRACKNO);
     t.title = r.title[0] ? g_arena.dup(r.title) : g_arena.dup(title_from_file(r.path).c_str());
     t.artist = r.artist[0] ? g_arena.dup(r.artist) : kUnknownArtist;
     std::string dir = dir_of(r.path);
@@ -664,7 +687,7 @@ bool lib_scan(bool force) {
 
   std::vector<Raw> raws;
   Arena rawarena;
-  bool changed = force || !have_db || old_sig != sig;
+  bool changed = force || !have_db || old_sig != sig || any_stale();
   if (!changed) {
     raws = old;
   } else {
@@ -676,7 +699,7 @@ bool lib_scan(bool force) {
       set_prog(LIB_SCANNING, i, files.size(), 1);
       plat_mark(1, "tag", files[i].path);
       auto it = prev.find(fnv1a(files[i].path));
-      if (it != prev.end() && it->second->size == files[i].size) {
+      if (it != prev.end() && it->second->size == files[i].size && !take_stale(fnv1a(files[i].path))) {
         raws.push_back(*it->second);
         continue;
       }
@@ -718,8 +741,9 @@ bool lib_scan(bool force) {
     Album &a = g_albums[i];
     set_prog(LIB_SCANNING, i, g_albums.size(), 2);
     plat_mark(1, "copertina", a.title);
-    if (a.art_state == 1 && art_has_cache(a.key)) continue;
-    if (a.art_state == 2 && !changed) continue;
+    bool fresh = take_art_stale(a.key);
+    if (!fresh && a.art_state == 1 && art_has_cache(a.key)) continue;
+    if (!fresh && a.art_state == 2 && !changed) continue;
     uint16_t col = 0;
     bool ok = art_build(a, &col);
     a.art_state = ok ? 1 : 2;
@@ -759,6 +783,16 @@ const std::vector<Track> &lib_tracks() { return g_tracks; }
 const std::vector<Album> &lib_albums() { return g_albums; }
 const std::vector<Artist> &lib_artists() { return g_artists; }
 const std::vector<Genre> &lib_genres() { return g_genres; }
+
+void lib_mark_stale(const char *path) {
+  std::lock_guard<std::mutex> l(s_stale_mtx);
+  s_stale.insert(fnv1a(path));
+}
+
+void lib_mark_art_stale(uint32_t album_key) {
+  std::lock_guard<std::mutex> l(s_stale_mtx);
+  s_art_stale.insert(album_key);
+}
 const std::vector<Playlist> &lib_playlists() { return g_playlists; }
 const char *lib_track_path(int t) { return (t >= 0 && t < (int)g_tracks.size()) ? g_tracks[t].path : nullptr; }
 

@@ -2,6 +2,7 @@
 #include "../lvgl/src/misc/cache/instance/lv_image_cache.h"
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <algorithm>
 #include <vector>
@@ -250,11 +251,16 @@ bool art_build(const Album &a, uint16_t *color_out) {
     uint32_t off, len;
   } srcs[2];
   int ns = 0;
+  // cover.jpg nella cartella vince su quella incorporata: è quella scelta apposta
+  // (anche dalla pagina web); folder.jpg & co. vengono dopo l'incorporata
+  const char *base = a.art_file ? strrchr(a.art_file, '/') : nullptr;
+  bool cover_first = base && !strncasecmp(base + 1, "cover.", 6);
+  if (cover_first) srcs[ns++] = {a.art_file, 0, 0x7FFFFFFF};
   if (a.art_track >= 0) {
     const Track &t = tracks[a.art_track];
     srcs[ns++] = {t.path, t.pic_off, t.pic_size};
   }
-  if (a.art_file) srcs[ns++] = {a.art_file, 0, 0x7FFFFFFF};
+  if (a.art_file && !cover_first) srcs[ns++] = {a.art_file, 0, 0x7FFFFFFF};
 
   for (int i = 0; i < ns; i++) {
     FILE *f = fopen(srcs[i].path, "rb");

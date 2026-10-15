@@ -26,6 +26,12 @@ struct Track {
   uint16_t genre;          // indice genere o 0xFFFF
   uint8_t bits;
   uint8_t pic_kind;
+  uint8_t miss;            // tag mancanti (LIB_MISS_*): per la pagina web
+};
+
+enum : uint8_t {
+  LIB_MISS_TITLE = 1, LIB_MISS_ARTIST = 2, LIB_MISS_ALBUM = 4, LIB_MISS_GENRE = 8,
+  LIB_MISS_YEAR = 16, LIB_MISS_TRACKNO = 32,
 };
 
 struct Album {
@@ -76,6 +82,10 @@ struct LibProgress {
 bool lib_scan(bool force);
 LibProgress lib_progress();
 LibState lib_state();
+// Tag del file cambiati (pagina web): alla prossima scansione si rileggono
+// anche se la dimensione del file è rimasta uguale.
+void lib_mark_stale(const char *path);
+void lib_mark_art_stale(uint32_t album_key);   // copertina nuova: rigenera la cache
 
 const std::vector<Track> &lib_tracks();
 const std::vector<Album> &lib_albums();

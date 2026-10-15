@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#121212">
-<title>onda · File</title>
+<title>onda</title>
 <style>
 :root{--bg:#121212;--bg2:#181818;--el:#242424;--el2:#2e2e2e;--line:#2a2a2a;--tx:#fff;--sub:#b3b3b3;--dim:#7a7a7a;--g:#1ed760;--g2:#1db954;--red:#f15e6c;--r:10px}
 *{box-sizing:border-box}
@@ -86,7 +86,70 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--g);cursor:pointer
 .toast.on{transform:translateX(-50%) translateY(0);opacity:1}.toast.err{background:var(--red)}
 .off{position:fixed;inset:0;background:rgba(18,18,18,.96);display:none;place-items:center;z-index:70;text-align:center;padding:20px}
 .off.on{display:grid}.off b{font-size:22px;display:block;margin-bottom:8px}.off p{color:var(--sub)}
+.tabs{display:flex;gap:6px;margin:4px 0 10px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:999px;background:var(--el);font-weight:700;font-size:14px}
+.tab.on{background:#fff;color:#000}
+.view{display:none}.view.on{display:block}
+.search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--el);border-radius:999px;padding:0 14px}
+.search input{flex:1;background:none;border:0;outline:none;color:#fff;font:inherit;padding:10px 0}
+.chip{padding:7px 13px;border-radius:999px;background:var(--el);font-size:13px;font-weight:600;color:var(--tx)}
+.chip.on{background:var(--g);color:#000}
+.stats{color:var(--sub);font-size:13px;margin:2px 4px 14px}
+.alb{background:var(--bg2);border-radius:var(--r);margin-bottom:14px;overflow:hidden}
+.ah{display:flex;gap:14px;align-items:center;padding:12px}
+.ah img,.ph{width:64px;height:64px;border-radius:6px;object-fit:cover;background:var(--el2);flex:none;display:grid;place-items:center;color:var(--dim)}
+.ah .nm b{font-size:17px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah .nm small{color:var(--sub);font-size:13px}
+.ah .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;margin:4px 4px 0 0;background:#3a2c1f;color:#f0a24c}
+.badge.red{background:#3b1d22;color:var(--red)}.badge.ok{background:#173322;color:var(--g)}
+.tr{display:grid;grid-template-columns:30px 1fr 150px 70px 52px;gap:10px;align-items:center;padding:7px 12px;border-top:1px solid var(--line);font-size:14px;cursor:pointer}
+.tr:hover{background:#202020}
+.tr .n{color:var(--sub);text-align:right;font-size:13px}
+.tr .tt{min-width:0}.tr .tt div,.tr .ar{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .tt small{color:var(--sub);font-size:12px}
+.tr .ar{color:var(--sub);font-size:13px}
+.tr .fm{color:var(--sub);font-size:12px;text-align:right;white-space:nowrap}
+.tr .du{color:var(--sub);font-size:13px;text-align:right}
+.warn{color:#f0a24c;font-size:12px;margin-left:6px}
+.big .dlg{width:min(760px,100%);max-height:92vh;overflow:auto}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px;margin:6px 0 14px}
+.grid2 label,.full label{display:block;font-size:12px;color:var(--sub);font-weight:600}
+.grid2 input,.full input,.full textarea,.atr input,.dlg select{width:100%;padding:9px 10px;border-radius:6px;border:1px solid #535353;background:#3e3e3e;color:#fff;font:inherit;outline:none;margin-top:4px}
+.grid2 input:focus,.full input:focus,.full textarea:focus,.atr input:focus{border-color:#fff}
+.full{margin-bottom:12px}.full textarea{min-height:90px;font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+input.miss{border-color:#f0a24c}
+.tech{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;background:#1f1f1f;border-radius:8px;padding:12px 14px;margin:10px 0 14px}
+.tech dt{color:var(--sub)}.tech dd{margin:0;word-break:break-all}
+.pics{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.pics figure{margin:0;font-size:11px;color:var(--sub);width:96px}
+.pics img{width:96px;height:96px;object-fit:cover;border-radius:6px;background:#333;display:block;margin-bottom:4px}
+.prog{height:4px;background:#333;border-radius:2px;overflow:hidden;margin:8px 0}.prog i{display:block;height:100%;width:0;background:var(--g);transition:width .2s}
+.atr{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:center;margin:4px 0}
+.atr input{margin-top:0!important}
+.cvbox{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:6px 0 14px}
+.cvbox img,.cvbox .ph{width:180px;height:180px;border-radius:8px}
+.cvopts{display:flex;flex-direction:column;gap:8px;flex:1;min-width:200px}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin:8px 0}
+.res button{display:block;text-align:left;font-size:11px;color:var(--sub)}
+.res img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;background:#333;display:block;margin-bottom:4px}
+.res button.on img{outline:3px solid var(--g)}
+.pls .pl{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg2);border-radius:var(--r);margin-bottom:8px}
+.pls .pl .ic{background:linear-gradient(135deg,#1e3264,#1ed760);color:#fff}
+.pls .pl .nm{flex:1}
+.ple{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}.ple>div{min-width:0}
+.dlg{overflow-x:hidden}
+.pane{background:#1f1f1f;border-radius:8px;padding:10px;min-height:200px;max-height:52vh;overflow:auto}
+.pane h4{margin:2px 4px 8px;font-size:13px;color:var(--sub)}
+.pi{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;font-size:13px}
+.pi:hover{background:#2a2a2a}.pi div{flex:1;min-width:0}.pi div b,.pi div small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pi small{color:var(--sub);font-size:11px}
+.pi button{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--sub);flex:none}
+.pi button:hover{background:#3e3e3e;color:#fff}.pi button svg{width:16px;height:16px}
+.pi.drag{opacity:.4}
 @media (max-width:640px){
+ .tr{grid-template-columns:24px 1fr 44px}.tr .ar,.tr .fm{display:none}
+ .grid2,.ple{grid-template-columns:minmax(0,1fr)}.ah{flex-wrap:wrap}.ah .acts{margin-left:0;width:100%;justify-content:flex-start}
+ .pane{max-height:40vh}
  .row{grid-template-columns:24px 36px 1fr 40px}.sz,.dt{display:none}
  .nm small.m{display:inline}.disk{min-width:100%;margin-left:0}
  .crumbs{font-size:19px}.foot p{font-size:12px}
@@ -97,9 +160,11 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--g);cursor:pointer
 <body>
 <div class="wrap">
  <header>
-  <div class="logo">onda<b>.</b><small>File sulla scheda microSD</small></div>
+  <div class="logo">onda<b>.</b><small>Musica e file sulla scheda microSD</small></div>
   <div class="disk" id="disk"><span id="diskt">&nbsp;</span><div class="bar"><i id="diskb"></i></div></div>
  </header>
+ <nav class="tabs"><button class="tab on" data-v="files">File</button><button class="tab" data-v="lib">Libreria</button><button class="tab" data-v="pl">Playlist</button></nav>
+ <section class="view on" id="vFiles">
  <div class="tools">
   <button class="btn pri" id="bFiles"><svg viewBox="0 0 24 24"><path d="M11 16V7.85l-2.6 2.6L7 9l5-5 5 5-1.4 1.45-2.6-2.6V16zm-5 4q-.825 0-1.412-.587T4 18v-3h2v3h12v-3h2v3q0 .825-.587 1.413T18 20z"/></svg>Carica file</button>
   <button class="btn" id="bDir"><svg viewBox="0 0 24 24"><path d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h6l2 2h8q.825 0 1.413.588T22 8v10q0 .825-.587 1.413T20 20zm7-3h2v-4.2l1.6 1.6L16 13l-4-4-4 4 1.4 1.4 1.6-1.6z"/></svg>Carica cartella</button>
@@ -115,7 +180,26 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--g);cursor:pointer
   <button class="more" id="selX" title="Annulla"><svg viewBox="0 0 24 24"><path d="M6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6z"/></svg></button>
  </div>
  <div class="list" id="list"></div>
+ </section>
+
+ <section class="view" id="vLib">
+  <div class="tools">
+   <label class="search"><svg viewBox="0 0 24 24"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5 6.313 6.313 5 9.5t1.313 3.188T9.5 14"/></svg><input id="lq" placeholder="Cerca titolo, artista, album, genere…" autocomplete="off"></label>
+   <button class="chip on" data-f="all">Tutti</button><button class="chip" data-f="miss" id="fMiss">Dati mancanti</button><button class="chip" data-f="nocv" id="fNocv">Senza copertina</button>
+   <button class="btn" id="bFixCv" style="display:none">Sistema copertine</button>
+  </div>
+  <div class="stats" id="lstats"></div>
+  <div id="libl"></div>
+ </section>
+
+ <section class="view" id="vPl">
+  <div class="tools"><button class="btn pri" id="bNewPl">Nuova playlist</button><span class="sp"></span></div>
+  <p class="stats">Le playlist sono file <b>.m3u8</b> sulla scheda: le vedi anche nel lettore (Cerca → Playlist) dopo «Aggiorna libreria».</p>
+  <div class="pls" id="pls"></div>
+ </section>
 </div>
+
+<div class="modal big" id="ed"><div class="dlg" id="edB"></div></div>
 
 <input type="file" id="fFiles" multiple hidden>
 <input type="file" id="fDir" webkitdirectory multiple hidden>
@@ -298,6 +382,273 @@ $('bDone').onclick=async()=>{
  if(busy&&!await dialog({title:'Caricamento in corso',text:'Se chiudi adesso i file non ancora caricati andranno persi.',ok:'Chiudi comunque',danger:true}))return;
  if(xhr)xhr.abort();try{await api('/api/done',{},{method:'POST'})}catch(e){}$('off').className='off on'};
 addEventListener('beforeunload',e=>{if(busy){e.preventDefault();e.returnValue=''}});
+
+// =================================================================== schede ====
+const tabs=[...document.querySelectorAll('.tab')];
+function showView(v){
+ tabs.forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+ for(const [k,id] of [['files','vFiles'],['lib','vLib'],['pl','vPl']])$(id).classList.toggle('on',k===v);
+ if(v!=='files')libEnsure().then(()=>{if(v==='lib')libRender();else plRender()});
+}
+tabs.forEach(t=>t.onclick=()=>showView(t.dataset.v));
+
+// ================================================================ libreria ====
+// LIB: dati dal lettore (/api/lib). EDIT: modifiche fatte da qui (il lettore le
+// rilegge solo con «Aggiorna libreria»), così la pagina mostra subito i dati nuovi.
+let LIB=null,libP=null,lfilter='all';
+const EDIT={};
+const STD=[['TITLE','Titolo','t'],['ARTIST','Artista','a'],['ALBUM','Album'],['ALBUMARTIST','Artista album'],['TRACKNUMBER','Traccia n.','n'],['DISCNUMBER','Disco n.','d'],['DATE','Anno','y'],['GENRE','Genere','g']];
+const ALIAS={'ALBUM ARTIST':'ALBUMARTIST','ALBUM_ARTIST':'ALBUMARTIST','YEAR':'DATE'};
+const MISS=[[1,'titolo'],[2,'artista'],[4,'album'],[8,'genere'],[16,'anno'],[32,'n. traccia']];
+const PICT={0:'Altro',1:'Icona',2:'Icona',3:'Copertina',4:'Retro',5:'Libretto',6:'Supporto',7:'Solista',8:'Artista',9:'Direttore',10:'Gruppo',13:'Studio',18:'Illustrazione'};
+const khz=sr=>(sr/1000).toLocaleString('it-IT',{maximumFractionDigits:1})+' kHz';
+const fmtq=t=>t.b&&t.sr?t.b+'/'+(t.sr/1000).toLocaleString('it-IT',{maximumFractionDigits:1}):'';
+const dur=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const ldur=ms=>{const m=Math.round(ms/60000);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'};
+function libEnsure(force){if(LIB&&!force)return Promise.resolve();if(!libP||force)libP=api('/api/lib').then(j=>{LIB=j}).catch(e=>{libP=null;toast(e.message,true);throw e});return libP}
+const tr=i=>Object.assign({},LIB.tracks[i],EDIT[LIB.tracks[i].p]||{});
+window.PH='<div class="ph">'+IC.flac+'</div>';
+const dots=a=>a.filter(Boolean).join(' · ');
+function albCover(a){return a.cv||a._cv}
+function libRender(){
+ if(!LIB)return;
+ const q=$('lq').value.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+ const T=LIB.tracks.map((x,i)=>tr(i)),A=LIB.albums;
+ const byAlb=A.map(()=>[]);T.forEach((t,i)=>{if(byAlb[t.al])byAlb[t.al].push(i)});
+ let nMiss=0,nNo=0,fix=0,totMs=0,totS=0;const fmts={};
+ T.forEach(t=>{if(t.m)nMiss++;totMs+=t.ms;totS+=t.s;const f=fmtq(t);if(f)fmts[f]=(fmts[f]||0)+1});
+ A.forEach((a,ai)=>{if(!albCover(a)){nNo++;if(byAlb[ai].some(i=>T[i].pk))fix++}});
+ $('fMiss').textContent='Dati mancanti'+(nMiss?' ('+nMiss+')':'');$('fNocv').textContent='Senza copertina'+(nNo?' ('+nNo+')':'');
+ $('bFixCv').style.display=fix?'':'none';$('bFixCv').textContent='Sistema copertine ('+fix+')';
+ $('lstats').textContent=T.length+' brani · '+A.length+' album · '+ldur(totMs)+' · '+fmt(totS)+(Object.keys(fmts).length?' · '+Object.entries(fmts).sort((a,b)=>b[1]-a[1]).map(([f,n])=>n+' × '+f).join(', '):'');
+ const out=[];
+ const order=A.map((a,i)=>i).sort((x,y)=>(A[x].a||'').localeCompare(A[y].a||'','it')||(A[x].t||'').localeCompare(A[y].t||'','it'));
+ for(const ai of order){
+  const a=A[ai];let idx=byAlb[ai].slice().sort((x,y)=>(T[x].d-T[y].d)||(T[x].n-T[y].n)||T[x].p.localeCompare(T[y].p));
+  if(lfilter==='nocv'&&albCover(a))continue;
+  if(lfilter==='miss')idx=idx.filter(i=>T[i].m);
+  if(q)idx=idx.filter(i=>{const t=T[i];return (t.t+' '+t.a+' '+a.t+' '+(t.g||'')+' '+t.p).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').includes(q)});
+  if(!idx.length)continue;
+  const fset=[...new Set(byAlb[ai].map(i=>fmtq(T[i])).filter(Boolean))].join(', ');
+  const am=byAlb[ai].filter(i=>T[i].m).length;
+  const th=a._url?'<img src="'+a._url+'" alt="">':albCover(a)?'<img loading="lazy" src="/api/thumb?k='+a.k+'" alt="" onerror="this.outerHTML=PH">':PH;
+  out.push('<div class="alb" data-a="'+ai+'"><div class="ah">'+th+'<div class="nm"><b>'+esc(a.t||'')+'</b><small>'+esc(dots([a.a,a.y,byAlb[ai].length+' brani',fset]))+'</small><div>'+
+   (albCover(a)?'':'<span class="badge red">senza copertina</span>')+(am?'<span class="badge">'+am+' con dati mancanti</span>':'')+'</div></div><div class="acts"><button class="btn ghost" data-ae="'+ai+'">Modifica album</button><button class="btn ghost" data-ac="'+ai+'">Copertina</button></div></div>'+
+   idx.map(i=>{const t=T[i];const mm=MISS.filter(([b])=>t.m&b).map(([,n])=>n);return '<div class="tr" data-t="'+i+'"><span class="n">'+(t.n||'–')+'</span><div class="tt"><div>'+esc(t.t||'')+(mm.length?'<span class="warn" title="Manca: '+mm.join(', ')+'">⚠ '+mm.length+'</span>':'')+'</div><small>'+esc(t.p.split('/').pop())+'</small></div><span class="ar">'+esc(t.a||'')+'</span><span class="fm">'+fmtq(t)+'</span><span class="du">'+dur(t.ms)+'</span></div>'}).join('')+'</div>');
+ }
+ $('libl').innerHTML=out.length?out.join(''):'<div class="empty">'+IC.flac+'<b>Nessun brano</b>'+(LIB.tracks.length?'Nessun risultato con questo filtro.':'Carica dei file .flac dalla scheda «File».')+'</div>';
+}
+$('lq').oninput=()=>libRender();
+document.querySelectorAll('[data-f]').forEach(c=>c.onclick=()=>{lfilter=c.dataset.f;document.querySelectorAll('[data-f]').forEach(x=>x.classList.toggle('on',x===c));libRender()});
+$('libl').onclick=e=>{
+ const ae=e.target.closest('[data-ae]');if(ae)return albumEdit(+ae.dataset.ae);
+ const ac=e.target.closest('[data-ac]');if(ac)return coverEdit(+ac.dataset.ac);
+ const r=e.target.closest('[data-t]');if(r)trackEdit(+r.dataset.t);
+};
+
+// ------------------------------------------------------------- editor -------
+const ed=$('ed'),edB=$('edB');
+function edOpen(html){edB.innerHTML=html;ed.className='modal big on';edB.scrollTop=0}
+function edClose(){ed.className='modal big'}
+ed.onclick=e=>{if(e.target===ed&&!edB.dataset.busy)edClose()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ed.classList.contains('on')&&!edB.dataset.busy)edClose()});
+const norm=k=>{k=k.toUpperCase();return ALIAS[k]||k};
+function splitTags(list){ // -> {std:{KEY:val}, rest:[righe]}
+ const std={},rest=[];
+ for(const l of list){const e=l.indexOf('=');if(e<1)continue;const k=norm(l.slice(0,e)),v=l.slice(e+1);
+  if(STD.some(s=>s[0]===k)&&!(k in std))std[k]=v;else rest.push(l)}
+ return{std,rest}}
+function joinTags(std,restText){
+ const out=[];for(const[k]of STD){const v=(std[k]||'').trim();if(v)out.push(k+'='+v)}
+ for(const l of restText.split('\n')){const e=l.indexOf('=');if(e>0)out.push(l.slice(0,e).trim().toUpperCase()+'='+l.slice(e+1))}
+ return out}
+async function saveTags(p,list){
+ const body=list.map(encodeURIComponent).join('\n');
+ const r=await api('/api/tags',{p},{method:'POST',body});
+ // aggiorna la vista locale
+ const{std}=splitTags(list);const t=LIB.tracks.find(x=>x.p===p);const ov={};
+ ov.t=std.TITLE||(t?t.p.split('/').pop().replace(/\.flac$/i,''):'');ov.a=std.ARTIST||'Artista sconosciuto';ov.g=std.GENRE||'';
+ ov.y=parseInt(std.DATE)||0;ov.n=parseInt(std.TRACKNUMBER)||0;ov.d=parseInt(std.DISCNUMBER)||0;
+ ov.m=(std.TITLE?0:1)|(std.ARTIST?0:2)|(std.ALBUM?0:4)|(std.GENRE?0:8)|(ov.y?0:16)|(ov.n?0:32);
+ EDIT[p]=ov;return r}
+function techHtml(m){
+ const sec=m.samples&&m.sr?m.samples/m.sr:0,kbps=sec?Math.round((m.size-m.audio)*8/sec/1000):0;
+ const names={0:'STREAMINFO',1:'PADDING',2:'APPLICATION',3:'SEEKTABLE',4:'TAG',5:'CUESHEET',6:'IMMAGINE'};
+ return '<dl class="tech"><dt>Formato</dt><dd>FLAC · '+m.bits+' bit · '+khz(m.sr)+' · '+(m.ch==1?'mono':m.ch==2?'stereo':m.ch+' canali')+'</dd>'+
+ '<dt>Durata</dt><dd>'+dur(sec*1000)+' ('+m.samples.toLocaleString('it-IT')+' campioni)</dd>'+
+ '<dt>Bitrate medio</dt><dd>'+kbps.toLocaleString('it-IT')+' kbps ('+(sec?Math.round((m.size-m.audio)*100/(m.samples*m.ch*m.bits/8)):0)+'% del non compresso)</dd>'+
+ '<dt>Dimensione</dt><dd>'+fmt(m.size)+' (metadati '+fmt(m.audio)+', riserva '+fmt(m.padding)+')</dd>'+
+ '<dt>Encoder</dt><dd>'+esc(m.vendor||'—')+'</dd><dt>MD5 audio</dt><dd>'+(/^0+$/.test(m.md5)?'non presente':m.md5)+'</dd>'+
+ '<dt>Blocchi</dt><dd>'+m.blocks.map(b=>names[b[0]]||b[0]).join(' · ')+'</dd>'+
+ (m.skipped?'<dt>Campi grandi</dt><dd>'+m.skipped+' (non mostrati, restano nel file)</dd>':'')+'</dl>'}
+function picsHtml(m,p){
+ if(!m.pics.length)return '<p class="stats">Nessuna immagine incorporata.</p>';
+ return '<div class="pics">'+m.pics.map((x,i)=>'<figure><img src="/api/pic?'+new URLSearchParams({p,i})+'" alt="">'+(PICT[x.t]||'Tipo '+x.t)+'<br>'+esc(x.mime.replace('image/',''))+' '+(x.w?x.w+'×'+x.h:'')+' · '+fmt(x.len)+'</figure>').join('')+'</div>'}
+
+async function trackEdit(i){
+ const t=tr(i);let m;
+ edOpen('<h3>'+esc(t.t)+'</h3><p>Lettura del file…</p>');
+ try{m=await api('/api/meta',{p:t.p})}catch(e){edB.innerHTML='<h3>Errore</h3><p>'+esc(e.message)+'</p><div class="acts"><button class="btn" onclick="this.closest(\'.modal\').className=\'modal big\'">Chiudi</button></div>';return}
+ const{std,rest}=splitTags(m.tags);
+ edB.innerHTML='<h3>'+esc(std.TITLE||t.t)+'</h3><p>'+esc(t.p)+'</p>'+techHtml(m)+
+  '<div class="grid2">'+STD.map(([k,l])=>{const opt=k==='ALBUMARTIST'||k==='DISCNUMBER';return '<div><label>'+l+'</label><input data-k="'+k+'" value="'+esc(std[k]||'')+'"'+(std[k]?'':opt?' placeholder="facoltativo"':' class="miss" placeholder="mancante"')+'></div>'}).join('')+'</div>'+
+  '<div class="full"><label>Altri tag (uno per riga, CHIAVE=valore)</label><textarea id="edRest" spellcheck="false">'+esc(rest.join('\n'))+'</textarea></div>'+
+  '<label class="stats" style="display:block;margin:0 0 4px">Immagini incorporate</label>'+picsHtml(m,t.p)+
+  '<div class="acts" style="margin-top:16px"><button class="btn ghost" id="edX">Annulla</button><button class="btn pri" id="edS">Salva</button></div>';
+ $('edX').onclick=edClose;
+ $('edS').onclick=async()=>{
+  const s2={};edB.querySelectorAll('[data-k]').forEach(x=>s2[x.dataset.k]=x.value);
+  const list=joinTags(s2,$('edRest').value);
+  $('edS').disabled=true;$('edS').textContent='Salvataggio…';edB.dataset.busy=1;
+  try{const r=await saveTags(t.p,list);const na=(s2.ALBUM||'').trim(),oa=(LIB.albums[t.al]||{}).t||'';
+   toast(na&&na!==oa?'Salvato: lo vedrai nell\'album «'+na+'» dopo «Aggiorna libreria»':r.rewrote?'Salvato (file ricopiato: c\'era poco spazio per i tag)':'Salvato');edClose();libRender()}
+  catch(e){toast(e.message,true);$('edS').disabled=false;$('edS').textContent='Salva'}
+  delete edB.dataset.busy};
+}
+
+// ------------------------------------------------------------ album --------
+async function albumEdit(ai){
+ const a=LIB.albums[ai];const idx=LIB.tracks.map((x,i)=>i).filter(i=>LIB.tracks[i].al===ai).sort((x,y)=>{const X=tr(x),Y=tr(y);return (X.d-Y.d)||(X.n-Y.n)||X.p.localeCompare(Y.p)});
+ const T=idx.map(tr);
+ const same=k=>{const v=T.map(t=>t[k]);return v.every(x=>x===v[0])?v[0]:null};
+ const ga=same('a'),gg=same('g'),gy=same('y');
+ edOpen('<h3>Modifica album</h3><p>Lascia vuoto un campo per non cambiarlo. Le modifiche vengono scritte in tutti i '+T.length+' brani.</p>'+
+  '<div class="grid2"><div><label>Album</label><input id="aT" value="'+esc(a.t||'')+'"></div><div><label>Artista album</label><input id="aAA" value="'+esc(a.a||'')+'"></div>'+
+  '<div><label>Artista (tutti i brani)</label><input id="aA" value="'+esc(ga&&ga!=='Artista sconosciuto'?ga:'')+'" placeholder="'+(ga?'':'diversi')+'"></div>'+
+  '<div><label>Anno</label><input id="aY" value="'+(gy||'')+'" placeholder="'+(gy===null?'diversi':'')+'"></div>'+
+  '<div><label>Genere</label><input id="aG" value="'+esc(gg||'')+'" placeholder="'+(gg===null?'diversi':'')+'"></div>'+
+  '<div><label>&nbsp;</label><button class="btn ghost" id="aNum" style="margin-top:4px">Numera i brani in ordine</button></div></div>'+
+  '<label class="stats" style="display:block;margin:0 0 4px">Brani (numero e titolo)</label>'+
+  T.map((t,k)=>'<div class="atr"><input data-n="'+k+'" data-o="'+(t.n||'')+'" value="'+(t.n||'')+'" inputmode="numeric"><input data-ti="'+k+'" data-o="'+esc(t.t)+'" value="'+esc(t.t)+'"></div>').join('')+
+  '<div class="prog" id="aP" style="display:none"><i></i></div><p class="stats" id="aMsg"></p>'+
+  '<div class="acts"><button class="btn ghost" id="aX">Annulla</button><button class="btn pri" id="aS">Salva '+T.length+' brani</button></div>');
+ $('aX').onclick=edClose;
+ $('aNum').onclick=()=>edB.querySelectorAll('[data-n]').forEach((x,k)=>x.value=k+1);
+ $('aS').onclick=async()=>{
+  const v=id=>$(id).value.trim();
+  const common={ALBUM:v('aT'),ALBUMARTIST:v('aAA'),ARTIST:v('aA'),DATE:v('aY'),GENRE:v('aG')};
+  $('aS').disabled=true;$('aX').disabled=true;edB.dataset.busy=1;$('aP').style.display='';
+  let done=0,bad=[];
+  for(let k=0;k<T.length;k++){
+   const t=T[k];$('aMsg').textContent='Scrivo '+(k+1)+' di '+T.length+': '+t.t;
+   try{const m=await api('/api/meta',{p:t.p});const{std,rest}=splitTags(m.tags);
+    for(const[key,val]of Object.entries(common))if(val)std[key]=val;
+    // numero e titolo solo se cambiati (es. "1/12" resta com'è se non lo tocchi)
+    const ni=edB.querySelector('[data-n="'+k+'"]'),tt=edB.querySelector('[data-ti="'+k+'"]');
+    if(ni.value.trim()&&ni.value.trim()!==ni.dataset.o)std.TRACKNUMBER=ni.value.trim();
+    if(tt.value.trim()&&tt.value.trim()!==tt.dataset.o)std.TITLE=tt.value.trim();
+    await saveTags(t.p,joinTags(std,rest.join('\n')));done++}
+   catch(e){bad.push(t.t+': '+e.message)}
+   $('aP').firstChild.style.width=((k+1)*100/T.length)+'%'}
+  delete edB.dataset.busy;
+  if(common.ALBUM)a.t=common.ALBUM;if(common.ALBUMARTIST)a.a=common.ALBUMARTIST;if(parseInt(common.DATE))a.y=parseInt(common.DATE);
+  if(bad.length){$('aMsg').textContent='Errori: '+bad.join(' · ');$('aX').disabled=false;$('aX').textContent='Chiudi'}
+  else{toast(done+' brani aggiornati');edClose()}
+  libRender()};
+}
+
+// --------------------------------------------------------- copertine -------
+async function toJpeg(blob,max=600){
+ const url=URL.createObjectURL(blob);const img=new Image();img.src=url;
+ try{await img.decode()}finally{URL.revokeObjectURL(url)}
+ const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');
+ c.width=Math.max(1,Math.round(img.naturalWidth*s));c.height=Math.max(1,Math.round(img.naturalHeight*s));
+ const g=c.getContext('2d');g.fillStyle='#000';g.fillRect(0,0,c.width,c.height);g.drawImage(img,0,0,c.width,c.height);
+ return await new Promise((r,j)=>c.toBlob(b=>b?r(b):j(new Error('Conversione non riuscita')),'image/jpeg',0.9))}
+async function uploadCover(ai,blob){
+ const a=LIB.albums[ai];const jpg=await toJpeg(blob);
+ await api('/api/cover',{k:a.k},{method:'POST',body:jpg});a._cv=Date.now();a._url=URL.createObjectURL(jpg)}
+function albumTracks(ai){return LIB.tracks.map((x,i)=>i).filter(i=>LIB.tracks[i].al===ai)}
+async function coverEdit(ai){
+ const a=LIB.albums[ai];const emb=albumTracks(ai).find(i=>LIB.tracks[i].pk);let chosen=null;
+ const cur=a._url?'<img src="'+a._url+'">':albCover(a)?'<img src="/api/thumb?k='+a.k+'" onerror="this.outerHTML=PH">':PH;
+ edOpen('<h3>Copertina</h3><p>'+esc(a.t)+' · '+esc(a.a||'')+'</p><div class="cvbox"><div id="cvPrev">'+cur+'</div><div class="cvopts">'+
+  '<button class="btn" id="cvFile">'+IC.up+'Carica un\'immagine…</button>'+
+  (emb!==undefined?'<button class="btn" id="cvEmb">'+IC.img+'Usa quella incorporata nel file</button>':'')+
+  '<button class="btn" id="cvWeb">'+IC.dl+'Cerca su internet (MusicBrainz)</button>'+
+  '<p class="stats" style="margin:4px 0 0">Viene salvata come <b>cover.jpg</b> nella cartella dell\'album (JPEG 600 px, quello che il lettore legge meglio).</p></div></div>'+
+  '<div id="cvRes"></div><input type="file" id="cvIn" accept="image/*" hidden>'+
+  '<div class="acts"><button class="btn ghost" id="cvX">Annulla</button><button class="btn pri" id="cvS" disabled>Salva copertina</button></div>');
+ const pick=(blob)=>{chosen=blob;$('cvPrev').innerHTML='<img src="'+URL.createObjectURL(blob)+'">';$('cvS').disabled=false};
+ $('cvX').onclick=edClose;
+ $('cvFile').onclick=()=>$('cvIn').click();
+ $('cvIn').onchange=e=>{const f=e.target.files[0];if(f)pick(f)};
+ if($('cvEmb'))$('cvEmb').onclick=async()=>{try{const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[emb].p,i:0}));if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Immagine non leggibile',true)}};
+ $('cvWeb').onclick=async()=>{
+  const box=$('cvRes');box.innerHTML='<p class="stats">Cerco…</p>';
+  const q='release:"'+(a.t||'').replace(/"/g,'')+'"'+(a.a&&a.a!=='Artisti vari'?' AND artist:"'+a.a.replace(/"/g,'')+'"':'');
+  try{const r=await fetch('https://musicbrainz.org/ws/2/release/?fmt=json&limit=12&query='+encodeURIComponent(q));if(!r.ok)throw 0;const j=await r.json();
+   const rel=(j.releases||[]).filter(x=>x.id);
+   if(!rel.length){box.innerHTML='<p class="stats">Nessun risultato.</p>';return}
+   box.innerHTML='<div class="res">'+rel.map(x=>'<button data-id="'+x.id+'"><img loading="lazy" src="https://coverartarchive.org/release/'+x.id+'/front-250" onerror="this.parentNode.remove()">'+esc(x.title)+'<br>'+esc((x['artist-credit']||[]).map(c=>c.name).join(', '))+(x.date?' · '+x.date.slice(0,4):'')+'</button>').join('')+'</div>';
+   box.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{box.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    try{const r=await fetch('https://coverartarchive.org/release/'+b.dataset.id+'/front-500');if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Immagine non scaricabile',true)}})}
+  catch(e){box.innerHTML='<p class="stats">Serve internet: collega il lettore al Wi-Fi di casa (o usa il telefono con i dati) e riprova.</p>'}};
+ $('cvS').onclick=async()=>{$('cvS').disabled=true;$('cvS').textContent='Salvataggio…';edB.dataset.busy=1;
+  try{await uploadCover(ai,chosen);toast('Copertina salvata');edClose();libRender()}catch(e){toast(e.message,true);$('cvS').disabled=false;$('cvS').textContent='Salva copertina'}
+  delete edB.dataset.busy};
+}
+// tutte le copertine incorporate che il lettore non sa leggere (PNG, JPEG progressivi)
+$('bFixCv').onclick=async()=>{
+ const todo=LIB.albums.map((a,i)=>i).filter(ai=>!albCover(LIB.albums[ai])&&albumTracks(ai).some(i=>LIB.tracks[i].pk));
+ if(!todo.length)return;
+ edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere e le salvo come cover.jpg.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
+ edB.dataset.busy=1;let ok=0,bad=0;
+ for(let k=0;k<todo.length;k++){const ai=todo[k];const a=LIB.albums[ai];$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t;
+  try{const ti=albumTracks(ai).find(i=>LIB.tracks[i].pk);const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[ti].p,i:0}));if(!r.ok)throw 0;await uploadCover(ai,await r.blob());ok++}catch(e){bad++}
+  edB.querySelector('.prog i').style.width=((k+1)*100/todo.length)+'%'}
+ delete edB.dataset.busy;$('fxMsg').textContent=ok+' copertine sistemate'+(bad?', '+bad+' non leggibili':'')+'. Il lettore le userà dopo «Aggiorna libreria».';$('fxX').disabled=false;$('fxX').onclick=edClose;libRender()};
+
+// =============================================================== playlist ====
+let PL=null; // [{n,p,tr:[path]}]
+function plInit(){if(PL)return;PL=LIB.playlists.map(x=>({n:x.n,p:x.p,tr:x.tr.map(i=>LIB.tracks[i]&&LIB.tracks[i].p).filter(Boolean)}))}
+function plRender(){
+ if(!LIB)return;plInit();
+ const box=$('pls');
+ if(!PL.length){box.innerHTML='<div class="empty">'+IC.list+'<b>Nessuna playlist</b>Crea la prima con «Nuova playlist».</div>';return}
+ const byP={};LIB.tracks.forEach(t=>byP[t.p]=t);
+ box.innerHTML=PL.map((x,k)=>{const ms=x.tr.reduce((s,p)=>s+(byP[p]?byP[p].ms:0),0);return '<div class="pl"><div class="ic">'+IC.list+'</div><div class="nm"><b>'+esc(x.n)+'</b><br><small style="color:var(--sub)">'+x.tr.length+' brani · '+ldur(ms)+' · '+esc(x.p)+'</small></div><button class="btn ghost" data-pe="'+k+'">Modifica</button><button class="more" data-pd="'+k+'" title="Elimina">'+IC.rm+'</button></div>'}).join('');
+}
+$('pls').onclick=async e=>{
+ const pe=e.target.closest('[data-pe]');if(pe)return plEdit(+pe.dataset.pe);
+ const pd=e.target.closest('[data-pd]');if(!pd)return;const x=PL[+pd.dataset.pd];
+ if(!await dialog({title:'Eliminare «'+x.n+'»?',text:'Si elimina solo la playlist, non i brani.',ok:'Elimina',danger:true}))return;
+ try{await api('/api/rm',{p:x.p},{method:'POST'});PL.splice(+pd.dataset.pd,1);plRender();toast('Playlist eliminata')}catch(err){toast(err.message,true)}};
+$('bNewPl').onclick=()=>{libEnsure().then(()=>{plInit();plEdit(-1)})};
+function plEdit(k){
+ const orig=k>=0?PL[k]:null;let list=orig?orig.tr.slice():[];
+ const byP={};LIB.tracks.forEach((t,i)=>byP[t.p]=tr(i));
+ edOpen('<h3>'+(orig?'Modifica playlist':'Nuova playlist')+'</h3><div class="full"><label>Nome</label><input id="plN" value="'+esc(orig?orig.n:'')+'" placeholder="Es. Highline"></div>'+
+  '<div class="ple"><div><label class="search" style="margin-bottom:8px"><input id="plQ" placeholder="Cerca brani da aggiungere…" autocomplete="off"></label><div class="pane" id="plL"></div></div>'+
+  '<div><h4 id="plH" style="margin:10px 4px 8px"></h4><div class="pane" id="plR"></div></div></div>'+
+  '<div class="acts" style="margin-top:14px"><button class="btn ghost" id="plX">Annulla</button><button class="btn pri" id="plS">Salva</button></div>');
+ const ADD='<svg viewBox="0 0 24 24"><path d="M11 13H5v-2h6V5h2v6h6v2h-6v6h-2z"/></svg>',UP='<svg viewBox="0 0 24 24"><path d="M11 20V7.825l-5.6 5.6L4 12l8-8 8 8-1.4 1.425-5.6-5.6V20z"/></svg>',DN='<svg viewBox="0 0 24 24"><path d="M11 4v12.175l-5.6-5.6L4 12l8 8 8-8-1.4-1.425-5.6 5.6V4z"/></svg>',X='<svg viewBox="0 0 24 24"><path d="M6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5l5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6z"/></svg>';
+ const row=(t,btns)=>'<div class="pi"><div><b>'+esc(t.t)+'</b><small>'+esc(t.a)+' · '+esc((LIB.albums[t.al]||{}).t||'')+' · '+dur(t.ms)+'</small></div>'+btns+'</div>';
+ const left=()=>{const q=$('plQ').value.trim().toLowerCase();const all=LIB.tracks.map((x,i)=>tr(i)).filter(t=>!q||(t.t+' '+t.a+' '+((LIB.albums[t.al]||{}).t||'')).toLowerCase().includes(q)).slice(0,300);
+  $('plL').innerHTML=all.length?all.map(t=>row(t,'<button data-add="'+esc(t.p)+'" title="Aggiungi">'+ADD+'</button>')).join(''):'<p class="stats">Nessun brano.</p>'};
+ const right=()=>{const ms=list.reduce((s,p)=>s+(byP[p]?byP[p].ms:0),0);$('plH').textContent=list.length+' brani · '+ldur(ms);
+  $('plR').innerHTML=list.length?list.map((p,i)=>row(byP[p]||{t:p.split('/').pop(),a:'file non trovato',ms:0},'<button data-up="'+i+'">'+UP+'</button><button data-dn="'+i+'">'+DN+'</button><button data-rm="'+i+'">'+X+'</button>')).join(''):'<p class="stats">Aggiungi brani con il + a sinistra.</p>'};
+ left();right();
+ $('plQ').oninput=left;
+ $('plL').onclick=e=>{const b=e.target.closest('[data-add]');if(b){list.push(b.dataset.add);right();$('plR').scrollTop=1e9}};
+ $('plR').onclick=e=>{const u=e.target.closest('[data-up]'),d=e.target.closest('[data-dn]'),r=e.target.closest('[data-rm]');
+  if(u){const i=+u.dataset.up;if(i>0)[list[i-1],list[i]]=[list[i],list[i-1]]}
+  else if(d){const i=+d.dataset.dn;if(i<list.length-1)[list[i+1],list[i]]=[list[i],list[i+1]]}
+  else if(r)list.splice(+r.dataset.rm,1);else return;right()};
+ $('plX').onclick=edClose;
+ $('plS').onclick=async()=>{
+  const n=$('plN').value.trim();if(!n||badName(n))return toast('Dai un nome valido alla playlist',true);
+  if(!list.length)return toast('La playlist è vuota',true);
+  const dir=orig?orig.p.slice(0,orig.p.lastIndexOf('/'))||'/':'/Playlist';const path=join(dir,n+'.m3u8');
+  if(PL.some((x,j)=>j!==k&&x.p.toLowerCase()===path.toLowerCase()))return toast('Esiste già una playlist con questo nome',true);
+  const txt='#EXTM3U\n'+list.map(p=>{const t=byP[p];return (t?'#EXTINF:'+Math.round(t.ms/1000)+','+t.a+' - '+t.t+'\n':'')+p}).join('\n')+'\n';
+  $('plS').disabled=true;
+  try{await api('/api/up',{p:path},{method:'POST',body:new Blob([txt],{type:'audio/x-mpegurl'})});
+   if(orig&&orig.p!==path)await api('/api/rm',{p:orig.p},{method:'POST'}).catch(()=>{});
+   const item={n,p:path,tr:list};if(orig)PL[k]=item;else PL.push(item);
+   toast('Playlist salvata: la vedrai nel lettore dopo «Aggiorna libreria»');edClose();plRender()}
+  catch(e){toast(e.message,true);$('plS').disabled=false}};
+}
 
 // l'orologio del lettore prende l'ora da qui (non ha una batteria tampone)
 fetch('/api/time',{method:'POST',body:String(Date.now())}).catch(()=>{});
