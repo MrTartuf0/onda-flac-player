@@ -1,8 +1,12 @@
 The player has a small web server for managing the microSD card from a browser on your computer or phone: upload music, fix tags and covers, and make playlists.
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-library.png" alt="The Library tab">
+
 > The web page is in Italian for now. Below, each button is given as it appears on the page, with its meaning in brackets.
 
 ## Connecting
+
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-transfer.png" alt="File transfer on the player: on the home network, and as a hotspot with a QR code" width="480"></p>
 
 Open **Settings → File transfer** (or tap Wi-Fi in the control center).
 
@@ -17,6 +21,8 @@ Opening the page also sets the player's clock from your phone or computer (see [
 
 ## File tab
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-files.png" alt="The File tab">
+
 - Upload files or whole folders (**Carica file**, **Carica cartella**, or drag them onto the page), with progress and speed.
 - Create folders (**Nuova cartella**), rename, move, delete, download.
 - Hidden files such as `/.onda` are shown only on request (**File nascosti**).
@@ -27,6 +33,8 @@ All songs grouped by album, with technical details (bit depth, sample rate, leng
 
 ### Editing a song
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-track.png" alt="Song details and tag editor">
+
 Tap a row to see everything about the file: format, samples, average bitrate, encoder, audio MD5, metadata blocks and embedded pictures. You can edit title, artist, album, album artist, track and disc number, year and genre, plus any other tag (one per line, `KEY=value`).
 
 ### Editing an album (Modifica album)
@@ -34,6 +42,8 @@ Tap a row to see everything about the file: format, samples, average bitrate, en
 Change album, album artist, artist, year and genre for all songs at once, plus number and title of each song. **Numera i brani in ordine** numbers the songs 1, 2, 3… in the current order. Fields you leave unchanged are not written.
 
 ### Covers (Copertina)
+
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-cover.png" alt="Cover dialog">
 
 - Upload an image (PNG works too, also from a phone gallery).
 - **Usa quella incorporata**: use the picture embedded in the file.
@@ -44,6 +54,8 @@ The browser converts the image to a 600 px JPEG and the player saves it as `cove
 **Sistema copertine** (fix covers) does this in one go for every embedded cover the player can't read (PNG, progressive JPEG).
 
 ### MusicBrainz
+
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-musicbrainz.png" alt="Album editor filled in from MusicBrainz: pick the release and the fields are filled in">
 
 [MusicBrainz](https://musicbrainz.org) is a free, open music database. The page can use it in two ways:
 
@@ -63,7 +75,15 @@ Very large fields (for example huge embedded lyrics) are preserved even though t
 
 ## Playlist tab
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-playlist.png" alt="Playlist editor">
+
 Create, edit and delete playlists: search for songs, add them with **+**, reorder them with the arrows. They are saved as `.m3u8` files in `/Playlist` (existing playlists stay where they are) and appear on the player under **Search → Playlist** after the library is updated.
+
+## On a phone
+
+The page works on a phone too, so you can fix a tag or add a cover from the sofa.
+
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-phone.png" alt="The library and the song editor on a phone" width="520"></p>
 
 ## API
 

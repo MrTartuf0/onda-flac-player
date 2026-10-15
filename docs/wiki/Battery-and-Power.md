@@ -28,6 +28,8 @@ When you turn it back on it continues from the same song and position, without t
 
 ## Battery
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-control.png" alt="Battery in the control center and in Settings, and the battery-low screen">
+
 With a 3.7 V LiPo on the **BAT** connector (tested with 1100 mAh), the level and charging status are in the control center. **Settings → Battery** also shows the voltage, the time to full and the estimated current draw.
 
 ### Charging

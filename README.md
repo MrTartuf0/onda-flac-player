@@ -4,6 +4,10 @@
 
 onda plays FLAC files from the board's microSD card on the built-in speaker, or on headphones through an external PCM5102 DAC. When you plug the headphones in the sound moves to them; when you unplug them the music pauses, like on a phone. The touch interface is inspired by Spotify and written with LVGL 9.5, which is bundled in the project.
 
+<p align="center">
+  <img src="docs/images/tour.gif" width="320" alt="A tour of the player: home, album, now playing, queue, control center, search and settings">
+</p>
+
 ![Screenshots](docs/screenshots.png)
 
 ## Features
@@ -20,6 +24,19 @@ onda plays FLAC files from the board's microSD card on the built-in speaker, or 
 - **Clock** set from your phone or from the internet
 - **Resumes** the same song at the same position after power-off, and even after a crash
 - **English and Italian** interface
+
+## Web interface
+
+Turn on Wi-Fi from the player and manage the card from any browser: upload music, see what is missing, fix tags and covers, fill albums in from MusicBrainz, build playlists.
+
+<p>
+  <img src="docs/images/web-library.png" width="49%" alt="Library: every album with technical details and missing data highlighted">
+  <img src="docs/images/web-musicbrainz.png" width="49%" alt="Album editor filled in from MusicBrainz">
+</p>
+<p>
+  <img src="docs/images/web-track.png" width="49%" alt="Song editor with technical details and tags">
+  <img src="docs/images/web-playlist.png" width="49%" alt="Playlist editor">
+</p>
 
 ## What you need
 
@@ -55,7 +72,7 @@ Everything else is in the **[wiki](https://github.com/MrTartuf0/onda-flac-player
 - [Troubleshooting](https://github.com/MrTartuf0/onda-flac-player/wiki/Troubleshooting): crash reports, no sound, known limits
 - [Architecture](https://github.com/MrTartuf0/onda-flac-player/wiki/Architecture): how the firmware is organised
 
-The wiki pages live in [`docs/wiki`](docs/wiki) and are published automatically on every push to `main`.
+The wiki pages live in [`docs/wiki`](docs/wiki) and are published automatically on every push to `main`. Screenshots are taken from a desktop build of the interface with a made-up demo library.
 
 ## Third-party code and assets
 

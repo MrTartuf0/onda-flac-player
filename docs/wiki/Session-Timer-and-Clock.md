@@ -2,6 +2,8 @@
 
 A stopwatch with a limit, made for not staying too long on a highline, but useful for any activity.
 
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-timer.png" alt="The control center with the session timer running" width="240"></p>
+
 It is the bottom row of the control center:
 
 - the elapsed time, with *running* or *over* underneath;

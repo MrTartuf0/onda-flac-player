@@ -1,6 +1,10 @@
 **onda** is a pocket FLAC player built on the **Freenove ESP32-S3 Display (FNK0104B)**. It plays FLAC files from the board's microSD card on the built-in speaker, or on headphones through an external **PCM5102** DAC. The touch interface is inspired by Spotify and written with LVGL 9.5.
 
-![Screenshots](https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/screenshots.png)
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/tour.gif" alt="A tour of the player" width="320"></p>
+
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/screenshots.png" alt="Home, album, now playing, queue, control center and settings">
+
+*Screenshots come from a desktop build of the interface with a made-up demo library.*
 
 ## What it does
 

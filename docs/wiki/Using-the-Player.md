@@ -1,5 +1,7 @@
 The interface has three tabs at the bottom (**Home**, **Search**, **Settings**), a mini player that is always visible while something is playing, and a full-screen **Now playing** view.
 
+<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/tour.gif" alt="A tour of the player" width="300"></p>
+
 ## Gestures
 
 | Gesture | Where | What it does |
@@ -13,6 +15,8 @@ The interface has three tabs at the bottom (**Home**, **Search**, **Settings**),
 | Long press | cover or title in Now playing | Song menu |
 
 ## Home
+
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-browse.png" alt="Home, album page, artist page and the library in Search">
 
 - **Liked songs** and **All songs** are always the first two tiles. Tap to open them; long press to start them in shuffle right away.
 - The other tiles are what you played recently: albums, artists, playlists, genres.
@@ -34,6 +38,8 @@ The **⋯** button on a song opens its menu: Play, Add to / Remove from Liked so
 
 ## Now playing
 
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-playing.png" alt="Now playing, the queue, the song menu and the device selector">
+
 Tap the mini player to open it. It shows the cover on a gradient in the album's colour, the position bar (drag to seek), the format (for example *FLAC 24-bit • 96 kHz*), shuffle, previous, play/pause, next and the queue button.
 
 - Tap the **cover** or the **title** to go to the album; tap the **artist** for the artist page.
@@ -45,6 +51,8 @@ Tap the mini player to open it. It shows the cover on a gradient in the album's 
 The queue shows the song now playing, the songs you added with *Add to queue*, and then the rest of the album or playlist. **Shuffle** and **Repeat** (all / one) are at the bottom. To close it, tap the header, swipe down on it, or tap the song now playing.
 
 ## Control center
+
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-control.png" alt="Control center with the session timer running, Settings, and the battery-low screen">
 
 Swipe up from the bottom edge. The panel follows your finger; close it by dragging the handle down, swiping down, tapping an empty area or with the back gesture.
 
