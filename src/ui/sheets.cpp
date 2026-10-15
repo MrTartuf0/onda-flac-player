@@ -145,9 +145,9 @@ void device_fill(lv_obj_t *sh) {
   lv_obj_set_size(cur, SCR_W, 58);
   lv_obj_t *ic = ui_icon(cur, &icons_28, hp ? IC_HEADPHONES : IC_SPEAKER, C_GREEN);
   lv_obj_align(ic, LV_ALIGN_LEFT_MID, 16, 0);
-  lv_obj_t *l1 = ui_label(cur, &font_b12, C_TEXT, "Dispositivo attuale");
+  lv_obj_t *l1 = ui_label(cur, &font_b12, C_TEXT, TR("Dispositivo attuale"));
   lv_obj_align(l1, LV_ALIGN_LEFT_MID, 60, -10);
-  lv_obj_t *l2 = ui_label(cur, &font_b16, C_GREEN, hp ? "Cuffie (PCM5102)" : "Altoparlante integrato");
+  lv_obj_t *l2 = ui_label(cur, &font_b16, C_GREEN, hp ? TR("Cuffie (PCM5102)") : TR("Altoparlante integrato"));
   lv_obj_align(l2, LV_ALIGN_LEFT_MID, 60, 9);
 
   lv_obj_t *vr = ui_box(sh);
@@ -170,18 +170,18 @@ void device_fill(lv_obj_t *sh) {
   lv_obj_add_event_cb(sl, vol_cb, LV_EVENT_VALUE_CHANGED, nullptr);
   lv_obj_add_event_cb(sl, vol_cb, LV_EVENT_RELEASED, nullptr);
 
-  lv_obj_t *h = ui_label(sh, &font_b14, C_TEXT, "Seleziona un dispositivo");
+  lv_obj_t *h = ui_label(sh, &font_b14, C_TEXT, TR("Seleziona un dispositivo"));
   lv_obj_set_style_pad_left(h, 16, 0);
   lv_obj_set_style_pad_ver(h, 8, 0);
   OutputMode m = audio_out_mode();
-  const char *hp_state = !audio_out_hp_detect_available() ? "Rilevamento non configurato"
-                         : audio_out_hp_present()         ? "Collegate"
-                                                          : "Non collegate";
-  option_row(sh, IC_HEADPHONES, "Automatico", "Cuffie quando collegate, altrimenti altoparlante",
+  const char *hp_state = !audio_out_hp_detect_available() ? TR("Rilevamento non configurato")
+                         : audio_out_hp_present()         ? TR("Collegate")
+                                                          : TR("Non collegate");
+  option_row(sh, IC_HEADPHONES, TR("Automatico"), TR("Cuffie quando collegate, altrimenti altoparlante"),
              m == OUT_AUTO, mode_cb, (void *)(intptr_t)OUT_AUTO);
-  option_row(sh, IC_SPEAKER, "Altoparlante integrato", nullptr, m == OUT_SPEAKER, mode_cb,
+  option_row(sh, IC_SPEAKER, TR("Altoparlante integrato"), nullptr, m == OUT_SPEAKER, mode_cb,
              (void *)(intptr_t)OUT_SPEAKER);
-  option_row(sh, IC_HEADPHONES, "Cuffie (PCM5102)", hp_state, m == OUT_HEADPHONES, mode_cb,
+  option_row(sh, IC_HEADPHONES, TR("Cuffie (PCM5102)"), hp_state, m == OUT_HEADPHONES, mode_cb,
              (void *)(intptr_t)OUT_HEADPHONES);
 }
 
@@ -198,7 +198,7 @@ int s_menu_track = -1;
 void menu_like_cb(lv_event_t *) {
   bool on = !lib_is_liked(s_menu_track);
   lib_set_liked(s_menu_track, on);
-  ui_toast(on ? "Aggiunto a Brani che ti piacciono" : "Rimosso da Brani che ti piacciono");
+  ui_toast(on ? TR("Aggiunto a Brani che ti piacciono") : TR("Rimosso da Brani che ti piacciono"));
   sheet_close();
   ui_nowplaying_refresh(RF_LIKED);
 }
@@ -211,7 +211,7 @@ void menu_queue_cb(lv_event_t *) {
     player_play_list(one, 0, c);
   } else {
     player_enqueue(s_menu_track);
-    ui_toast("Aggiunto alla coda");
+    ui_toast(TR("Aggiunto alla coda"));
   }
   sheet_close();
 }
@@ -265,15 +265,15 @@ void ui_track_menu(int track) {
 
   bool liked = lib_is_liked(track);
   option_row(sh, liked ? IC_HEART : IC_HEART_O,
-             liked ? "Rimuovi da Brani che ti piacciono" : "Aggiungi a Brani che ti piacciono", nullptr, false,
+             liked ? TR("Rimuovi da Brani che ti piacciono") : TR("Aggiungi a Brani che ti piacciono"), nullptr, false,
              menu_like_cb, nullptr, liked ? C_GREEN : C_SUB);
-  option_row(sh, IC_QUEUE, ui_current_track() < 0 ? "Riproduci" : "Aggiungi in coda", nullptr, false, menu_queue_cb,
+  option_row(sh, IC_QUEUE, ui_current_track() < 0 ? TR("Riproduci") : TR("Aggiungi in coda"), nullptr, false, menu_queue_cb,
              nullptr);
-  option_row(sh, IC_DISC, "Vai all'album", nullptr, false, menu_album_cb, nullptr);
-  option_row(sh, IC_USER, "Vai all'artista", nullptr, false, menu_artist_cb, nullptr);
+  option_row(sh, IC_DISC, TR("Vai all'album"), nullptr, false, menu_album_cb, nullptr);
+  option_row(sh, IC_USER, TR("Vai all'artista"), nullptr, false, menu_artist_cb, nullptr);
   char info[96], d[16];
   fmt_duration(t.dur_ms, d, sizeof d);
-  snprintf(info, sizeof info, "FLAC %u bit \xE2\x80\xA2 %u.%u kHz \xE2\x80\xA2 %s", t.bits,
+  snprintf(info, sizeof info, TR("FLAC %u bit \xE2\x80\xA2 %u.%u kHz \xE2\x80\xA2 %s"), t.bits,
            (unsigned)(t.sample_rate / 1000), (unsigned)(t.sample_rate % 1000 / 100), d);
   lv_obj_t *ir = option_row(sh, IC_SLIDERS, info, nullptr, false, nullptr, nullptr);
   lv_obj_remove_flag(ir, LV_OBJ_FLAG_CLICKABLE);

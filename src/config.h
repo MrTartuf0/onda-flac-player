@@ -88,6 +88,12 @@
 //  L'ora arriva dal telefono/computer (pagina del trasferimento file) o da internet.
 #define TIME_ZONE "CET-1CEST,M3.5.0,M10.5.0/3"
 
+// --------------------------------------------------------------- Lingua ----
+//  Lingua al primo avvio: 0 = italiano, 1 = English (poi si cambia in
+//  Impostazioni → Lingua · Language). Chi aggiorna da una versione precedente
+//  resta in italiano.
+#define UI_LANG_DEFAULT 1
+
 // ------------------------------------------------------------------ Varie ----
 #define LED_RGB_PIN      42
 #define BTN_BOOT_PIN     0

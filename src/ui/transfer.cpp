@@ -2,6 +2,7 @@
 // dal browser. Mentre è aperta la musica è ferma e l'uscita audio sospesa
 // (il Wi-Fi ha bisogno della RAM interna occupata dal DMA dell'I2S).
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include <string.h>
 #include "../net/xfer.h"
@@ -140,24 +141,24 @@ void nets_rebuild() {
   lv_obj_clean(n_list);
   char saved[33];
   xfer_saved_network(saved, sizeof saved);
-  net_row(IC_WIFI, "Hotspot del lettore", "Nessuna rete: collegati direttamente a onda", false, !saved[0], -1);
-  lv_obj_t *h = ui_label(n_list, &font_b14, C_TEXT, "Reti disponibili");
+  net_row(IC_WIFI, TR("Hotspot del lettore"), TR("Nessuna rete: collegati direttamente a onda"), false, !saved[0], -1);
+  lv_obj_t *h = ui_label(n_list, &font_b14, C_TEXT, TR("Reti disponibili"));
   lv_obj_set_style_pad_left(h, 16, 0);
   lv_obj_set_style_pad_top(h, 14, 0);
   lv_obj_set_style_pad_bottom(h, 4, 0);
   if (s_scanning) {
-    lv_obj_t *l = ui_label(n_list, &font_r12, C_SUB, "Ricerca delle reti in corso...");
+    lv_obj_t *l = ui_label(n_list, &font_r12, C_SUB, TR("Ricerca delle reti in corso..."));
     lv_obj_set_style_pad_left(l, 16, 0);
     lv_obj_set_style_pad_top(l, 8, 0);
     return;
   }
   for (size_t i = 0; i < s_nets.size(); i++) {
     const XferNet &n = s_nets[i];
-    const char *q = n.rssi > -60 ? "Segnale ottimo" : n.rssi > -72 ? "Segnale buono" : "Segnale debole";
+    const char *q = n.rssi > -60 ? TR("Segnale ottimo") : n.rssi > -72 ? TR("Segnale buono") : TR("Segnale debole");
     net_row(IC_WIFI, n.ssid, q, n.secure, !strcmp(n.ssid, saved), (int)i);
   }
   if (s_nets.empty()) {
-    lv_obj_t *l = ui_label(n_list, &font_r12, C_SUB, "Nessuna rete trovata.");
+    lv_obj_t *l = ui_label(n_list, &font_r12, C_SUB, TR("Nessuna rete trovata."));
     lv_obj_set_style_pad_left(l, 16, 0);
     lv_obj_set_style_pad_top(l, 8, 0);
   }
@@ -167,7 +168,7 @@ void nets_rebuild() {
   lv_obj_add_event_cb(again, rescan_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *i = ui_icon(again, &icons_14, IC_REFRESH, C_TEXT);
   lv_obj_align(i, LV_ALIGN_LEFT_MID, 18, 0);
-  lv_obj_t *t = ui_label(again, &font_b14, C_TEXT, "Cerca di nuovo");
+  lv_obj_t *t = ui_label(again, &font_b14, C_TEXT, TR("Cerca di nuovo"));
   lv_obj_align(t, LV_ALIGN_LEFT_MID, 48, 0);
 }
 
@@ -210,27 +211,27 @@ void main_update(const XferStatus &st) {
   }
   char b[128];
   if (st.state == XF_CONNECTING) {
-    snprintf(b, sizeof b, "Connessione a \"%s\"...", st.ssid[0] ? st.ssid : "Wi-Fi");
+    snprintf(b, sizeof b, TR("Connessione a \"%s\"..."), st.ssid[0] ? st.ssid : TR("Wi-Fi"));
     set_text(m_wait_lbl, b);
   } else if (st.state == XF_ERROR) {
-    set_text(m_wait_lbl, "Impossibile avviare il Wi-Fi.\nRiprova tra poco.");
+    set_text(m_wait_lbl, TR("Impossibile avviare il Wi-Fi.\nRiprova tra poco."));
   }
   if (st.state == XF_STA) {
-    set_text(m_head, "Apri questo indirizzo nel browser,\ndal computer o dal telefono");
+    set_text(m_head, TR("Apri questo indirizzo nel browser,\ndal computer o dal telefono"));
     snprintf(b, sizeof b, "http://%s", st.ip);
     set_qr(b);
     set_text(m_big, APP_NAME ".local");
-    snprintf(b, sizeof b, "oppure http://%s", st.ip);
+    snprintf(b, sizeof b, TR("oppure http://%s"), st.ip);
     set_text(m_small, b);
     lv_obj_add_flag(m_step2, LV_OBJ_FLAG_HIDDEN);
   } else if (st.state == XF_AP) {
-    set_text(m_head, "1. Collegati al Wi-Fi del lettore\n(inquadra il codice col telefono)");
+    set_text(m_head, TR("1. Collegati al Wi-Fi del lettore\n(inquadra il codice col telefono)"));
     snprintf(b, sizeof b, "WIFI:T:WPA;S:%s;P:%s;;", st.ssid, st.ap_pass);
     set_qr(b);
     set_text(m_big, st.ssid);
-    snprintf(b, sizeof b, "Password: %s", st.ap_pass);
+    snprintf(b, sizeof b, TR("Password: %s"), st.ap_pass);
     set_text(m_small, b);
-    snprintf(b, sizeof b, "2. Apri http://%s", st.ip);
+    snprintf(b, sizeof b, TR("2. Apri http://%s"), st.ip);
     set_text(m_step2, b);
     lv_obj_remove_flag(m_step2, LV_OBJ_FLAG_HIDDEN);
   }
@@ -247,20 +248,20 @@ void main_update(const XferStatus &st) {
     if (st.files_in) {
       char sz[16];
       fmt_size(st.bytes_in, sz, sizeof sz);
-      snprintf(b, sizeof b, "%u file ricevuti \xE2\x80\xA2 %s", (unsigned)st.files_in, sz);
+      snprintf(b, sizeof b, TR("%u file ricevuti \xE2\x80\xA2 %s"), (unsigned)st.files_in, sz);
       set_text(m_status, b);
       lv_obj_set_style_text_color(m_status, C_GREEN, 0);
     } else if (st.note[0]) {
       set_text(m_status, st.note);
       lv_obj_set_style_text_color(m_status, lv_color_hex(0xF0B232), 0);
     } else {
-      set_text(m_status, "La musica resta in pausa finch\xC3\xA9 sei qui");
+      set_text(m_status, TR("La musica resta in pausa finch\xC3\xA9 sei qui"));
       lv_obj_set_style_text_color(m_status, C_DIM, 0);
     }
   }
   char saved[33];
   xfer_saved_network(saved, sizeof saved);
-  set_text(m_net_val, saved[0] ? saved : "Hotspot del lettore");
+  set_text(m_net_val, saved[0] ? saved : TR("Hotspot del lettore"));
   s_shown = st.state;
 }
 
@@ -273,7 +274,7 @@ void build() {
 
   // --- principale
   v_main = view(xf);
-  topbar(v_main, "Trasferimento file", back_cb);
+  topbar(v_main, TR("Trasferimento file"), back_cb);
   m_wait = ui_box(v_main);
   lv_obj_set_size(m_wait, SCR_W, 200);
   lv_obj_set_y(m_wait, 60);
@@ -281,7 +282,7 @@ void build() {
   lv_obj_align(wi, LV_ALIGN_TOP_MID, 0, 40);
   m_wait_lbl = center_label(m_wait, &font_b14, C_TEXT, 92);
   lv_obj_t *wsub = center_label(m_wait, &font_r12, C_SUB, 132);
-  lv_label_set_text(wsub, "Il lettore si sta collegando alla rete");
+  lv_label_set_text(wsub, TR("Il lettore si sta collegando alla rete"));
 
   m_ready = ui_box(v_main);
   lv_obj_set_size(m_ready, SCR_W, 230);
@@ -322,7 +323,7 @@ void build() {
   lv_obj_add_event_cb(nr, nets_open_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *ni = ui_icon(nr, &icons_14, IC_WIFI, C_SUB);
   lv_obj_align(ni, LV_ALIGN_LEFT_MID, 16, 0);
-  lv_obj_t *nl = ui_label(nr, &font_b12, C_TEXT, "Rete Wi-Fi");
+  lv_obj_t *nl = ui_label(nr, &font_b12, C_TEXT, TR("Rete Wi-Fi"));
   lv_obj_align(nl, LV_ALIGN_LEFT_MID, 40, 0);
   m_net_val = ui_label(nr, &font_r12, C_SUB, "");
   ui_dot(m_net_val);
@@ -334,7 +335,7 @@ void build() {
 
   // --- elenco reti
   v_nets = view(xf);
-  topbar(v_nets, "Rete Wi-Fi", back_cb);
+  topbar(v_nets, TR("Rete Wi-Fi"), back_cb);
   n_list = ui_box(v_nets);
   lv_obj_set_size(n_list, SCR_W, SCR_H - 44);
   lv_obj_set_y(n_list, 44);
@@ -346,7 +347,7 @@ void build() {
   // --- password
   v_pass = view(xf);
   p_title = topbar(v_pass, "", back_cb);
-  lv_obj_t *pl = ui_label(v_pass, &font_r12, C_SUB, "Password della rete");
+  lv_obj_t *pl = ui_label(v_pass, &font_r12, C_SUB, TR("Password della rete"));
   lv_obj_set_pos(pl, 16, 50);
   p_ta = lv_textarea_create(v_pass);
   lv_textarea_set_one_line(p_ta, true);
@@ -359,7 +360,7 @@ void build() {
   lv_obj_set_style_text_font(p_ta, &font_r14, 0);
   lv_obj_set_style_text_color(p_ta, C_TEXT, 0);
   lv_obj_add_event_cb(p_ta, pass_ready_cb, LV_EVENT_ALL, nullptr);
-  lv_obj_t *ph = ui_label(v_pass, &font_r10, C_DIM, "Poi premi il tasto in basso a destra");
+  lv_obj_t *ph = ui_label(v_pass, &font_r10, C_DIM, TR("Poi premi il tasto in basso a destra"));
   lv_obj_set_pos(ph, 16, 116);
   p_kb = lv_keyboard_create(v_pass);
   lv_obj_set_size(p_kb, SCR_W, 150);

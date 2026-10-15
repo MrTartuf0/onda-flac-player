@@ -13,6 +13,7 @@
 #include "artwork.h"
 #include "../platform.h"
 #include "../config.h"
+#include "../i18n.h"
 
 namespace {
 
@@ -313,8 +314,9 @@ bool take_art_stale(uint32_t key) {
   return s_art_stale.erase(key) > 0;
 }
 
-const char *kUnknownArtist = "Artista sconosciuto";
-const char *kVarious = "Artisti vari";
+// nella lingua scelta (la libreria si ricostruisce a ogni avvio)
+#define kUnknownArtist TR("Artista sconosciuto")
+#define kVarious TR("Artisti vari")
 
 void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, CoverCand> &covers,
            const DbExtra &ex) {
@@ -342,7 +344,7 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
     std::string folder_name;
     if (!album_name[0]) {
       folder_name = base_name(dir.c_str());
-      album_name = (dir == MUSIC_ROOT || folder_name.empty()) ? "Brani singoli" : folder_name.c_str();
+      album_name = (dir == MUSIC_ROOT || folder_name.empty()) ? TR("Brani singoli") : folder_name.c_str();
     }
     t.album_tag = g_arena.dup(album_name);
     t.albumartist_tag = r.albumartist[0] ? g_arena.dup(r.albumartist) : nullptr;
@@ -828,8 +830,8 @@ PlayContext lib_ctx_album(int a) { return mkctx(CTX_ALBUM, g_albums[a].key, g_al
 PlayContext lib_ctx_artist(int a) { return mkctx(CTX_ARTIST, g_artists[a].key, g_artists[a].name); }
 PlayContext lib_ctx_playlist(int p) { return mkctx(CTX_PLAYLIST, g_playlists[p].key, g_playlists[p].name); }
 PlayContext lib_ctx_genre(int g) { return mkctx(CTX_GENRE, g_genres[g].key, g_genres[g].name); }
-PlayContext lib_ctx_liked() { return mkctx(CTX_LIKED, 1, "Brani che ti piacciono"); }
-PlayContext lib_ctx_all() { return mkctx(CTX_ALL, 2, "Tutti i brani"); }
+PlayContext lib_ctx_liked() { return mkctx(CTX_LIKED, 1, TR("Brani che ti piacciono")); }
+PlayContext lib_ctx_all() { return mkctx(CTX_ALL, 2, TR("Tutti i brani")); }
 
 bool lib_ctx_valid(const PlayContext &c) {
   switch (c.type) {

@@ -67,7 +67,7 @@ void session_poll() {
   bool first = s_next == (uint32_t)limit() * 60000;
   player_beep(first ? 3 : 2);
   char b[48];
-  snprintf(b, sizeof b, "Sessione: %u min", (unsigned)(el / 60000));
+  snprintf(b, sizeof b, TR("Sessione: %u min"), (unsigned)(el / 60000));
   ui_toast(b);
   plat_event(first ? "sessione: limite" : "sessione: promemoria");
   s_next = next_after(el);

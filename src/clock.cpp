@@ -1,4 +1,5 @@
 #include "clock.h"
+#include "i18n.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,12 +16,18 @@ constexpr time_t kValidAfter = 1700000000;   // novembre 2023: prima di così l'
 const char *kDays[] = {"domenica", "lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato"};
 const char *kMonths[] = {"gennaio", "febbraio", "marzo",     "aprile",  "maggio",   "giugno",
                          "luglio",  "agosto",   "settembre", "ottobre", "novembre", "dicembre"};
+const char *kDaysEn[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+const char *kMonthsEn[] = {"January", "February", "March",     "April",   "May",      "June",
+                           "July",    "August",   "September", "October", "November", "December"};
 }  // namespace
 
 void clock_fmt_time(const struct tm &t, char *buf, size_t n) { snprintf(buf, n, "%d:%02d", t.tm_hour, t.tm_min); }
 
 void clock_fmt_date(const struct tm &t, char *buf, size_t n) {
-  snprintf(buf, n, "%s %d %s %d", kDays[t.tm_wday % 7], t.tm_mday, kMonths[t.tm_mon % 12], t.tm_year + 1900);
+  if (i18n_lang() == LANG_EN)   // "Thursday, October 15, 2026"
+    snprintf(buf, n, "%s, %s %d, %d", kDaysEn[t.tm_wday % 7], kMonthsEn[t.tm_mon % 12], t.tm_mday, t.tm_year + 1900);
+  else   // "giovedì 15 ottobre 2026"
+    snprintf(buf, n, "%s %d %s %d", kDays[t.tm_wday % 7], t.tm_mday, kMonths[t.tm_mon % 12], t.tm_year + 1900);
 }
 
 bool clock_valid() { return time(nullptr) > kValidAfter; }

@@ -12,6 +12,7 @@
 // I due cursori si usano come su iPhone: si trascina il dito su o giù partendo da
 // un punto qualsiasi (movimento relativo, ~1,6 px per 1%).
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include "../hal/battery.h"
 #include "../audio/audio_out.h"
@@ -111,13 +112,13 @@ void bat_line2(const BatteryInfo &b, char *buf, size_t n) {
   char t[24];
   if (b.state == BAT_CHARGING) {
     ui_fmt_minutes(b.minutes_to_full, t, sizeof t);
-    if (t[0]) snprintf(buf, n, "piena tra %s", t);
+    if (t[0]) snprintf(buf, n, TR("piena tra %s"), t);
     else buf[0] = 0;
   } else if (b.state == BAT_DISCHARGING && b.minutes_left >= 0) {
     ui_fmt_minutes(b.minutes_left, t, sizeof t);
     snprintf(buf, n, "%s", t);
   } else {
-    snprintf(buf, n, "%d,%02d V", b.mv / 1000, b.mv % 1000 / 10);
+    snprintf(buf, n, TR("%d,%02d V"), b.mv / 1000, b.mv % 1000 / 10);
   }
 }
 
@@ -146,17 +147,17 @@ void refresh_status(bool force = false) {
   if (!have) {
     lv_arc_set_value(bat_arc, 0);
     lv_label_set_text(bat_pct, "--");
-    lv_label_set_text(bat_l1, "Batteria");
+    lv_label_set_text(bat_l1, TR("Batteria"));
     lv_obj_set_style_text_color(bat_l1, C_TEXT, 0);
-    lv_label_set_text(bat_l2, "non rilevata");
+    lv_label_set_text(bat_l2, TR("non rilevata"));
     return;
   }
   lv_arc_set_value(bat_arc, b.pct);
   lv_obj_set_style_arc_color(bat_arc, b.low ? IOS_RED : IOS_GREEN, LV_PART_INDICATOR);
   lv_label_set_text_fmt(bat_pct, "%d%%", b.pct);
   lv_obj_set_style_text_color(bat_l1, chg ? IOS_GREEN : (b.low ? IOS_RED : C_TEXT), 0);
-  if (b.state == BAT_CHARGING) lv_label_set_text(bat_l1, IC_BOLT " In carica");
-  else lv_label_set_text(bat_l1, b.state == BAT_FULL ? "Carica completa" : b.low ? "Batteria scarica" : "A batteria");
+  if (b.state == BAT_CHARGING) lv_label_set_text_fmt(bat_l1, IC_BOLT " %s", TR("In carica"));
+  else lv_label_set_text(bat_l1, b.state == BAT_FULL ? TR("Carica completa") : b.low ? TR("Batteria scarica") : TR("A batteria"));
   lv_label_set_text(bat_l2, l2);
 }
 
@@ -177,9 +178,9 @@ void refresh_sliders(bool force = false) {
 // ------------------------------------------------- timer sessione ----
 void fmt_limit(int m, char *b, size_t n) {
   if (!m) snprintf(b, n, "off");
-  else if (m % 60 == 0) snprintf(b, n, "%d h", m / 60);
-  else if (m > 60) snprintf(b, n, "%d h %d", m / 60, m % 60);
-  else snprintf(b, n, "%d min", m);
+  else if (m % 60 == 0) snprintf(b, n, TR("%d h"), m / 60);
+  else if (m > 60) snprintf(b, n, TR("%d h %d"), m / 60, m % 60);
+  else snprintf(b, n, TR("%d min"), m);
 }
 
 void refresh_session(bool force = false) {
@@ -195,13 +196,13 @@ void refresh_session(bool force = false) {
   last_over = over;
   char b[24];
   if (sec < 0) {
-    lv_label_set_text(tm_time, "Timer");
-    lv_label_set_text(tm_sub, "sessione");
+    lv_label_set_text(tm_time, TR("Timer"));
+    lv_label_set_text(tm_sub, TR("sessione"));
   } else {
     if (sec >= 3600) snprintf(b, sizeof b, "%d:%02d:%02d", (int)(sec / 3600), (int)(sec / 60 % 60), (int)(sec % 60));
     else snprintf(b, sizeof b, "%d:%02d", (int)(sec / 60), (int)(sec % 60));
     lv_label_set_text(tm_time, b);
-    lv_label_set_text(tm_sub, over ? "superato" : "in corso");
+    lv_label_set_text(tm_sub, over ? TR("superato") : TR("in corso"));
   }
   lv_obj_set_style_text_color(tm_time, over ? IOS_RED : C_TEXT, 0);
   lv_obj_set_style_text_color(tm_sub, over ? IOS_RED : C_SUB, 0);
@@ -431,7 +432,7 @@ void slider_cb(lv_event_t *e) {
       constexpr int kHpTapMax = 75;
       if (&S == &s_vol && audio_out_active() == DEV_HEADPHONES && v > kHpTapMax) {
         v = S.v > kHpTapMax ? S.v : kHpTapMax;
-        ui_toast("Cuffie: oltre il 75% trascina");
+        ui_toast(TR("Cuffie: oltre il 75% trascina"));
       }
       if (v == S.v) {
         slider_save(S);
@@ -521,7 +522,7 @@ void ui_cc_build() {
   b_hp = round_btn(t1, p, TW - p - RB, out_cb);
   lv_obj_center(ui_icon(b_hp, &icons_18, IC_HEADPHONES, C_TEXT));
   b_auto = round_btn(t1, TW - p - RB, TW - p - RB, out_cb);
-  lv_obj_center(ui_label(b_auto, &font_b10, C_TEXT, "AUTO"));
+  lv_obj_center(ui_label(b_auto, &font_b10, C_TEXT, TR("AUTO")));
 
   // batteria: anello come il widget Batterie dell'iPhone
   lv_obj_t *t2 = tile(M + TW + GAP, Y_ROW1, TW, TW, 22);

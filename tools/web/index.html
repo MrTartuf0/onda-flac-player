@@ -407,6 +407,9 @@ const khz=sr=>(sr/1000).toLocaleString('it-IT',{maximumFractionDigits:1})+' kHz'
 const fmtq=t=>t.b&&t.sr?t.b+'/'+(t.sr/1000).toLocaleString('it-IT',{maximumFractionDigits:1}):'';
 const dur=ms=>{const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const ldur=ms=>{const m=Math.round(ms/60000);return m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'};
+// nomi segnaposto del lettore (cambiano con la lingua del dispositivo)
+const UNK=()=>LIB&&LIB.lang==='en'?'Unknown artist':'Artista sconosciuto';
+const NOART=/^(Artista sconosciuto|Artisti vari|Unknown artist|Various artists)$/;
 function libEnsure(force){if(LIB&&!force)return Promise.resolve();if(!libP||force)libP=api('/api/lib').then(j=>{LIB=j}).catch(e=>{libP=null;toast(e.message,true);throw e});return libP}
 const tr=i=>Object.assign({},LIB.tracks[i],EDIT[LIB.tracks[i].p]||{});
 window.PH='<div class="ph">'+IC.flac+'</div>';
@@ -470,7 +473,7 @@ async function saveTags(p,list){
  const r=await api('/api/tags',{p},{method:'POST',body});
  // aggiorna la vista locale
  const{std}=splitTags(list);const t=LIB.tracks.find(x=>x.p===p);const ov={};
- ov.t=std.TITLE||(t?t.p.split('/').pop().replace(/\.flac$/i,''):'');ov.a=std.ARTIST||'Artista sconosciuto';ov.g=std.GENRE||'';
+ ov.t=std.TITLE||(t?t.p.split('/').pop().replace(/\.flac$/i,''):'');ov.a=std.ARTIST||UNK();ov.g=std.GENRE||'';
  ov.y=parseInt(std.DATE)||0;ov.n=parseInt(std.TRACKNUMBER)||0;ov.d=parseInt(std.DISCNUMBER)||0;
  ov.m=(std.TITLE?0:1)|(std.ARTIST?0:2)|(std.ALBUM?0:4)|(std.GENRE?0:8)|(ov.y?0:16)|(ov.n?0:32);
  EDIT[p]=ov;return r}
@@ -522,7 +525,7 @@ async function mbGet(path){ // al massimo una richiesta al secondo (regola di Mu
 const credit=ac=>(ac||[]).map(c=>(c.name||'')+(c.joinphrase||'')).join('');
 const qesc=s=>(s||'').replace(/[\\"]/g,' ').trim();
 async function mbSearch(album,artist,n){
- let q='release:"'+qesc(album)+'"';if(artist&&!/^(Artista sconosciuto|Artisti vari)$/.test(artist))q+=' AND artist:"'+qesc(artist)+'"';
+ let q='release:"'+qesc(album)+'"';if(artist&&!NOART.test(artist))q+=' AND artist:"'+qesc(artist)+'"';
  const j=await mbGet('/release/?limit=15&query='+encodeURIComponent(q));
  return (j.releases||[]).map(x=>({id:x.id,title:x.title,artist:credit(x['artist-credit']),date:x.date||'',country:x.country||'',n:x['track-count']||0,
   fmt:[...new Set((x.media||[]).map(m=>m.format).filter(Boolean))].join(' + '),score:x.score||0,same:(x['track-count']||0)===n}))
@@ -562,7 +565,7 @@ async function albumEdit(ai){
   '<div class="acts" style="justify-content:flex-start;margin:-4px 0 12px"><button class="btn" id="aMB">'+IC.dl+'Compila da MusicBrainz</button><button class="btn ghost" id="aNum">Numera i brani in ordine</button></div>'+
   '<div id="mbBox"></div>'+
   '<div class="grid2"><div><label>Album</label><input id="aT" value="'+esc(a.t||'')+'"></div><div><label>Artista album</label><input id="aAA" value="'+esc(a.a||'')+'"></div>'+
-  '<div><label>Artista (tutti i brani)</label><input id="aA" value="'+esc(ga&&ga!=='Artista sconosciuto'?ga:'')+'" placeholder="'+(ga?'':'diversi')+'"></div>'+
+  '<div><label>Artista (tutti i brani)</label><input id="aA" value="'+esc(ga&&!NOART.test(ga)?ga:'')+'" placeholder="'+(ga?'':'diversi')+'"></div>'+
   '<div><label>Anno</label><input id="aY" value="'+(gy||'')+'" placeholder="'+(gy===null?'diversi':'')+'"></div>'+
   '<div><label>Genere</label><input id="aG" value="'+esc(gg||'')+'" placeholder="'+(gg===null?'diversi':'')+'"></div></div>'+
   '<label class="stats" style="display:block;margin:0 0 4px">Brani: numero, titolo, artista</label>'+

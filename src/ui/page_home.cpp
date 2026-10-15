@@ -79,11 +79,11 @@ class HomePage : public Page {
     if (i < 0 || i >= (int)self->card_ctx.size()) return;
     const PlayContext &c = self->card_ctx[i];
     if (c.type == CTX_LIKED && lib_liked().empty()) {
-      ui_toast("Ancora nessun brano: tocca il cuore per aggiungerne");
+      ui_toast(TR("Ancora nessun brano: tocca il cuore per aggiungerne"));
       return;
     }
     ui_play_context(c, -1, true);
-    ui_toast("In ordine casuale");
+    ui_toast(TR("In ordine casuale"));
   }
 
   int add_ctx(const PlayContext &c) {
@@ -214,10 +214,10 @@ class HomePage : public Page {
     lv_obj_set_size(box, SCR_W, 200);
     lv_obj_t *ic = ui_icon(box, &icons_28, IC_SDCARD, C_SUB);
     lv_obj_align(ic, LV_ALIGN_TOP_MID, 0, 30);
-    lv_obj_t *l = ui_label(box, &font_b16, C_TEXT, "Nessun brano trovato");
+    lv_obj_t *l = ui_label(box, &font_b16, C_TEXT, TR("Nessun brano trovato"));
     lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 76);
     lv_obj_t *s = ui_label(box, &font_r12, C_SUB,
-                           "Copia i tuoi file .flac sulla scheda SD,\npoi tocca \"Aggiorna libreria\" nelle impostazioni.");
+                           TR("Copia i tuoi file .flac sulla scheda SD,\npoi tocca \"Aggiorna libreria\" nelle impostazioni."));
     lv_obj_set_width(s, 210);
     lv_obj_set_style_text_align(s, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(s, LV_ALIGN_TOP_MID, 0, 104);
@@ -241,7 +241,7 @@ class HomePage : public Page {
       if (lib_album_plays(a) > 0) played.push_back(a);
     std::sort(played.begin(), played.end(), [](int a, int b) { return lib_album_plays(a) > lib_album_plays(b); });
     if (!played.empty()) {
-      lv_obj_t *row = section("I più ascoltati");
+      lv_obj_t *row = section(TR("I più ascoltati"));
       for (size_t i = 0; i < played.size() && i < 10; i++)
         card(row, lib_ctx_album(played[i]), albums[played[i]].artist, false);
     }
@@ -251,25 +251,25 @@ class HomePage : public Page {
     for (size_t i = 0; i < rnd.size(); i++) rnd[i] = i;
     for (size_t i = rnd.size(); i > 1; i--) std::swap(rnd[i - 1], rnd[rand() % i]);
     {
-      lv_obj_t *row = section("Riscopri i tuoi album");
+      lv_obj_t *row = section(TR("Riscopri i tuoi album"));
       for (size_t i = 0; i < rnd.size() && i < 10; i++) card(row, lib_ctx_album(rnd[i]), albums[rnd[i]].artist, false);
     }
 
     auto &artists = lib_artists();
     if (artists.size() > 1) {
-      lv_obj_t *row = section("I tuoi artisti");
+      lv_obj_t *row = section(TR("I tuoi artisti"));
       std::vector<int> ar(artists.size());
       for (size_t i = 0; i < ar.size(); i++) ar[i] = i;
       for (size_t i = ar.size(); i > 1; i--) std::swap(ar[i - 1], ar[rand() % i]);
-      for (size_t i = 0; i < ar.size() && i < 10; i++) card(row, lib_ctx_artist(ar[i]), "Artista", true);
+      for (size_t i = 0; i < ar.size() && i < 10; i++) card(row, lib_ctx_artist(ar[i]), TR("Artista"), true);
     }
 
     auto &genres = lib_genres();
     if (!genres.empty()) {
-      lv_obj_t *row = section("Generi");
+      lv_obj_t *row = section(TR("Generi"));
       for (size_t g = 0; g < genres.size() && g < 10; g++) {
         char sub[32];
-        snprintf(sub, sizeof sub, "%u brani", (unsigned)genres[g].tracks.size());
+        snprintf(sub, sizeof sub, TR("%u brani"), (unsigned)genres[g].tracks.size());
         card(row, lib_ctx_genre(g), sub, false);
       }
     }

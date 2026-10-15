@@ -1,5 +1,6 @@
 // Impostazioni: batteria, uscita audio, rilevamento cuffie, luminosità, libreria.
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include <string.h>
 #include "../lib/library.h"
@@ -27,6 +28,15 @@ class SettingsPage : public Page {
 
   static void out_cb(lv_event_t *) { ui_device_sheet(); }
   static void rescan_cb(lv_event_t *) { ui_request_rescan(); }
+  // cambio lingua: si salva e si riavvia (riparte dal brano in cui eri, in pausa)
+  static void lang_cb(lv_event_t *) {
+    Lang l = i18n_lang() == LANG_IT ? LANG_EN : LANG_IT;
+    plat_kv_set("lang", l);
+    i18n_set(l);
+    ui_toast(TR("Riavvio per cambiare lingua..."));
+    ui_session_save();
+    lv_timer_create([](lv_timer_t *) { plat_restart(); }, 700, nullptr);
+  }
   static void xfer_cb(lv_event_t *) { ui_transfer_open(); }
   static void pause_cb(lv_event_t *e) {
     bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
@@ -50,8 +60,8 @@ class SettingsPage : public Page {
     char b[64], hm[8];
     if (!clock_local(&t)) {
       lv_label_set_text(clk, "");
-      lv_label_set_text(date_t, "Ora non impostata");
-      lv_label_set_text(date_s, "Si prende da sola dal telefono o dal computer aprendo Trasferimento file");
+      lv_label_set_text(date_t, TR("Ora non impostata"));
+      lv_label_set_text(date_s, TR("Si prende da sola dal telefono o dal computer aprendo Trasferimento file"));
       return;
     }
     clock_fmt_time(t, hm, sizeof hm);
@@ -65,8 +75,8 @@ class SettingsPage : public Page {
     char when[24];
     clock_fmt_time(st, when, sizeof when);
     if (st.tm_yday != t.tm_yday || st.tm_year != t.tm_year)
-      snprintf(when + strlen(when), sizeof when - strlen(when), " del %d/%d", st.tm_mday, st.tm_mon + 1);
-    snprintf(b, sizeof b, "%s alle %s", clock_source() == CLOCK_NTP ? "Da internet" : "Dal telefono/computer", when);
+      snprintf(when + strlen(when), sizeof when - strlen(when), TR(" del %d/%d"), st.tm_mday, st.tm_mon + 1);
+    snprintf(b, sizeof b, TR("%s alle %s"), clock_source() == CLOCK_NTP ? TR("Da internet") : TR("Dal telefono/computer"), when);
     lv_label_set_text(date_s, b);
   }
 
@@ -74,28 +84,28 @@ class SettingsPage : public Page {
     BatteryInfo b = battery_info();
     char buf[64];
     if (b.state == BAT_NONE || b.pct < 0) {
-      snprintf(buf, sizeof buf, "Non rilevata (%d,%02d V)", b.mv / 1000, b.mv % 1000 / 10);
+      snprintf(buf, sizeof buf, TR("Non rilevata (%d,%02d V)"), b.mv / 1000, b.mv % 1000 / 10);
       lv_label_set_text(bat_lvl, buf);
-      lv_label_set_text(bat_state, "Collega una LiPo 3,7 V al connettore BAT");
+      lv_label_set_text(bat_state, TR("Collega una LiPo 3,7 V al connettore BAT"));
       lv_obj_add_flag(bat_icon, LV_OBJ_FLAG_HIDDEN);
       return;
     }
-    snprintf(buf, sizeof buf, "%d%% \xE2\x80\xA2 %d,%02d V", b.pct, b.mv / 1000, b.mv % 1000 / 10);
+    snprintf(buf, sizeof buf, TR("%d%% \xE2\x80\xA2 %d,%02d V"), b.pct, b.mv / 1000, b.mv % 1000 / 10);
     lv_label_set_text(bat_lvl, buf);
     char t[24];
     if (b.state == BAT_CHARGING && b.minutes_to_full > 0) {
       ui_fmt_minutes(b.minutes_to_full, t, sizeof t);
-      snprintf(buf, sizeof buf, "In carica \xE2\x80\xA2 piena tra %s", t);
+      snprintf(buf, sizeof buf, TR("In carica \xE2\x80\xA2 piena tra %s"), t);
       lv_label_set_text(bat_state, buf);
     } else if (b.state == BAT_DISCHARGING && b.minutes_left >= 0) {
       ui_fmt_minutes(b.minutes_left, t, sizeof t);
-      snprintf(buf, sizeof buf, "%s \xE2\x80\xA2 %s rimasti", ui_battery_state_text(b), t);
+      snprintf(buf, sizeof buf, TR("%s \xE2\x80\xA2 %s rimasti"), ui_battery_state_text(b), t);
       lv_label_set_text(bat_state, buf);
     } else {
       lv_label_set_text(bat_state, ui_battery_state_text(b));
     }
     if (b.load_ma > 0) {
-      snprintf(buf, sizeof buf, "~%d mA", (b.load_ma + 5) / 10 * 10);
+      snprintf(buf, sizeof buf, TR("~%d mA"), (b.load_ma + 5) / 10 * 10);
       lv_label_set_text(bat_load, buf);
     } else {
       lv_label_set_text(bat_load, "-");
@@ -128,13 +138,14 @@ class SettingsPage : public Page {
   void power_labels() {
     char b[48];
     int s = power_screen_timeout_s();
-    if (!s) snprintf(b, sizeof b, "Mai");
-    else if (s < 60) snprintf(b, sizeof b, "Dopo %d secondi", s);
-    else snprintf(b, sizeof b, "Dopo %d minut%s", s / 60, s == 60 ? "o" : "i");
+    if (!s) snprintf(b, sizeof b, "%s", TR("Mai"));
+    else if (s < 60) snprintf(b, sizeof b, TR("Dopo %d secondi"), s);
+    else if (s == 60) snprintf(b, sizeof b, "%s", TR("Dopo 1 minuto"));
+    else snprintf(b, sizeof b, TR("Dopo %d minuti"), s / 60);
     lv_label_set_text(scr_val, b);
     int m = power_auto_off_min();
-    if (!m) snprintf(b, sizeof b, "Mai");
-    else snprintf(b, sizeof b, "Dopo %d min in pausa", m);
+    if (!m) snprintf(b, sizeof b, "%s", TR("Mai"));
+    else snprintf(b, sizeof b, TR("Dopo %d min in pausa"), m);
     lv_label_set_text(off_val, b);
   }
 
@@ -186,15 +197,15 @@ class SettingsPage : public Page {
 
   const char *out_name() {
     switch (audio_out_mode()) {
-      case OUT_SPEAKER: return "Altoparlante integrato";
-      case OUT_HEADPHONES: return "Cuffie (PCM5102)";
-      default: return "Automatico";
+      case OUT_SPEAKER: return TR("Altoparlante integrato");
+      case OUT_HEADPHONES: return TR("Cuffie (PCM5102)");
+      default: return TR("Automatico");
     }
   }
 
   const char *jack_name() {
-    if (!audio_out_hp_detect_available()) return "Non configurato (HP_DETECT_PIN = -1)";
-    return audio_out_hp_present() ? "Cuffie collegate" : "Cuffie non collegate";
+    if (!audio_out_hp_detect_available()) return TR("Non configurato (HP_DETECT_PIN = -1)");
+    return audio_out_hp_present() ? TR("Cuffie collegate") : TR("Cuffie non collegate");
   }
 
   void build() {
@@ -207,26 +218,26 @@ class SettingsPage : public Page {
     // scheda principale (barra in basso): titolo grande come le altre schede
     lv_obj_t *hd = ui_box(col);
     lv_obj_set_size(hd, SCR_W, LV_SIZE_CONTENT);
-    lv_obj_t *t = ui_label(hd, &font_b20, C_TEXT, "Impostazioni");
+    lv_obj_t *t = ui_label(hd, &font_b20, C_TEXT, TR("Impostazioni"));
     lv_obj_set_style_pad_left(t, 12, 0);
     lv_obj_set_style_pad_top(t, 12, 0);
     clk = ui_label(hd, &font_b16, C_SUB, "");   // orologio
     lv_obj_align(clk, LV_ALIGN_TOP_RIGHT, -14, 16);
 
-    section("Batteria");
-    lv_obj_t *bl = row("Livello", "-", nullptr);
+    section(TR("Batteria"));
+    lv_obj_t *bl = row(TR("Livello"), "-", nullptr);
     bat_lvl = lv_obj_get_child(bl, 1);
     bat_icon = ui_battery_icon(bl, 26, 13);
     lv_obj_align(bat_icon, LV_ALIGN_RIGHT_MID, -16, 0);
-    lv_obj_t *bs = row("Stato", "-", nullptr);
+    lv_obj_t *bs = row(TR("Stato"), "-", nullptr);
     bat_state = lv_obj_get_child(bs, 1);
-    lv_obj_t *bc = row("Consumo stimato", "-", nullptr);
+    lv_obj_t *bc = row(TR("Consumo stimato"), "-", nullptr);
     bat_load = lv_obj_get_child(bc, 1);
     lv_obj_set_width(bat_load, SCR_W - 28);
     lv_obj_set_width(bat_state, SCR_W - 28);
     bat_update();
 
-    section("Data e ora");
+    section(TR("Data e ora"));
     // come le altre righe, ma alta quanto serve: la nota può andare a capo
     lv_obj_t *dr = ui_box(col);
     lv_obj_set_size(dr, SCR_W, LV_SIZE_CONTENT);
@@ -240,16 +251,20 @@ class SettingsPage : public Page {
     clock_update();
     bat_timer = lv_timer_create(bat_timer_cb, 1000, this);
 
-    section("Audio");
-    lv_obj_t *o = row("Uscita audio", out_name(), out_cb);
+    section(TR("Audio"));
+    lv_obj_t *o = row(TR("Uscita audio"), out_name(), out_cb);
     out_val = lv_obj_get_child(o, 1);
-    lv_obj_t *j = row("Jack cuffie", jack_name(), nullptr);
+    lv_obj_t *j = row(TR("Jack cuffie"), jack_name(), nullptr);
     jack_val = lv_obj_get_child(j, 1);
-    toggle("Pausa se scolleghi le cuffie", "Come sul telefono", audio_out_pause_on_unplug(), pause_cb);
-    toggle("Inverti rilevamento cuffie", "Se il jack funziona al contrario", audio_out_detect_inverted(), invert_cb);
+    toggle(TR("Pausa se scolleghi le cuffie"), TR("Come sul telefono"), audio_out_pause_on_unplug(), pause_cb);
+    toggle(TR("Inverti rilevamento cuffie"), TR("Se il jack funziona al contrario"), audio_out_detect_inverted(), invert_cb);
 
-    section("Schermo");
-    lv_obj_t *br = row("Luminosità", nullptr, nullptr);
+    section(TR("Lingua"));
+    // sempre in entrambe le lingue: chi non capisce quella attuale la trova lo stesso
+    row("Lingua \xC2\xB7 Language", i18n_lang() == LANG_EN ? "English" : "Italiano", lang_cb);
+
+    section(TR("Schermo"));
+    lv_obj_t *br = row(TR("Luminosità"), nullptr, nullptr);
     lv_obj_t *sl = lv_slider_create(br);
     lv_obj_set_size(sl, 110, 4);
     lv_obj_align(sl, LV_ALIGN_RIGHT_MID, -20, 0);
@@ -263,36 +278,36 @@ class SettingsPage : public Page {
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_RELEASED, this);
 
-    lv_obj_t *so = row("Spegni lo schermo", "-", scr_cb);
+    lv_obj_t *so = row(TR("Spegni lo schermo"), "-", scr_cb);
     scr_val = lv_obj_get_child(so, 1);
-    toggle("Riattiva toccando", "Se lo schermo si è spento da solo", power_touch_wake(), touchwake_cb);
+    toggle(TR("Riattiva toccando"), TR("Se lo schermo si è spento da solo"), power_touch_wake(), touchwake_cb);
 
-    section("Tasto BOOT");
+    section(TR("Tasto BOOT"));
     lv_obj_t *hint = ui_label(col, &font_r12, C_SUB,
-                              "1 clic: schermo spento o acceso, la musica continua\n"
+                              TR("1 clic: schermo spento o acceso, la musica continua\n"
                               "2 clic: play / pausa\n"
-                              "Tenuto premuto: spegne il lettore (si riaccende col tasto)");
+                              "Tenuto premuto: spegne il lettore (si riaccende col tasto)"));
     lv_obj_set_width(hint, SCR_W - 28);
     lv_obj_set_style_pad_left(hint, 14, 0);
     lv_obj_set_style_pad_bottom(hint, 6, 0);
-    lv_obj_t *ao = row("Spegnimento automatico", "-", off_cb);
+    lv_obj_t *ao = row(TR("Spegnimento automatico"), "-", off_cb);
     off_val = lv_obj_get_child(ao, 1);
-    row("Spegni ora", "Si riaccende col tasto BOOT", poweroff_cb);
+    row(TR("Spegni ora"), TR("Si riaccende col tasto BOOT"), poweroff_cb);
     power_labels();
 
-    section("Wi-Fi");
-    row("Trasferimento file", "Carica e gestisci la musica dal browser", xfer_cb);
+    section(TR("Wi-Fi"));
+    row(TR("Trasferimento file"), TR("Carica e gestisci la musica dal browser"), xfer_cb);
 
-    section("Libreria");
+    section(TR("Libreria"));
     char buf[96];
-    snprintf(buf, sizeof buf, "%u brani \xE2\x80\xA2 %u album \xE2\x80\xA2 %u artisti", (unsigned)lib_tracks().size(),
+    snprintf(buf, sizeof buf, TR("%u brani \xE2\x80\xA2 %u album \xE2\x80\xA2 %u artisti"), (unsigned)lib_tracks().size(),
              (unsigned)lib_albums().size(), (unsigned)lib_artists().size());
-    row("Aggiorna libreria", buf, rescan_cb);
-    row("Cartella cache", APP_DIR, nullptr);
+    row(TR("Aggiorna libreria"), buf, rescan_cb);
+    row(TR("Cartella cache"), APP_DIR, nullptr);
 
-    section("Informazioni");
-    row(APP_NAME " 1.0", "Lettore FLAC per Freenove ESP32-S3 Display", nullptr);
-    row("Formati", "FLAC 8-32 bit, fino a 96 kHz (oltre: decimato)", nullptr);
+    section(TR("Informazioni"));
+    row(APP_NAME " 1.0", TR("Lettore FLAC per Freenove ESP32-S3 Display"), nullptr);
+    row(TR("Formati"), TR("FLAC 8-32 bit, fino a 96 kHz (oltre: decimato)"), nullptr);
   }
 
   void refresh(uint32_t) override {

@@ -1,6 +1,7 @@
 // Pagina album / playlist / preferiti / genere: testata con gradiente dal colore
 // della copertina, pulsanti shuffle + play e lista brani virtualizzata.
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include <algorithm>
 #include "../lib/library.h"
@@ -44,7 +45,7 @@ class CollectionPage : public Page {
     CollectionPage *p = (CollectionPage *)lv_event_get_user_data(e);
     bool on = !player_status().shuffle;
     player_set_shuffle(on);
-    ui_toast(on ? "Riproduzione casuale attivata" : "Riproduzione casuale disattivata");
+    ui_toast(on ? TR("Riproduzione casuale attivata") : TR("Riproduzione casuale disattivata"));
     lv_obj_set_style_text_color(p->shuffle_btn, on ? C_GREEN : C_SUB, 0);
   }
   static void artist_cb(lv_event_t *e) {
@@ -145,10 +146,11 @@ class CollectionPage : public Page {
       lv_obj_set_width(an, txt_w - 27);
       lv_obj_align(an, LV_ALIGN_LEFT_MID, 27, 0);
       y += 26;
-      if (a.year) snprintf(buf, sizeof buf, "Album \xE2\x80\xA2 %u \xE2\x80\xA2 %s", a.year, d);
-      else snprintf(buf, sizeof buf, "Album \xE2\x80\xA2 %s", d);
+      if (a.year) snprintf(buf, sizeof buf, TR("Album \xE2\x80\xA2 %u \xE2\x80\xA2 %s"), a.year, d);
+      else snprintf(buf, sizeof buf, TR("Album \xE2\x80\xA2 %s"), d);
     } else {
-      snprintf(buf, sizeof buf, "%u bran%s \xE2\x80\xA2 %s", (unsigned)tracks.size(), tracks.size() == 1 ? "o" : "i", d);
+      if (tracks.size() == 1) snprintf(buf, sizeof buf, TR("1 brano \xE2\x80\xA2 %s"), d);
+      else snprintf(buf, sizeof buf, TR("%u brani \xE2\x80\xA2 %s"), (unsigned)tracks.size(), d);
     }
     lv_obj_t *meta = ui_label(r, &font_r12, C_SUB, buf);
     ui_dot(meta);
@@ -167,8 +169,8 @@ class CollectionPage : public Page {
 
     if (tracks.empty()) {
       lv_obj_t *e = ui_label(r, &font_r14, C_SUB,
-                             ctx.type == CTX_LIKED ? "I brani a cui metti \"Mi piace\" compariranno qui."
-                                                   : "Nessun brano.");
+                             ctx.type == CTX_LIKED ? TR("I brani a cui metti \"Mi piace\" compariranno qui.")
+                                                   : TR("Nessun brano."));
       lv_obj_set_width(e, SCR_W - 40);
       lv_obj_set_pos(e, 20, y + 10);
     }

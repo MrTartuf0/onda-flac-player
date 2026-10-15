@@ -237,7 +237,7 @@ void build_nav() {
   lv_obj_set_style_bg_color(s_nav, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(s_nav, LV_OPA_90, 0);
   static const char *icons[3] = {IC_HOME, IC_SEARCH, IC_GEAR};
-  static const char *names[3] = {"Home", "Cerca", "Impostazioni"};
+  const char *names[3] = {TR("Home"), TR("Cerca"), TR("Impostazioni")};
   for (int i = 0; i < 3; i++) {
     lv_obj_t *it = ui_box(s_nav);
     lv_obj_set_size(it, SCR_W / 3, NAV_H);
@@ -273,7 +273,7 @@ void build_boot() {
   lv_obj_set_style_bg_color(dot, C_GREEN, 0);
   lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
   lv_obj_align_to(dot, w, LV_ALIGN_OUT_RIGHT_BOTTOM, 2, -5);
-  lv_obj_t *sub = ui_label(s_boot, &font_r12, C_SUB, "lettore FLAC");
+  lv_obj_t *sub = ui_label(s_boot, &font_r12, C_SUB, TR("lettore FLAC"));
   lv_obj_align(sub, LV_ALIGN_CENTER, 0, -12);
 
   lv_obj_t *track = ui_box(s_boot);
@@ -287,7 +287,7 @@ void build_boot() {
   lv_obj_set_style_radius(s_boot_bar, 2, 0);
   lv_obj_set_style_bg_color(s_boot_bar, C_GREEN, 0);
   lv_obj_set_style_bg_opa(s_boot_bar, LV_OPA_COVER, 0);
-  s_boot_lbl = ui_label(s_boot, &font_r12, C_SUB, "Avvio...");
+  s_boot_lbl = ui_label(s_boot, &font_r12, C_SUB, TR("Avvio..."));
   lv_obj_set_width(s_boot_lbl, 200);
   lv_obj_set_style_text_align(s_boot_lbl, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(s_boot_lbl, LV_ALIGN_CENTER, 0, 54);
@@ -301,18 +301,18 @@ void build_boot() {
   lv_obj_add_flag(s_boot_btn, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_transform_scale(s_boot_btn, 240, LV_STATE_PRESSED);
   lv_obj_add_event_cb(s_boot_btn, boot_retry_cb, LV_EVENT_CLICKED, nullptr);
-  lv_obj_t *bl = ui_label(s_boot_btn, &font_b14, C_BLACK, "Riprova");
+  lv_obj_t *bl = ui_label(s_boot_btn, &font_b14, C_BLACK, TR("Riprova"));
   lv_obj_center(bl);
   lv_obj_add_flag(s_boot_btn, LV_OBJ_FLAG_HIDDEN);
 }
 
 void update_boot(const LibProgress &p) {
-  static const char *phases[] = {"Ricerca dei file FLAC", "Lettura dei tag", "Preparazione copertine",
-                                 "Salvataggio indice"};
+  const char *phases[] = {TR("Ricerca dei file FLAC"), TR("Lettura dei tag"), TR("Preparazione copertine"),
+                          TR("Salvataggio indice")};
   char buf[96];
   lv_obj_add_flag(s_boot_btn, LV_OBJ_FLAG_HIDDEN);
   if (p.state == LIB_NO_SD) {
-    lv_label_set_text(s_boot_lbl, "Inserisci una scheda microSD\ncon i tuoi file .flac");
+    lv_label_set_text(s_boot_lbl, TR("Inserisci una scheda microSD\ncon i tuoi file .flac"));
     lv_obj_set_width(s_boot_bar, 0);
     lv_obj_remove_flag(s_boot_btn, LV_OBJ_FLAG_HIDDEN);
     return;
@@ -321,7 +321,7 @@ void update_boot(const LibProgress &p) {
     snprintf(buf, sizeof buf, "%s\n%u / %u", phases[p.phase & 3], (unsigned)p.done, (unsigned)p.total);
     lv_obj_set_width(s_boot_bar, 160 * p.done / p.total);
   } else {
-    snprintf(buf, sizeof buf, "%s\n%u trovati", phases[p.phase & 3], (unsigned)p.done);
+    snprintf(buf, sizeof buf, TR("%s\n%u trovati"), phases[p.phase & 3], (unsigned)p.done);
     lv_obj_set_width(s_boot_bar, (plat_millis() / 8) % 160);
   }
   lv_label_set_text(s_boot_lbl, buf);
@@ -519,7 +519,7 @@ void ui_play_context(const PlayContext &ctx, int start, bool force_shuffle) {
   std::vector<uint16_t> tr;
   lib_context_tracks(ctx, tr);
   if (tr.empty()) {
-    ui_toast("Nessun brano da riprodurre");
+    ui_toast(TR("Nessun brano da riprodurre"));
     return;
   }
   if (force_shuffle) {
@@ -567,13 +567,13 @@ void ui_open_context(const PlayContext &c) {
 
 const char *ctx_type_label(CtxType t) {
   switch (t) {
-    case CTX_ALBUM: return "ALBUM";
-    case CTX_ARTIST: return "ARTISTA";
-    case CTX_PLAYLIST: return "PLAYLIST";
-    case CTX_LIKED: return "PLAYLIST";
-    case CTX_GENRE: return "GENERE";
-    case CTX_ALL: return "LA TUA LIBRERIA";
-    case CTX_SEARCH: return "RICERCA";
+    case CTX_ALBUM: return TR("ALBUM");
+    case CTX_ARTIST: return TR("ARTISTA");
+    case CTX_PLAYLIST: return TR("PLAYLIST");
+    case CTX_LIKED: return TR("PLAYLIST");
+    case CTX_GENRE: return TR("GENERE");
+    case CTX_ALL: return TR("LA TUA LIBRERIA");
+    case CTX_SEARCH: return TR("RICERCA");
     default: return "";
   }
 }
@@ -695,7 +695,7 @@ void ui_tick() {
       restore_session();
       if (s_crash_notice) {
         s_crash_notice = false;
-        ui_toast("Si era bloccato: riavviato, riprendo da dove eri");
+        ui_toast(TR("Si era bloccato: riavviato, riprendo da dove eri"));
       }
     } else if (s_restore_pending && s_saw_scan) {
       s_restore_pending = false;
@@ -724,7 +724,7 @@ void ui_tick() {
     }
     what |= RF_PLAYER;
   }
-  if (pe & PLAYER_EV_ERROR) ui_toast("Impossibile riprodurre questo file");
+  if (pe & PLAYER_EV_ERROR) ui_toast(TR("Impossibile riprodurre questo file"));
   if ((pe & PLAYER_EV_STATE) || s_ps.playing != s_last_playing) {
     s_last_playing = s_ps.playing;
     what |= RF_PLAYER;
@@ -736,9 +736,9 @@ void ui_tick() {
   uint32_t ae = audio_out_take_events();
   if ((ae & AOUT_EV_HP_UNPLUGGED) && audio_out_muted()) {
     player_pause();
-    ui_toast("Cuffie scollegate: riproduzione in pausa");
+    ui_toast(TR("Cuffie scollegate: riproduzione in pausa"));
   } else if (ae & AOUT_EV_DEVICE_CHANGED) {
-    ui_toast(audio_out_active() == DEV_HEADPHONES ? "Riproduzione sulle cuffie" : "Riproduzione sull'altoparlante");
+    ui_toast(audio_out_active() == DEV_HEADPHONES ? TR("Riproduzione sulle cuffie") : TR("Riproduzione sull'altoparlante"));
   }
   if (ae) what |= RF_PLAYER;
 

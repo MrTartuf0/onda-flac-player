@@ -1,5 +1,6 @@
 // Pagina artista: testata, "Popolari", discografia.
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include <algorithm>
 #include "../lib/library.h"
@@ -82,7 +83,7 @@ class ArtistPage : public Page {
     int y = 166 + lv_obj_get_height(name) + 2;
 
     char buf[64];
-    snprintf(buf, sizeof buf, "%u album \xE2\x80\xA2 %u brani", (unsigned)A.albums.size(), (unsigned)A.tracks.size());
+    snprintf(buf, sizeof buf, TR("%u album \xE2\x80\xA2 %u brani"), (unsigned)A.albums.size(), (unsigned)A.tracks.size());
     lv_obj_t *meta = ui_label(r, &font_r12, C_SUB, buf);
     lv_obj_set_pos(meta, 12, y);
     y += 22;
@@ -98,7 +99,7 @@ class ArtistPage : public Page {
     std::stable_sort(popular.begin(), popular.end(),
                      [](uint16_t a, uint16_t b) { return lib_play_count(a) > lib_play_count(b); });
     if (popular.size() > 5) popular.resize(5);
-    lv_obj_t *h = ui_label(r, &font_b16, C_TEXT, "Popolari");
+    lv_obj_t *h = ui_label(r, &font_b16, C_TEXT, TR("Popolari"));
     lv_obj_set_pos(h, 12, y);
     y += 30;
     for (size_t i = 0; i < popular.size(); i++) {
@@ -119,7 +120,8 @@ class ArtistPage : public Page {
       ui_cover_set(p.cover, COVER_ALBUM, t.album);
       lv_label_set_text(p.title, t.title);
       uint32_t pc = lib_play_count(popular[i]);
-      if (pc) lv_label_set_text_fmt(p.sub, "%u ascolt%s", (unsigned)pc, pc == 1 ? "o" : "i");
+      if (pc == 1) lv_label_set_text(p.sub, TR("1 ascolto"));
+      else if (pc) lv_label_set_text_fmt(p.sub, TR("%u ascolti"), (unsigned)pc);
       else lv_label_set_text(p.sub, t.artist);
       lv_obj_add_event_cb(row, pop_cb, LV_EVENT_CLICKED, this);
       lv_obj_add_event_cb(p.more, pop_more_cb, LV_EVENT_CLICKED, this);
@@ -128,7 +130,7 @@ class ArtistPage : public Page {
     }
 
     y += 12;
-    lv_obj_t *dh = ui_label(r, &font_b16, C_TEXT, "Discografia");
+    lv_obj_t *dh = ui_label(r, &font_b16, C_TEXT, TR("Discografia"));
     lv_obj_set_pos(dh, 12, y);
     y += 30;
     for (auto ai : A.albums) {
@@ -139,8 +141,8 @@ class ArtistPage : public Page {
       RowParts p = ui_row_parts(row);
       ui_cover_set(p.cover, COVER_ALBUM, ai);
       lv_label_set_text(p.title, al.title);
-      if (al.year) lv_label_set_text_fmt(p.sub, "%u \xE2\x80\xA2 Album", al.year);
-      else lv_label_set_text(p.sub, "Album");
+      if (al.year) lv_label_set_text_fmt(p.sub, TR("%u \xE2\x80\xA2 Album"), al.year);
+      else lv_label_set_text(p.sub, TR("Album"));
       lv_obj_add_event_cb(row, album_cb, LV_EVENT_CLICKED, nullptr);
       y += 70;
     }
@@ -154,7 +156,7 @@ class ArtistPage : public Page {
     lv_obj_add_flag(all, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_border_color(all, C_TEXT, LV_STATE_PRESSED);
     lv_obj_add_event_cb(all, all_cb, LV_EVENT_CLICKED, this);
-    lv_obj_t *al = ui_label(all, &font_b12, C_TEXT, "Vedi tutti i brani");
+    lv_obj_t *al = ui_label(all, &font_b12, C_TEXT, TR("Vedi tutti i brani"));
     lv_obj_align(al, LV_ALIGN_LEFT_MID, 0, 0);
     lv_obj_set_pos(all, 12, y + 10);
     lv_obj_t *sp = ui_box(r);

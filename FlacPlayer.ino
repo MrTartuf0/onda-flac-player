@@ -13,6 +13,7 @@
  *  configurazione in src/lv_conf.h) e non va in conflitto con una LVGL 8 installata.
  */
 #include <Arduino.h>
+#include "src/i18n.h"
 #include <Wire.h>
 #include <SD_MMC.h>
 #include <esp_heap_caps.h>
@@ -93,7 +94,7 @@ static void safe_mode() {
     lv_obj_t *t = lv_label_create(scr);
     lv_obj_set_style_text_font(t, &font_b16, 0);
     lv_obj_set_style_text_color(t, lv_color_hex(0xFF5F5F), 0);
-    lv_label_set_text(t, "Avvio interrotto");
+    lv_label_set_text(t, TR("Avvio interrotto"));
     lv_obj_set_pos(t, 10, 10);
     lv_obj_t *l = lv_label_create(scr);
     lv_obj_set_style_text_font(l, &font_r10, 0);
@@ -105,7 +106,7 @@ static void safe_mode() {
     lv_obj_t *h = lv_label_create(scr);
     lv_obj_set_style_text_font(h, &font_r12, 0);
     lv_obj_set_style_text_color(h, lv_color_hex(0x1ED760), 0);
-    lv_label_set_text(h, "Fai una foto e premi RESET per riprovare");
+    lv_label_set_text(h, TR("Fai una foto e premi RESET per riprovare"));
     lv_obj_align(h, LV_ALIGN_BOTTOM_LEFT, 10, -10);
     display_set_brightness(80);
   }
@@ -213,6 +214,17 @@ void setup() {
   // Le allocazioni piccole (oggetti LVGL, indice della libreria, stringhe...) vanno
   // in PSRAM: la RAM interna (~300 KB) resta per DMA, stack e sistema operativo.
   heap_caps_malloc_extmem_enable(16);
+
+  // lingua: quella scelta; al primo avvio quella di config.h, ma chi aveva già
+  // la versione precedente (impostazioni salvate) resta in italiano
+  int32_t lang = plat_kv_get("lang", -1);
+  if (lang < 0) {
+    bool old = plat_kv_get("vol_s", -1) >= 0 || plat_kv_get("vol_h", -1) >= 0 || plat_kv_get("ctx_t", -1) >= 0 ||
+               plat_kv_get("bat_k", -1) >= 0;
+    lang = old ? LANG_IT : UI_LANG_DEFAULT;
+    plat_kv_set("lang", lang);
+  }
+  i18n_set((Lang)lang);
 
   const char *reason = "";
   uint32_t crashes = plat_boot_check(&reason);

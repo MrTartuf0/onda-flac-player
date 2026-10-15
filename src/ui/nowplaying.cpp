@@ -58,7 +58,7 @@ void repeat_cb(lv_event_t *) {
   RepeatMode r = player_status().repeat;
   r = (RepeatMode)((r + 1) % 3);
   player_set_repeat(r);
-  ui_toast(r == REPEAT_OFF ? "Ripetizione disattivata" : r == REPEAT_ALL ? "Ripeti tutto" : "Ripeti il brano");
+  ui_toast(r == REPEAT_OFF ? TR("Ripetizione disattivata") : r == REPEAT_ALL ? TR("Ripeti tutto") : TR("Ripeti il brano"));
 }
 
 void queue_cb(lv_event_t *) { ui_queue_open(); }
@@ -73,7 +73,7 @@ void heart_cb(lv_event_t *) {
   if (t < 0) return;
   bool on = !lib_is_liked(t);
   lib_set_liked(t, on);
-  ui_toast(on ? "Aggiunto a Brani che ti piacciono" : "Rimosso da Brani che ti piacciono");
+  ui_toast(on ? TR("Aggiunto a Brani che ti piacciono") : TR("Rimosso da Brani che ti piacciono"));
   ui_nowplaying_refresh(RF_LIKED);
 }
 void title_cb(lv_event_t *) {
@@ -175,12 +175,12 @@ void q_rebuild() {
     lv_label_set_text(p.sub, t.artist);
   }
   PlayContext c = player_context();
-  lv_label_set_text_fmt(q_head_ctx, "Successivi da: %s", c.name);
+  lv_label_set_text_fmt(q_head_ctx, TR("Successivi da: %s"), c.name);
   // la coda manuale (se presente) viene prima: la mostriamo con la sua intestazione
   if (q_manual) {
     lv_obj_remove_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
-    lv_label_set_text_fmt(q_head_next, "Prossimi in coda (%u), poi da %s", (unsigned)q_manual, c.name);
+    lv_label_set_text_fmt(q_head_next, TR("Prossimi in coda (%u), poi da %s"), (unsigned)q_manual, c.name);
   } else {
     lv_obj_add_flag(q_head_next, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(q_head_ctx, LV_OBJ_FLAG_HIDDEN);
@@ -204,7 +204,7 @@ void build_queue(lv_obj_t *scr) {
   lv_obj_add_event_cb(top, q_close_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_t *x = ui_icon(top, &icons_18, IC_DOWN, C_TEXT);
   lv_obj_align(x, LV_ALIGN_LEFT_MID, 18, 0);
-  lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, "Coda");
+  lv_obj_t *t = ui_label(top, &font_b16, C_TEXT, TR("Coda"));
   lv_obj_center(t);
 
   constexpr int FOOT = 46;
@@ -214,7 +214,7 @@ void build_queue(lv_obj_t *scr) {
   lv_obj_add_flag(sc, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_scroll_dir(sc, LV_DIR_VER);
   lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_OFF);
-  lv_obj_t *h1 = ui_label(sc, &font_b14, C_TEXT, "In riproduzione");
+  lv_obj_t *h1 = ui_label(sc, &font_b14, C_TEXT, TR("In riproduzione"));
   lv_obj_set_pos(h1, 12, 4);
   q_now_row = ui_row(sc, 56, 44, false, false);
   lv_obj_set_y(q_now_row, 26);
@@ -258,8 +258,8 @@ void build_queue(lv_obj_t *scr) {
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 33, 0);
     return b;
   };
-  q_shuffle = mk(IC_SHUFFLE, "Casuale", shuffle_cb, 4);
-  q_repeat = mk(IC_REPEAT, "Ripeti", repeat_cb, SCR_W / 2 + 4);
+  q_shuffle = mk(IC_SHUFFLE, TR("Casuale"), shuffle_cb, 4);
+  q_repeat = mk(IC_REPEAT, TR("Ripeti"), repeat_cb, SCR_W / 2 + 4);
   lv_obj_add_flag(q_view, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -422,7 +422,7 @@ static void q_footer_update() {
   lv_color_t rc = s.repeat != REPEAT_OFF ? C_GREEN : C_TEXT;
   lv_obj_set_style_text_color(lv_obj_get_child(q_repeat, 0), rc, 0);
   lv_obj_set_style_text_color(lv_obj_get_child(q_repeat, 1), rc, 0);
-  lv_label_set_text(lv_obj_get_child(q_repeat, 1), s.repeat == REPEAT_ONE ? "Ripeti brano" : "Ripeti");
+  lv_label_set_text(lv_obj_get_child(q_repeat, 1), s.repeat == REPEAT_ONE ? TR("Ripeti brano") : TR("Ripeti"));
 }
 
 void ui_nowplaying_refresh(uint32_t what) {
@@ -447,12 +447,12 @@ void ui_nowplaying_refresh(uint32_t what) {
     lv_label_set_text(np_title, t.title);
     lv_label_set_text(np_artist, t.artist);
     PlayContext ctx = player_context();
-    lv_label_set_text_fmt(np_ctx_type, "IN RIPRODUZIONE DA %s", ctx_type_label(ctx.type));
+    lv_label_set_text_fmt(np_ctx_type, TR("IN RIPRODUZIONE DA %s"), ctx_type_label(ctx.type));
     lv_label_set_text(np_ctx_name, ctx.type == CTX_ALBUM || ctx.type == CTX_NONE ? lib_albums()[t.album].title : ctx.name);
     char d[16];
     fmt_duration(s.dur_ms, d, sizeof d);
     lv_label_set_text(np_t_dur, d);
-    if (s.bits) lv_label_set_text_fmt(np_fmt, "FLAC %u bit \xE2\x80\xA2 %u.%u kHz", s.bits,
+    if (s.bits) lv_label_set_text_fmt(np_fmt, TR("FLAC %u bit \xE2\x80\xA2 %u.%u kHz"), s.bits,
                                       (unsigned)(s.sample_rate / 1000), (unsigned)(s.sample_rate % 1000 / 100));
     else lv_label_set_text(np_fmt, "");
   }

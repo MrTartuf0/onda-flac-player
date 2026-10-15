@@ -25,6 +25,7 @@
 #include "../platform.h"
 #include "web_index.h"
 #include "../clock.h"
+#include "../i18n.h"
 #include "../lib/library.h"
 #include "../lib/artwork.h"
 #include "../lib/flac_tags.h"
@@ -490,7 +491,7 @@ esp_err_t h_lib(httpd_req_t *req) {
     j.o += "]}";
     j.flush();
   }
-  j.o += "]}";
+  j.o += i18n_lang() == LANG_EN ? "],\"lang\":\"en\"}" : "],\"lang\":\"it\"}";
   return j.end();
 }
 

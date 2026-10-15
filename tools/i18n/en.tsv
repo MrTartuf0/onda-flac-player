@@ -1,0 +1,206 @@
+# italian<TAB>english - maintained by tools/i18n/i18n.py
+Avvio interrotto	Startup interrupted
+Fai una foto e premi RESET per riprovare	Take a photo and press RESET to retry
+Artista sconosciuto	Unknown artist
+Artisti vari	Various artists
+Brani singoli	Single tracks
+Brani che ti piacciono	Liked songs
+Tutti i brani	All songs
+~%d min	~%d min
+oltre 2 giorni	over 2 days
+~%d h %02d min	~%d h %02d min
+~%d h	~%d h
+In carica	Charging
+Carica completa	Fully charged
+Batteria scarica	Battery low
+A batteria	On battery
+Batteria non rilevata	No battery detected
+Batteria quasi esaurita: collega il caricatore	Battery almost empty: plug in the charger
+Batteria al 10%	Battery at 10%
+Spegnimento	Shutting down
+Premi il tasto BOOT per riaccendere	Press the BOOT button to turn it back on
+Collega il caricatore. Se è già in carica,\nriprova tra qualche minuto.	Plug in the charger. If it is\nalready charging, try again\nin a few minutes.
+Ho salvato il punto in cui eri.\nCollega il caricatore e tocca lo\nschermo per riaccendere.	Your position has been saved.\nPlug in the charger and tap the\nscreen to turn it back on.
+piena tra %s	full in %s
+%d,%02d V	%d.%02d V
+Batteria	Battery
+non rilevata	not detected
+%d h	%d h
+%d h %d	%d h %d
+%d min	%d min
+Timer	Timer
+superato	over
+in corso	running
+Cuffie: oltre il 75% trascina	Headphones: drag past 75%
+AUTO	AUTO
+Ripetizione disattivata	Repeat off
+Ripeti tutto	Repeat all
+Ripeti il brano	Repeat one
+Aggiunto a Brani che ti piacciono	Added to Liked songs
+Rimosso da Brani che ti piacciono	Removed from Liked songs
+Successivi da: %s	Next from: %s
+Prossimi in coda (%u), poi da %s	Next in queue (%u), then from %s
+Coda	Queue
+In riproduzione	Now playing
+Casuale	Shuffle
+Ripeti	Repeat
+Ripeti brano	Repeat one
+IN RIPRODUZIONE DA %s	PLAYING FROM %s
+FLAC %u bit \xE2\x80\xA2 %u.%u kHz	FLAC %u-bit \xE2\x80\xA2 %u.%u kHz
+%u album \xE2\x80\xA2 %u brani	%u albums \xE2\x80\xA2 %u songs
+Popolari	Popular
+1 ascolto	1 play
+%u ascolti	%u plays
+Discografia	Discography
+%u \xE2\x80\xA2 Album	%u \xE2\x80\xA2 Album
+Album	Album
+Vedi tutti i brani	See all songs
+Riproduzione casuale attivata	Shuffle on
+Riproduzione casuale disattivata	Shuffle off
+Album \xE2\x80\xA2 %u \xE2\x80\xA2 %s	Album \xE2\x80\xA2 %u \xE2\x80\xA2 %s
+Album \xE2\x80\xA2 %s	Album \xE2\x80\xA2 %s
+1 brano \xE2\x80\xA2 %s	1 song \xE2\x80\xA2 %s
+%u brani \xE2\x80\xA2 %s	%u songs \xE2\x80\xA2 %s
+I brani a cui metti \"Mi piace\" compariranno qui.	Songs you like will show up here.
+Nessun brano.	No songs.
+Ancora nessun brano: tocca il cuore per aggiungerne	No songs yet: tap the heart to add some
+In ordine casuale	Shuffling
+Nessun brano trovato	No songs found
+I più ascoltati	Most played
+Riscopri i tuoi album	Rediscover your albums
+I tuoi artisti	Your artists
+Artista	Artist
+Generi	Genres
+%u brani	%u songs
+Ordine alfabetico	Alphabetical order
+Ascoltati di recente per primi	Recently played first
+Playlist \xE2\x80\xA2 %u brani	Playlist \xE2\x80\xA2 %u songs
+Genere \xE2\x80\xA2 %u brani	Genre \xE2\x80\xA2 %u songs
+Playlist \xE2\x80\xA2 1 brano	Playlist \xE2\x80\xA2 1 song
+Cosa vuoi ascoltare?	What to listen to?
+Annulla	Cancel
+Cerca brani, album e artisti\nsulla tua scheda SD.	Search songs, albums and artists\non your SD card.
+Playlist	Playlist
+Brano \xE2\x80\xA2 %s	Song \xE2\x80\xA2 %s
+Nessun risultato per\n\"%s\"	No results for\n\"%s\"
+Riavvio per cambiare lingua...	Restarting to change language...
+Ora non impostata	Time not set
+Si prende da sola dal telefono o dal computer aprendo Trasferimento file	It is set automatically from your phone or computer when you open File transfer
+ del %d/%d	 on %d/%d
+%s alle %s	%s at %s
+Da internet	From the internet
+Dal telefono/computer	From your phone/computer
+Non rilevata (%d,%02d V)	Not detected (%d.%02d V)
+Collega una LiPo 3,7 V al connettore BAT	Connect a 3.7 V LiPo to the BAT connector
+%d%% \xE2\x80\xA2 %d,%02d V	%d%% \xE2\x80\xA2 %d.%02d V
+In carica \xE2\x80\xA2 piena tra %s	Charging \xE2\x80\xA2 full in %s
+%s \xE2\x80\xA2 %s rimasti	%s \xE2\x80\xA2 %s left
+~%d mA	~%d mA
+Mai	Never
+Dopo %d secondi	After %d seconds
+Dopo 1 minuto	After 1 minute
+Dopo %d minuti	After %d minutes
+Dopo %d min in pausa	After %d min paused
+Altoparlante integrato	Built-in speaker
+Cuffie (PCM5102)	Headphones (PCM5102)
+Automatico	Automatic
+Non configurato (HP_DETECT_PIN = -1)	Not configured (HP_DETECT_PIN = -1)
+Cuffie collegate	Headphones plugged in
+Cuffie non collegate	Headphones not plugged in
+Impostazioni	Settings
+Livello	Level
+Stato	Status
+Consumo stimato	Estimated draw
+Data e ora	Date and time
+Audio	Audio
+Uscita audio	Audio output
+Jack cuffie	Headphone jack
+Pausa se scolleghi le cuffie	Pause on unplug
+Come sul telefono	Like on your phone
+Inverti rilevamento cuffie	Invert jack detection
+Se il jack funziona al contrario	If the jack works the other way round
+Lingua	Language
+Schermo	Screen
+Luminosità	Brightness
+Spegni lo schermo	Turn off the screen
+Riattiva toccando	Tap to wake
+Se lo schermo si è spento da solo	If the screen turned off by itself
+Tasto BOOT	BOOT button
+1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\nHold: power off (press again to turn it on)
+Spegnimento automatico	Auto power off
+Spegni ora	Power off now
+Si riaccende col tasto BOOT	Turn it back on with the BOOT button
+Wi-Fi	Wi-Fi
+Trasferimento file	File transfer
+Carica e gestisci la musica dal browser	Upload and manage your music from a browser
+Libreria	Library
+%u brani \xE2\x80\xA2 %u album \xE2\x80\xA2 %u artisti	%u songs \xE2\x80\xA2 %u albums \xE2\x80\xA2 %u artists
+Aggiorna libreria	Update library
+Cartella cache	Cache folder
+Informazioni	About
+Lettore FLAC per Freenove ESP32-S3 Display	FLAC player for the Freenove ESP32-S3 Display
+Formati	Formats
+FLAC 8-32 bit, fino a 96 kHz (oltre: decimato)	FLAC 8-32 bit, up to 96 kHz (higher rates are decimated)
+Sessione: %u min	Session: %u min
+Dispositivo attuale	Current device
+Seleziona un dispositivo	Select a device
+Rilevamento non configurato	Detection not configured
+Collegate	Plugged in
+Non collegate	Not plugged in
+Cuffie quando collegate, altrimenti altoparlante	Headphones when plugged in, otherwise speaker
+Aggiunto alla coda	Added to queue
+Rimuovi da Brani che ti piacciono	Remove from Liked songs
+Aggiungi a Brani che ti piacciono	Add to Liked songs
+Riproduci	Play
+Aggiungi in coda	Add to queue
+Vai all'album	Go to album
+Vai all'artista	Go to artist
+FLAC %u bit \xE2\x80\xA2 %u.%u kHz \xE2\x80\xA2 %s	FLAC %u-bit \xE2\x80\xA2 %u.%u kHz \xE2\x80\xA2 %s
+Hotspot del lettore	Player hotspot
+Nessuna rete: collegati direttamente a onda	No network: connect straight to onda
+Reti disponibili	Available networks
+Ricerca delle reti in corso...	Looking for networks...
+Segnale ottimo	Excellent signal
+Segnale buono	Good signal
+Segnale debole	Weak signal
+Nessuna rete trovata.	No networks found.
+Cerca di nuovo	Search again
+Connessione a \"%s\"...	Connecting to \"%s\"...
+Impossibile avviare il Wi-Fi.\nRiprova tra poco.	Could not start Wi-Fi.\nTry again in a moment.
+Apri questo indirizzo nel browser,\ndal computer o dal telefono	Open this address in a browser\non your computer or phone
+oppure http://%s	or http://%s
+1. Collegati al Wi-Fi del lettore\n(inquadra il codice col telefono)	1. Join the player's Wi-Fi\n(scan the code with your phone)
+Password: %s	Password: %s
+2. Apri http://%s	2. Open http://%s
+%u file ricevuti \xE2\x80\xA2 %s	%u files received \xE2\x80\xA2 %s
+La musica resta in pausa finch\xC3\xA9 sei qui	Music stays paused while you are here
+Il lettore si sta collegando alla rete	The player is connecting to the network
+Rete Wi-Fi	Wi-Fi network
+Password della rete	Network password
+Poi premi il tasto in basso a destra	Then press the key at the bottom right
+lettore FLAC	FLAC player
+Avvio...	Starting...
+Riprova	Retry
+Ricerca dei file FLAC	Looking for FLAC files
+Lettura dei tag	Reading tags
+Preparazione copertine	Preparing covers
+Salvataggio indice	Saving index
+%s\n%u trovati	%s\n%u found
+Nessun brano da riprodurre	Nothing to play
+ALBUM	ALBUM
+ARTISTA	ARTIST
+PLAYLIST	PLAYLIST
+GENERE	GENRE
+LA TUA LIBRERIA	YOUR LIBRARY
+RICERCA	SEARCH
+Si era bloccato: riavviato, riprendo da dove eri	It froze: restarted, resuming where you were
+Impossibile riprodurre questo file	Can't play this file
+Cuffie scollegate: riproduzione in pausa	Headphones unplugged: playback paused
+Riproduzione sulle cuffie	Playing on headphones
+Riproduzione sull'altoparlante	Playing on the speaker
+Copia i tuoi file .flac sulla scheda SD,\npoi tocca \"Aggiorna libreria\" nelle impostazioni.	Copy your .flac files to the SD card,\nthen tap \"Update library\" in Settings.
+Artisti	Artists
+Home	Home
+Cerca	Search
+Inserisci una scheda microSD\ncon i tuoi file .flac	Insert a microSD card\nwith your .flac files
+sessione	session

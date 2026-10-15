@@ -5,6 +5,7 @@
 #include "../lvgl/lvgl.h"
 #include "../fonts/fonts.h"
 #include "../types.h"
+#include "../i18n.h"
 #include "../config.h"
 
 // ------------------------------------------------------------------ tema ----

@@ -259,6 +259,10 @@ uint32_t plat_boot_check(const char **reason) {
 }
 
 void plat_boot_ok() { s_bc.crashes = 0; }
+void plat_restart() {
+  Serial.flush();
+  esp_restart();
+}
 
 void plat_heap_check() {
   s_bc.min_internal = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL);
@@ -560,6 +564,7 @@ uint32_t plat_boot_check(const char **reason) {
   return 0;
 }
 void plat_boot_ok() {}
+void plat_restart() {}
 void plat_resume_note(uint32_t, uint32_t, bool) {}
 bool plat_resume_get(uint32_t *, uint32_t *, bool *) { return false; }
 void plat_heap_check() {}

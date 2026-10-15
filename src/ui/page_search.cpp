@@ -2,6 +2,7 @@
 // filtri a chip (Playlist / Album / Artisti / Generi), ordinamento recenti /
 // alfabetico e lista virtualizzata.
 #include "ui_internal.h"
+#include "../i18n.h"
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
@@ -64,7 +65,7 @@ class SearchPage : public Page {
   static void sort_cb(lv_event_t *e) {
     SearchPage *p = (SearchPage *)lv_event_get_user_data(e);
     p->alpha = !p->alpha;
-    ui_toast(p->alpha ? "Ordine alfabetico" : "Ascoltati di recente per primi");
+    ui_toast(p->alpha ? TR("Ordine alfabetico") : TR("Ascoltati di recente per primi"));
     p->reload();
   }
 
@@ -92,8 +93,8 @@ class SearchPage : public Page {
       case CTX_ARTIST: return lib_artists()[e.index].name;
       case CTX_PLAYLIST: return lib_playlists()[e.index].name;
       case CTX_GENRE: return lib_genres()[e.index].name;
-      case CTX_LIKED: return "Brani che ti piacciono";
-      default: return "Tutti i brani";
+      case CTX_LIKED: return TR("Brani che ti piacciono");
+      default: return TR("Tutti i brani");
     }
   }
 
@@ -147,32 +148,32 @@ class SearchPage : public Page {
       case CTX_ALBUM: {
         const Album &a = lib_albums()[e.index];
         ui_cover_set(p.cover, COVER_ALBUM, e.index);
-        snprintf(sub, sizeof sub, "Album \xE2\x80\xA2 %s", a.artist);
+        snprintf(sub, sizeof sub, TR("Album \xE2\x80\xA2 %s"), a.artist);
         break;
       }
       case CTX_ARTIST:
         ui_cover_set(p.cover, COVER_ARTIST, e.index);
-        snprintf(sub, sizeof sub, "Artista");
+        snprintf(sub, sizeof sub, "%s", TR("Artista"));
         break;
       case CTX_PLAYLIST: {
         const Playlist &pl = lib_playlists()[e.index];
         ui_cover_set(p.cover, pl.tracks.empty() ? COVER_PLAYLIST : COVER_ALBUM,
                      pl.tracks.empty() ? -1 : lib_tracks()[pl.tracks[0]].album);
-        snprintf(sub, sizeof sub, "Playlist \xE2\x80\xA2 %u brani", (unsigned)pl.tracks.size());
+        snprintf(sub, sizeof sub, TR("Playlist \xE2\x80\xA2 %u brani"), (unsigned)pl.tracks.size());
         break;
       }
       case CTX_GENRE:
         ui_cover_set(p.cover, COVER_GENRE, e.index);
-        snprintf(sub, sizeof sub, "Genere \xE2\x80\xA2 %u brani", (unsigned)lib_genres()[e.index].tracks.size());
+        snprintf(sub, sizeof sub, TR("Genere \xE2\x80\xA2 %u brani"), (unsigned)lib_genres()[e.index].tracks.size());
         break;
       case CTX_LIKED:
         ui_cover_set(p.cover, COVER_LIKED, 0);
-        snprintf(sub, sizeof sub, "Playlist \xE2\x80\xA2 %u bran%s", (unsigned)lib_liked().size(),
-                 lib_liked().size() == 1 ? "o" : "i");
+        if (lib_liked().size() == 1) snprintf(sub, sizeof sub, "%s", TR("Playlist \xE2\x80\xA2 1 brano"));
+        else snprintf(sub, sizeof sub, TR("Playlist \xE2\x80\xA2 %u brani"), (unsigned)lib_liked().size());
         break;
       default:
         ui_cover_set(p.cover, COVER_ALL, 0);
-        snprintf(sub, sizeof sub, "%u brani", (unsigned)lib_tracks().size());
+        snprintf(sub, sizeof sub, TR("%u brani"), (unsigned)lib_tracks().size());
         break;
     }
     lv_label_set_text(p.title, name_of(e));
@@ -199,7 +200,7 @@ class SearchPage : public Page {
     lv_obj_add_event_cb(box, box_cb, LV_EVENT_CLICKED, this);
     lv_obj_t *ic = ui_icon(box, &icons_18, IC_SEARCH, lv_color_hex(0x121212));
     lv_obj_align(ic, LV_ALIGN_LEFT_MID, 10, 0);
-    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), "Cosa vuoi ascoltare?");
+    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), TR("Cosa vuoi ascoltare?"));
     lv_obj_align(ph, LV_ALIGN_LEFT_MID, 38, 0);
     lv_obj_t *so = ui_icon_btn(browse, &icons_18, IC_SORT, C_TEXT, sort_cb, this);
     lv_obj_set_pos(so, SCR_W - 12 - 26, 17);
@@ -215,7 +216,7 @@ class SearchPage : public Page {
     lv_obj_set_flex_align(cr, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_hor(cr, 12, 0);
     lv_obj_set_style_pad_gap(cr, 8, 0);
-    static const char *names[4] = {"Playlist", "Album", "Artisti", "Generi"};
+    const char *names[4] = {TR("Playlist"), TR("Album"), TR("Artisti"), TR("Generi")};
     for (int i = 0; i < 4; i++) chips[i] = ui_chip(cr, names[i], chip_cb, this);
 
     lib_list.create = [this](lv_obj_t *parent) {
@@ -298,7 +299,7 @@ class SearchPage : public Page {
 
     ta = lv_textarea_create(top);
     lv_textarea_set_one_line(ta, true);
-    lv_textarea_set_placeholder_text(ta, "Cosa vuoi ascoltare?");
+    lv_textarea_set_placeholder_text(ta, TR("Cosa vuoi ascoltare?"));
     lv_obj_set_size(ta, SCR_W - 90, 34);
     lv_obj_align(ta, LV_ALIGN_LEFT_MID, 8, 0);
     lv_obj_set_style_text_font(ta, &font_r14, 0);
@@ -313,7 +314,7 @@ class SearchPage : public Page {
     lv_obj_set_style_border_color(ta, C_GREEN, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_add_event_cb(ta, ta_cb, LV_EVENT_ALL, this);
 
-    cancel = ui_label(top, &font_r14, C_TEXT, "Annulla");
+    cancel = ui_label(top, &font_r14, C_TEXT, TR("Annulla"));
     lv_obj_add_flag(cancel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_ext_click_area(cancel, 10);
     lv_obj_set_style_opa(cancel, LV_OPA_60, LV_STATE_PRESSED);
@@ -328,7 +329,7 @@ class SearchPage : public Page {
     lv_obj_set_scrollbar_mode(results, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(results, results_scroll_begin_cb, LV_EVENT_SCROLL_BEGIN, this);
 
-    hint = ui_label(results, &font_r14, C_SUB, "Cerca brani, album e artisti\nsulla tua scheda SD.");
+    hint = ui_label(results, &font_r14, C_SUB, TR("Cerca brani, album e artisti\nsulla tua scheda SD."));
     lv_obj_set_width(hint, SCR_W - 40);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(hint, LV_ALIGN_TOP_MID, 0, 30);
@@ -369,14 +370,14 @@ class SearchPage : public Page {
       case R_ARTIST:
         ui_cover_set(p.cover, COVER_ARTIST, it.index);
         lv_label_set_text(p.title, lib_artists()[it.index].name);
-        lv_label_set_text(p.sub, "Artista");
+        lv_label_set_text(p.sub, TR("Artista"));
         lv_obj_add_flag(p.more, LV_OBJ_FLAG_HIDDEN);
         break;
       case R_ALBUM: {
         const Album &a = lib_albums()[it.index];
         ui_cover_set(p.cover, COVER_ALBUM, it.index);
         lv_label_set_text(p.title, a.title);
-        snprintf(sub, sizeof sub, "Album \xE2\x80\xA2 %s", a.artist);
+        snprintf(sub, sizeof sub, TR("Album \xE2\x80\xA2 %s"), a.artist);
         lv_label_set_text(p.sub, sub);
         lv_obj_add_flag(p.more, LV_OBJ_FLAG_HIDDEN);
         break;
@@ -386,7 +387,7 @@ class SearchPage : public Page {
         ui_cover_set(p.cover, pl.tracks.empty() ? COVER_PLAYLIST : COVER_ALBUM,
                      pl.tracks.empty() ? -1 : lib_tracks()[pl.tracks[0]].album);
         lv_label_set_text(p.title, pl.name);
-        lv_label_set_text(p.sub, "Playlist");
+        lv_label_set_text(p.sub, TR("Playlist"));
         lv_obj_add_flag(p.more, LV_OBJ_FLAG_HIDDEN);
         break;
       }
@@ -394,7 +395,7 @@ class SearchPage : public Page {
         const Track &t = lib_tracks()[it.index];
         ui_cover_set(p.cover, COVER_ALBUM, t.album);
         lv_label_set_text(p.title, t.title);
-        snprintf(sub, sizeof sub, "Brano \xE2\x80\xA2 %s", t.artist);
+        snprintf(sub, sizeof sub, TR("Brano \xE2\x80\xA2 %s"), t.artist);
         lv_label_set_text(p.sub, sub);
         lv_obj_remove_flag(p.more, LV_OBJ_FLAG_HIDDEN);
         if (ui_current_track() == it.index) lv_obj_set_style_text_color(p.title, C_GREEN, 0);
@@ -412,10 +413,10 @@ class SearchPage : public Page {
     for (auto a : res.playlists) items.push_back({R_PLAYLIST, a});
     for (auto t : res.tracks) items.push_back({R_TRACK, t});
     if (q[0] && items.empty()) {
-      lv_label_set_text_fmt(hint, "Nessun risultato per\n\"%s\"", q);
+      lv_label_set_text_fmt(hint, TR("Nessun risultato per\n\"%s\""), q);
       lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
     } else if (!q[0]) {
-      lv_label_set_text(hint, "Cerca brani, album e artisti\nsulla tua scheda SD.");
+      lv_label_set_text(hint, TR("Cerca brani, album e artisti\nsulla tua scheda SD."));
       lv_obj_remove_flag(hint, LV_OBJ_FLAG_HIDDEN);
     } else {
       lv_obj_add_flag(hint, LV_OBJ_FLAG_HIDDEN);

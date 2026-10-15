@@ -63,24 +63,24 @@ void ui_fmt_minutes(int m, char *buf, size_t n) {
   if (m < 0) {
     buf[0] = 0;
   } else if (m < 10) {
-    snprintf(buf, n, "~%d min", m < 1 ? 1 : m);
+    snprintf(buf, n, TR("~%d min"), m < 1 ? 1 : m);
   } else if (m < 60) {
-    snprintf(buf, n, "~%d min", (m + 2) / 5 * 5);
+    snprintf(buf, n, TR("~%d min"), (m + 2) / 5 * 5);
   } else if (m > 48 * 60) {
-    snprintf(buf, n, "oltre 2 giorni");
+    snprintf(buf, n, "%s", TR("oltre 2 giorni"));
   } else {
     int r = (m + 5) / 10 * 10;
-    if (r % 60) snprintf(buf, n, "~%d h %02d min", r / 60, r % 60);
-    else snprintf(buf, n, "~%d h", r / 60);
+    if (r % 60) snprintf(buf, n, TR("~%d h %02d min"), r / 60, r % 60);
+    else snprintf(buf, n, TR("~%d h"), r / 60);
   }
 }
 
 const char *ui_battery_state_text(const BatteryInfo &b) {
   switch (b.state) {
-    case BAT_CHARGING: return "In carica";
-    case BAT_FULL: return "Carica completa";
-    case BAT_DISCHARGING: return b.low ? "Batteria scarica" : "A batteria";
-    default: return "Batteria non rilevata";
+    case BAT_CHARGING: return TR("In carica");
+    case BAT_FULL: return TR("Carica completa");
+    case BAT_DISCHARGING: return b.low ? TR("Batteria scarica") : TR("A batteria");
+    default: return TR("Batteria non rilevata");
   }
 }
 
@@ -91,10 +91,10 @@ void ui_battery_tick() {
     s_warn10 = s_warn5 = false;
   } else if (b.pct <= 5 && !s_warn5) {
     s_warn5 = s_warn10 = true;
-    ui_toast("Batteria quasi esaurita: collega il caricatore");
+    ui_toast(TR("Batteria quasi esaurita: collega il caricatore"));
   } else if (b.pct <= 10 && !s_warn10) {
     s_warn10 = true;
-    ui_toast("Batteria al 10%");
+    ui_toast(TR("Batteria al 10%"));
   }
 }
 
@@ -106,9 +106,9 @@ void ui_power_off_screen() {
   lv_obj_set_style_bg_color(o, C_BLACK, 0);
   lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
   lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_t *t = ui_label(o, &font_b20, C_TEXT, "Spegnimento");
+  lv_obj_t *t = ui_label(o, &font_b20, C_TEXT, TR("Spegnimento"));
   lv_obj_align(t, LV_ALIGN_CENTER, 0, -10);
-  lv_obj_t *s = ui_label(o, &font_r12, C_SUB, "Premi il tasto BOOT per riaccendere");
+  lv_obj_t *s = ui_label(o, &font_r12, C_SUB, TR("Premi il tasto BOOT per riaccendere"));
   lv_obj_align(s, LV_ALIGN_CENTER, 0, 18);
 }
 
@@ -127,11 +127,11 @@ void ui_battery_empty_screen(bool at_boot) {
   lv_obj_t *ic = ui_battery_icon(o, 64, 28);
   ui_battery_icon_set(ic, 6, C_RED);
   lv_obj_align(ic, LV_ALIGN_CENTER, 0, -46);
-  lv_obj_t *t = ui_label(o, &font_b20, C_TEXT, "Batteria scarica");
+  lv_obj_t *t = ui_label(o, &font_b20, C_TEXT, TR("Batteria scarica"));
   lv_obj_align(t, LV_ALIGN_CENTER, 0, 0);
   lv_obj_t *s = ui_label(o, &font_r12, C_SUB,
-                         at_boot ? "Collega il caricatore. Se è già in carica,\nriprova tra qualche minuto."
-                                 : "Ho salvato il punto in cui eri.\nCollega il caricatore e tocca lo\nschermo per riaccendere.");
+                         at_boot ? TR("Collega il caricatore. Se è già in carica,\nriprova tra qualche minuto.")
+                                 : TR("Ho salvato il punto in cui eri.\nCollega il caricatore e tocca lo\nschermo per riaccendere."));
   lv_obj_set_style_text_align(s, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(s, LV_ALIGN_CENTER, 0, 40);
 }
