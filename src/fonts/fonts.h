@@ -12,7 +12,6 @@ LV_FONT_DECLARE(font_b14);
 LV_FONT_DECLARE(font_b16);
 LV_FONT_DECLARE(font_b20);
 LV_FONT_DECLARE(font_b26);
-LV_FONT_DECLARE(icons_10);   // solo IC_BOLT
 LV_FONT_DECLARE(icons_14);
 LV_FONT_DECLARE(icons_18);
 LV_FONT_DECLARE(icons_22);
@@ -58,4 +57,4 @@ LV_FONT_DECLARE(icons_28);
 #define IC_WIFI          "\xEF\x87\xAB"
 #define IC_LOCK          "\xEF\x80\xA3"
 #define IC_UPLOAD        "\xEF\x82\x93"
-#define IC_BOLT          "\xEF\x83\xA7"   // solo icons_10
+#define IC_BOLT          "\xEF\x83\xA7"

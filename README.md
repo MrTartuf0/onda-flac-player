@@ -13,14 +13,15 @@ come sul telefono). Interfaccia touch in stile Spotify, scritta con LVGL 9.5 (in
 - **Cerca**: ricerca istantanea (senza accenti: "bjork" trova "Björk") + "Sfoglia tutto" per genere
 - **La tua libreria**: filtri Playlist / Album / Artisti / Generi, ordinamento Recenti / Alfabetico
 - Pagine **album**, **artista** (Popolari + Discografia), **playlist** `.m3u`, **Brani che ti piacciono**
-- **In riproduzione**: copertina, gradiente col colore dell'album, seek, casuale, uscita audio con volume,
+- **In riproduzione**: copertina, gradiente col colore dell'album, seek, casuale, coda,
   swipe sinistra/destra per cambiare brano, giù per chiudere, su per la coda, formato (es. *FLAC 24 bit • 96 kHz*)
 - **Coda** con Casuale e Ripeti (tutto / brano), "Aggiungi in coda", menu del brano (Mi piace, Vai all'album/artista)
 - **Gesto indietro** come su Android: trascina dal bordo sinistro verso l'interno
+- **Centro di controllo** come su iPhone: scorri su dal bordo in basso (vedi sotto)
 - **Trasferimento file via Wi-Fi** dal browser (vedi sotto)
-- **Batteria**: percentuale e stato di ricarica sempre visibili in alto a destra, avvisi al 10% e 5%,
+- **Batteria**: percentuale e stato di ricarica nel centro di controllo, avvisi al 10% e 5%,
   standby automatico quando è esaurita (vedi sotto)
-- **Selettore dispositivo** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
+- **Uscita audio** (Automatico / Altoparlante / Cuffie) con volume separato per ciascuna uscita
 - Mini player sempre visibile, riprende brano e posizione (salvata in pausa) all'accensione
 - FLAC 8–32 bit, 8–96 kHz; i file a 176.4/192 kHz vengono decimati a 88.2/96 kHz
 - Copertine JPEG incorporate nel FLAC o `cover.jpg` / `folder.jpg` / `front.jpg` nella cartella
@@ -118,12 +119,23 @@ interna del chip. La velocità tipica è di circa 0,5-1 MB/s.
 La pagina web è in `tools/web/index.html`; dopo averla modificata rigenera
 `src/net/web_index.h` con `python3 tools/web/embed.py`.
 
+## Centro di controllo
+
+Scorri il dito verso l'alto partendo dal **bordo in basso** dello schermo (da qualsiasi
+schermata, anche In riproduzione): il pannello segue il dito, come su iPhone. Si chiude
+scorrendo giù, toccando uno spazio vuoto o col gesto indietro.
+
+- **Wi-Fi**: apre il trasferimento file (blu quando è attivo)
+- **Altoparlante / Cuffie / AUTO**: sceglie l'uscita audio (AUTO = cuffie quando le inserisci)
+- **Batteria**: anello con la percentuale, stato di carica e tempo alla carica completa
+- **Volume** e **Luminosità**: trascina il dito su o giù partendo da un punto qualsiasi del
+  riquadro; il volume è quello dell'uscita in uso
+
 ## Batteria
 
-Con una LiPo 3,7 V sul connettore **BAT** (testato con 1100 mAh) in alto a destra compaiono la
-percentuale e la pila; con il cavo collegato la pila diventa verde con il fulmine. In
-**Impostazioni → Batteria** ci sono tensione, stato, tempo stimato alla carica completa e
-l'opzione per nascondere la percentuale.
+Con una LiPo 3,7 V sul connettore **BAT** (testato con 1100 mAh) livello e stato di ricarica
+sono nel centro di controllo. In **Impostazioni → Batteria** ci sono anche tensione e tempo
+stimato alla carica completa.
 
 - **Ricarica**: il caricatore della scheda (TP4054, circa 300 mA) carica una 1100 mAh in circa
   4 ore; l'ultima parte (dal 90% circa) è più lenta.
@@ -149,12 +161,13 @@ FlacPlayer/
   src/config.h            pin e opzioni
   src/hal/display.*       ILI9341 via esp_lcd (SPI+DMA), touch FT6336U, driver LVGL
   src/hal/battery.*       lettura della batteria, stima di percentuale e stato di ricarica
-  src/hal/edge_swipe.*    gesto "indietro" dal bordo sinistro
+  src/hal/edge_swipe.*    gesti dai bordi: "indietro" (sinistra) e centro di controllo (in basso)
   src/audio/es8311.*      codec dello speaker
   src/audio/audio_out.*   I2S 32 bit, duplicazione sul PCM5102, rilevamento cuffie, volumi
   src/audio/player.*      task di decodifica (dr_flac), coda, shuffle/repeat, rampe anti-click
   src/lib/                scansione SD, tag FLAC, indice, ricerca, preferiti, copertine (TJpgDec)
-  src/ui/                 pagine LVGL (Home, Cerca, Libreria, Album, Artista, In riproduzione...)
+  src/ui/                 pagine LVGL (Home, Cerca, Libreria, Album, Artista, In riproduzione,
+                          centro di controllo...)
   src/net/                trasferimento file: Wi-Fi, hotspot, mDNS, server HTTP e pagina web
   src/fonts/              font generati (Figtree + icone Font Awesome)
   src/lvgl/               LVGL 9.5.0 (solo i file necessari, licenza MIT)

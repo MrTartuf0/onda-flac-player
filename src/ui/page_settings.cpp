@@ -34,9 +34,6 @@ class SettingsPage : public Page {
     audio_out_set_detect_inverted(on);
     plat_kv_set("hp_inv", on);
   }
-  static void batpct_cb(lv_event_t *e) {
-    ui_battery_set_show_pct(lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
-  }
   static void bat_timer_cb(lv_timer_t *t) { ((SettingsPage *)lv_timer_get_user_data(t))->bat_update(); }
 
   void bat_update() {
@@ -66,7 +63,8 @@ class SettingsPage : public Page {
 
   static void bright_cb(lv_event_t *e) {
     lv_obj_t *s = lv_event_get_target_obj(e);
-    ui_set_brightness(lv_slider_get_value(s));
+    // mentre trascini cambia e basta; si salva al rilascio (niente scritture in flash a ogni passo)
+    ui_set_brightness(lv_slider_get_value(s), lv_event_get_code(e) == LV_EVENT_RELEASED);
   }
 
   void section(const char *t) {
@@ -144,7 +142,6 @@ class SettingsPage : public Page {
     lv_obj_t *bs = row("Stato", "-", nullptr);
     bat_state = lv_obj_get_child(bs, 1);
     lv_obj_set_width(bat_state, SCR_W - 28);
-    toggle("Percentuale in alto", nullptr, ui_battery_show_pct(), batpct_cb);
     bat_update();
     bat_timer = lv_timer_create(bat_timer_cb, 1000, this);
 
@@ -162,13 +159,14 @@ class SettingsPage : public Page {
     lv_obj_set_size(sl, 110, 4);
     lv_obj_align(sl, LV_ALIGN_RIGHT_MID, -20, 0);
     lv_slider_set_range(sl, 10, 100);
-    lv_slider_set_value(sl, plat_kv_get("bright", 80), LV_ANIM_OFF);
+    lv_slider_set_value(sl, ui_brightness(), LV_ANIM_OFF);
     lv_obj_set_ext_click_area(sl, 14);
     lv_obj_set_style_bg_color(sl, lv_color_hex(0x5A5A5A), LV_PART_MAIN);
     lv_obj_set_style_bg_color(sl, C_GREEN, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(sl, C_TEXT, LV_PART_KNOB);
     lv_obj_set_style_pad_all(sl, 5, LV_PART_KNOB);
     lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_VALUE_CHANGED, this);
+    lv_obj_add_event_cb(sl, bright_cb, LV_EVENT_RELEASED, this);
 
     section("Wi-Fi");
     row("Trasferimento file", "Carica e gestisci la musica dal browser", xfer_cb);

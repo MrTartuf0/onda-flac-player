@@ -381,7 +381,14 @@ static void edge_end(bool commit) {
   if (commit && s_main_built) lv_async_call(edge_back_async, nullptr);
 }
 
-static bool edge_excluded(int x, int y) { return s_main_built && ui_nowplaying_blocks_edge(x, y); }
+static bool edge_excluded(int x, int y) {
+  if (ui_cc_visible()) return ui_cc_blocks_edge(x, y);
+  return s_main_built && ui_nowplaying_blocks_edge(x, y);
+}
+
+// centro di controllo: dal bordo in basso, quando l'interfaccia è pronta e la
+// tastiera non occupa il fondo dello schermo
+static bool cc_allowed() { return s_main_built && s_chrome && !ui_cc_visible(); }
 
 lv_obj_t *ui_page_root() { return s_pages; }
 
@@ -419,6 +426,7 @@ void ui_pop() {
 }
 
 void ui_back() {
+  if (ui_cc_close()) return;
   if (ui_transfer_back()) return;
   if (!s_main_built) return;
   if (ui_sheet_close()) return;
@@ -541,10 +549,15 @@ const char *ctx_type_label(CtxType t) {
   }
 }
 
-void ui_set_brightness(uint8_t pct) {
-  plat_kv_set("bright", pct);
+static uint8_t s_bright = 80;
+
+void ui_set_brightness(uint8_t pct, bool save) {
+  s_bright = pct;
+  if (save) plat_kv_set("bright", pct);
   if (s_bright_fn) s_bright_fn(pct);
 }
+
+uint8_t ui_brightness() { return s_bright; }
 
 void ui_session_save() { save_session(true); }
 
@@ -603,15 +616,18 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   lv_obj_set_width(tl, lv_pct(100));
   lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
 
-  ui_battery_build();
+  ui_cc_build();
   edge_build();
   EdgeSwipeHooks h;
   h.update = edge_update;
   h.end = edge_end;
   h.excluded = edge_excluded;
+  h.bottom_allowed = cc_allowed;
+  h.bottom_update = ui_cc_drag;
+  h.bottom_end = ui_cc_drag_end;
   edge_swipe_set_hooks(h);
 
-  ui_set_brightness(plat_kv_get("bright", 80));
+  ui_set_brightness(plat_kv_get("bright", 80), false);
   lv_timer_create([](lv_timer_t *) { ui_tick(); }, 100, nullptr);
 }
 

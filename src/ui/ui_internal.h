@@ -137,7 +137,8 @@ bool ui_nowplaying_visible();
 void ui_nowplaying_refresh(uint32_t what);
 void ui_nowplaying_tick();
 void ui_nowplaying_build(lv_obj_t *scr);
-void ui_set_brightness(uint8_t pct);
+void ui_set_brightness(uint8_t pct, bool save = true);   // save: scrive in flash
+uint8_t ui_brightness();
 void ui_request_rescan(bool force = true);
 // Trasferimento file via Wi-Fi (src/ui/transfer.cpp)
 void ui_transfer_open();
@@ -150,10 +151,14 @@ void ui_after_transfer(bool changed);    // dopo il trasferimento: riscansione o
 const char *ctx_type_label(CtxType t);
 // Batteria (src/ui/battery_ui.cpp)
 struct BatteryInfo;
-void ui_battery_build();                 // indicatore in alto a destra
-void ui_battery_tick();
+void ui_battery_tick();                  // avvisi di batteria scarica
 lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h);
 void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c);
 const char *ui_battery_state_text(const BatteryInfo &b);
-void ui_battery_set_show_pct(bool on);
-bool ui_battery_show_pct();
+// Centro di controllo (src/ui/control_center.cpp): scorri su dal bordo in basso
+void ui_cc_build();
+bool ui_cc_visible();
+bool ui_cc_close();                      // false se non era aperto
+void ui_cc_drag(int dist);               // gesto dal bordo in basso in corso
+void ui_cc_drag_end(bool commit, int speed);
+bool ui_cc_blocks_edge(int x, int y);

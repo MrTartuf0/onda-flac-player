@@ -79,7 +79,7 @@
 /* Widget: solo quelli usati (la tastiera richiede buttonmatrix e textarea). */
 #define LV_WIDGETS_HAS_DEFAULT_VALUE 0
 #define LV_USE_ANIMIMG      0
-#define LV_USE_ARC          0
+#define LV_USE_ARC          1   // anello della batteria (centro di controllo)
 #define LV_USE_ARCLABEL     0
 #define LV_USE_BAR          1
 #define LV_USE_BUTTON       1

@@ -1,5 +1,5 @@
-// Batteria nell'interfaccia: indicatore sempre visibile in alto a destra,
-// avvisi di batteria scarica e schermata di spegnimento.
+// Batteria nell'interfaccia: pila disegnata (usata dal centro di controllo e
+// dalle impostazioni), avvisi di batteria scarica e schermata di spegnimento.
 #include "ui.h"
 #include "ui_internal.h"
 #include <stdio.h>
@@ -11,13 +11,7 @@
 
 namespace {
 
-lv_obj_t *s_root, *s_bolt, *s_pct, *s_icon;
-BatteryInfo s_last;
-bool s_have = false;
-bool s_show_pct = true;
 bool s_warn10 = false, s_warn5 = false;
-
-void place() { lv_obj_align(s_root, LV_ALIGN_TOP_RIGHT, -5, 0); }
 
 }  // namespace
 
@@ -44,6 +38,7 @@ lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h) {
   lv_obj_set_style_bg_color(tip, C_TEXT, 0);
   lv_obj_set_style_bg_opa(tip, LV_OPA_70, 0);
   lv_obj_set_style_radius(tip, 1, 0);
+  for (lv_obj_t *o : {wrap, body, fill, tip}) lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);   // solo disegno
   return wrap;
 }
 
@@ -69,57 +64,9 @@ const char *ui_battery_state_text(const BatteryInfo &b) {
   }
 }
 
-void ui_battery_set_show_pct(bool on) {
-  s_show_pct = on;
-  plat_kv_set("bat_pct", on);
-  s_have = false;   // ridisegna
-  ui_battery_tick();
-}
-
-bool ui_battery_show_pct() { return s_show_pct; }
-
-void ui_battery_build() {
-  s_show_pct = plat_kv_get("bat_pct", 1) != 0;
-  s_root = ui_box(lv_layer_top());
-  lv_obj_set_size(s_root, LV_SIZE_CONTENT, 11);
-  lv_obj_set_flex_flow(s_root, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(s_root, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(s_root, 3, 0);
-  lv_obj_remove_flag(s_root, LV_OBJ_FLAG_CLICKABLE);
-  s_bolt = ui_label(s_root, &icons_10, C_GREEN, IC_BOLT);
-  s_pct = ui_label(s_root, &font_b10, C_TEXT, "");
-  s_icon = ui_battery_icon(s_root, 17, 8);
-  lv_obj_add_flag(s_root, LV_OBJ_FLAG_HIDDEN);
-  place();
-}
-
+// Avvisi di batteria scarica (una volta per ciclo di scarica)
 void ui_battery_tick() {
-  if (!s_root) return;
   BatteryInfo b = battery_info();
-  if (s_have && b.state == s_last.state && b.pct == s_last.pct && b.low == s_last.low) return;
-  s_have = true;
-  s_last = b;
-  if (b.state == BAT_NONE || b.pct < 0) {
-    lv_obj_add_flag(s_root, LV_OBJ_FLAG_HIDDEN);
-    return;
-  }
-  bool chg = b.state == BAT_CHARGING || b.state == BAT_FULL;
-  lv_color_t c = chg ? C_GREEN : (b.low ? C_RED : C_TEXT);
-  if (chg) lv_obj_remove_flag(s_bolt, LV_OBJ_FLAG_HIDDEN);
-  else lv_obj_add_flag(s_bolt, LV_OBJ_FLAG_HIDDEN);
-  if (s_show_pct) {
-    lv_label_set_text_fmt(s_pct, "%d%%", b.pct);
-    lv_obj_remove_flag(s_pct, LV_OBJ_FLAG_HIDDEN);
-  } else {
-    lv_obj_add_flag(s_pct, LV_OBJ_FLAG_HIDDEN);
-  }
-  lv_obj_set_style_text_color(s_pct, b.low ? C_RED : C_TEXT, 0);
-  ui_battery_icon_set(s_icon, b.pct, c);
-  lv_obj_remove_flag(s_root, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_move_to_index(s_root, 0);   // sotto a notifiche e gesti, sopra alle schermate
-  place();
-
-  // ---- avvisi (una volta per ciclo di scarica) ----
   if (b.state != BAT_DISCHARGING || b.pct > 15) {
     s_warn10 = s_warn5 = false;
   } else if (b.pct <= 5 && !s_warn5) {

@@ -10,15 +10,15 @@
 namespace {
 
 // Disposizione verticale (240x320): copertina grande, comandi in basso.
-constexpr int CV = 154;           // lato copertina
-constexpr int Y_COVER = 40;
+constexpr int CV = 156;           // lato copertina
+constexpr int Y_COVER = 38;
 constexpr int Y_TITLE = Y_COVER + CV + 8;
 constexpr int Y_SLIDER = Y_TITLE + 46;
 constexpr int Y_TIME = Y_SLIDER + 9;
 constexpr int Y_CTRL = Y_TIME + 39;   // centro della riga dei comandi
 
 lv_obj_t *np, *np_ctx_type, *np_ctx_name, *np_cover, *np_title, *np_artist, *np_heart, *np_slider,
-    *np_t_pos, *np_t_dur, *np_play, *np_shuffle, *np_audio, *np_fmt, *np_rep_ind, *np_rep_one;
+    *np_t_pos, *np_t_dur, *np_play, *np_shuffle, *np_fmt, *np_rep_ind, *np_rep_one;
 bool np_open = false;
 bool np_dragging = false;
 int np_track = -2;
@@ -30,25 +30,6 @@ size_t q_manual = 0;
 uint32_t q_ver = 0;
 lv_obj_t *q_now_row, *q_head_next, *q_head_ctx;
 lv_obj_t *q_shuffle, *q_repeat;   // pulsanti in fondo alla coda (come Spotify)
-
-// Volume "a pressione": tenendo premuto il pulsante dell'uscita audio compare un
-// cursore verticale; trascinando il dito (senza sollevarlo) si regola il volume,
-// al rilascio sparisce. Se invece lasci il dito senza muoverlo il cursore resta
-// aperto e si usa toccandolo (si chiude da solo o toccando fuori).
-// Un tocco breve sul pulsante apre il foglio dei dispositivi.
-// Stile Spotify: scheda scura, barra sottile verde con pallino bianco; alta quasi
-// tutto lo schermo per scegliere la percentuale con precisione (~1,8 px per 1%).
-constexpr int VP_W = 48, VP_Y = 44, VP_H = Y_CTRL - 14 - VP_Y;
-constexpr int VP_TOP = 30;                             // spazio per la percentuale
-constexpr int VP_TRACK = VP_H - VP_TOP - 30;           // lunghezza della barra
-constexpr int VP_TRACK_BOT = VP_Y + VP_TOP + VP_TRACK; // fondo della barra (volume 0), coordinate schermo
-constexpr int VP_KNOB = 14;
-enum VpMode : uint8_t { VP_OFF, VP_HOLD, VP_OPEN };
-lv_obj_t *vp, *vp_fill, *vp_knob, *vp_pct, *vp_icon, *vp_shield;
-lv_timer_t *vp_timer = nullptr;
-VpMode vp_mode = VP_OFF;
-bool vp_moved = false;
-int vp_y0 = 0, vp_v0 = 0;
 
 void anim_y_cb(void *o, int32_t v) { lv_obj_set_y((lv_obj_t *)o, v); }
 void anim_hide_cb(lv_anim_t *a) { lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN); }
@@ -80,173 +61,14 @@ void repeat_cb(lv_event_t *) {
   ui_toast(r == REPEAT_OFF ? "Ripetizione disattivata" : r == REPEAT_ALL ? "Ripeti tutto" : "Ripeti il brano");
 }
 
-const char *audio_icon(OutputDev d, int v) {
-  if (d == DEV_HEADPHONES) return IC_HEADPHONES;
-  return v == 0 ? IC_VOL_MUTE : v < 45 ? IC_VOL_LOW : IC_SPEAKER;
-}
-
-void vp_set(int v) {
-  OutputDev d = audio_out_active();
-  int h = v * VP_TRACK / 100;
-  lv_obj_set_height(vp_fill, h);
-  lv_obj_set_y(vp_knob, VP_TOP + VP_TRACK - h - VP_KNOB / 2);
-  lv_label_set_text_fmt(vp_pct, "%d%%", v);
-  lv_label_set_text(vp_icon, audio_icon(d, v));
-  lv_label_set_text(np_audio, audio_icon(d, v));
-}
-
-void vp_apply(int v) {
-  v = v < 0 ? 0 : v > 100 ? 100 : v;
-  OutputDev d = audio_out_active();
-  if (v != audio_out_volume(d)) {
-    audio_out_set_volume(d, v);
-    vp_set(v);
-  }
-}
-
-void vp_hide() {
-  if (vp_mode == VP_OFF) return;
-  vp_mode = VP_OFF;
-  if (vp_timer) {
-    lv_timer_delete(vp_timer);
-    vp_timer = nullptr;
-  }
-  lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
-  OutputDev d = audio_out_active();
-  plat_kv_set(d == DEV_HEADPHONES ? "vol_h" : "vol_s", audio_out_volume(d));
-}
-
-void vp_timer_cb(lv_timer_t *) {
-  vp_timer = nullptr;   // timer a esecuzione singola: LVGL lo elimina da solo
-  vp_hide();
-}
-
-void vp_hide_after(uint32_t ms) {
-  if (vp_timer) {
-    lv_timer_set_period(vp_timer, ms);
-    lv_timer_reset(vp_timer);
-    return;
-  }
-  vp_timer = lv_timer_create(vp_timer_cb, ms, nullptr);
-  lv_timer_set_repeat_count(vp_timer, 1);
-}
-
-void audio_btn_cb(lv_event_t *e) {
-  lv_event_code_t c = lv_event_get_code(e);
-  if (c == LV_EVENT_SHORT_CLICKED) {
-    ui_device_sheet();
-    return;
-  }
-  lv_indev_t *in = lv_indev_active();
-  if (c == LV_EVENT_LONG_PRESSED && in) {
-    lv_point_t p;
-    lv_indev_get_point(in, &p);
-    vp_mode = VP_HOLD;
-    vp_moved = false;
-    vp_y0 = p.y;
-    vp_v0 = audio_out_volume(audio_out_active());
-    vp_set(vp_v0);
-    lv_obj_move_to_index(vp, -1);
-    lv_obj_remove_flag(vp, LV_OBJ_FLAG_HIDDEN);
-    return;
-  }
-  if (vp_mode != VP_HOLD) return;
-  if (c == LV_EVENT_PRESSING && in) {
-    lv_point_t p;
-    lv_indev_get_point(in, &p);
-    int dy = p.y - vp_y0;
-    if (dy > 5 || dy < -5) vp_moved = true;
-    if (dy <= 0) {
-      vp_apply(vp_v0 - dy * 100 / VP_TRACK);   // su = più forte
-    } else {
-      // il pulsante è in fondo allo schermo: verso il basso lo spazio è poco,
-      // quindi la corsa si adatta e il bordo dello schermo corrisponde a 0
-      int room = (SCR_H - 4) - vp_y0;
-      if (room < 16) room = 16;
-      int a = dy * 100 / VP_TRACK, b = dy * vp_v0 / room;
-      vp_apply(vp_v0 - (a > b ? a : b));
-    }
-  } else if (c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) {
-    if (vp_moved) {
-      vp_hide();
-    } else {
-      // dito sollevato senza trascinare: il cursore resta aperto e si tocca direttamente
-      vp_mode = VP_OPEN;
-      lv_obj_move_to_index(vp_shield, -1);
-      lv_obj_move_to_index(vp, -1);
-      lv_obj_remove_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
-      vp_hide_after(2500);
-    }
-  }
-}
-
-// cursore aperto: la posizione del dito sulla barra è il volume
-void vp_touch_cb(lv_event_t *e) {
-  if (vp_mode != VP_OPEN) return;
-  lv_event_code_t c = lv_event_get_code(e);
-  lv_indev_t *in = lv_indev_active();
-  if ((c == LV_EVENT_PRESSED || c == LV_EVENT_PRESSING) && in) {
-    lv_point_t p;
-    lv_indev_get_point(in, &p);
-    vp_apply((VP_TRACK_BOT - p.y) * 100 / VP_TRACK);
-    vp_hide_after(2500);
-  } else if (c == LV_EVENT_RELEASED || c == LV_EVENT_PRESS_LOST) {
-    vp_hide_after(1500);
-  }
-}
-
-void vp_shield_cb(lv_event_t *) { vp_hide(); }   // tocco fuori dal cursore
-
-void build_volume_popup() {
-  vp_shield = ui_box(np);   // trasparente, a tutto schermo, dietro al cursore aperto
-  lv_obj_set_size(vp_shield, SCR_W, SCR_H);
-  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(vp_shield, LV_OBJ_FLAG_GESTURE_BUBBLE);
-  lv_obj_add_event_cb(vp_shield, vp_shield_cb, LV_EVENT_PRESSED, nullptr);
-  lv_obj_add_flag(vp_shield, LV_OBJ_FLAG_HIDDEN);
-
-  vp = ui_box(np);
-  lv_obj_set_size(vp, VP_W, VP_H);
-  lv_obj_set_pos(vp, SCR_W - VP_W - 6, VP_Y);
-  lv_obj_set_style_radius(vp, 10, 0);
-  lv_obj_set_style_bg_color(vp, lv_color_hex(0x282828), 0);
-  lv_obj_set_style_bg_opa(vp, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_color(vp, lv_color_hex(0x3E3E3E), 0);
-  lv_obj_set_style_border_width(vp, 1, 0);
-  vp_pct = ui_label(vp, &font_b12, C_TEXT, "0%");
-  lv_obj_align(vp_pct, LV_ALIGN_TOP_MID, 0, 9);
-  lv_obj_t *track = ui_box(vp);
-  lv_obj_set_size(track, 4, VP_TRACK);
-  lv_obj_align(track, LV_ALIGN_TOP_MID, 0, VP_TOP);
-  lv_obj_set_style_radius(track, 2, 0);
-  lv_obj_set_style_clip_corner(track, true, 0);
-  lv_obj_set_style_bg_color(track, lv_color_hex(0x4D4D4D), 0);
-  lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
-  lv_obj_remove_flag(track, LV_OBJ_FLAG_CLICKABLE);   // i tocchi vanno al riquadro
-  vp_fill = ui_box(track);
-  lv_obj_remove_flag(vp_fill, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(vp_fill, 4, 0);
-  lv_obj_align(vp_fill, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_set_style_bg_color(vp_fill, C_GREEN, 0);
-  lv_obj_set_style_bg_opa(vp_fill, LV_OPA_COVER, 0);
-  vp_knob = ui_box(vp);
-  lv_obj_remove_flag(vp_knob, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_size(vp_knob, VP_KNOB, VP_KNOB);
-  lv_obj_set_x(vp_knob, (VP_W - VP_KNOB) / 2 - 1);
-  lv_obj_set_style_radius(vp_knob, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(vp_knob, C_TEXT, 0);
-  lv_obj_set_style_bg_opa(vp_knob, LV_OPA_COVER, 0);
-  vp_icon = ui_icon(vp, &icons_14, IC_SPEAKER, C_SUB);
-  lv_obj_align(vp_icon, LV_ALIGN_BOTTOM_MID, 0, -8);
-  lv_obj_add_flag(vp, LV_OBJ_FLAG_CLICKABLE);   // usato solo quando è aperto (VP_OPEN)
-  lv_obj_add_flag(vp, LV_OBJ_FLAG_PRESS_LOCK);
-  lv_obj_remove_flag(vp, LV_OBJ_FLAG_GESTURE_BUBBLE);
-  lv_obj_add_event_cb(vp, vp_touch_cb, LV_EVENT_ALL, nullptr);
-  lv_obj_add_flag(vp, LV_OBJ_FLAG_HIDDEN);
-}
 void queue_cb(lv_event_t *) { ui_queue_open(); }
+// LVGL manda "cliccato" anche alla fine di uno scorrimento: in quel caso si ignora
+bool after_gesture() {
+  lv_indev_t *in = lv_indev_active();
+  return in && lv_indev_get_gesture_dir(in) != LV_DIR_NONE;
+}
 void heart_cb(lv_event_t *) {
+  if (after_gesture()) return;
   int t = ui_current_track();
   if (t < 0) return;
   bool on = !lib_is_liked(t);
@@ -255,10 +77,12 @@ void heart_cb(lv_event_t *) {
   ui_nowplaying_refresh(RF_LIKED);
 }
 void title_cb(lv_event_t *) {
+  if (after_gesture()) return;
   int t = ui_current_track();
   if (t >= 0) ui_open_album(lib_tracks()[t].album);
 }
 void artist_cb(lv_event_t *) {
+  if (after_gesture()) return;
   int t = ui_current_track();
   if (t >= 0) ui_open_artist(lib_albums()[lib_tracks()[t].album].artist_idx);
 }
@@ -382,7 +206,7 @@ void build_queue(lv_obj_t *scr) {
   q_list.init(sc, 118, 56);
 
   // in fondo: casuale e ripeti (la ripetizione sta qui, il suo posto nei comandi
-  // della schermata "In riproduzione" ora è dell'uscita audio)
+  // della schermata "In riproduzione" ora è del pulsante della coda)
   lv_obj_t *ft = ui_box(q_view);
   lv_obj_set_size(ft, SCR_W, FOOT);
   lv_obj_set_y(ft, SCR_H - FOOT);
@@ -422,20 +246,21 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_set_style_bg_grad_dir(np, LV_GRAD_DIR_VER, 0);
   lv_obj_set_style_bg_opa(np, LV_OPA_COVER, 0);
   lv_obj_add_flag(np, LV_OBJ_FLAG_CLICKABLE);
+  // in LVGL 9 i gesti risalgono fino allo schermo: si fermano qui (giù chiude,
+  // su apre la coda, sinistra/destra cambiano brano, anche partendo dalla copertina)
+  lv_obj_remove_flag(np, LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(np, gesture_cb, LV_EVENT_GESTURE, nullptr);
 
   lv_obj_t *dn = ui_icon_btn(np, &icons_18, IC_DOWN, C_TEXT, close_cb);
-  lv_obj_set_pos(dn, 14, 13);   // sotto all'indicatore della batteria
+  lv_obj_set_pos(dn, 14, 10);
   np_ctx_type = ui_label(np, &font_b8, C_SUB, "");
   lv_obj_set_style_text_letter_space(np_ctx_type, 1, 0);
-  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 11);
+  lv_obj_align(np_ctx_type, LV_ALIGN_TOP_MID, 0, 7);
   np_ctx_name = ui_label(np, &font_b12, C_TEXT, "");
   ui_dot(np_ctx_name);
   lv_obj_set_width(np_ctx_name, SCR_W - 96);
   lv_obj_set_style_text_align(np_ctx_name, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(np_ctx_name, LV_ALIGN_TOP_MID, 0, 22);
-  lv_obj_t *qb = ui_icon_btn(np, &icons_18, IC_QUEUE, C_TEXT, queue_cb);
-  lv_obj_align(qb, LV_ALIGN_TOP_RIGHT, -14, 13);
+  lv_obj_align(np_ctx_name, LV_ALIGN_TOP_MID, 0, 18);
 
   np_cover = ui_cover(np, CV, 4);
   lv_obj_align(np_cover, LV_ALIGN_TOP_MID, 0, Y_COVER);
@@ -484,7 +309,8 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   np_rep_one = ui_label(np, &font_b10, C_GREEN, "1");
   lv_obj_set_pos(np_rep_one, 60, Y_TIME - 6);
 
-  // comandi: casuale | precedente | play | successivo | uscita audio
+  // comandi: casuale | precedente | play | successivo | coda
+  // (volume e uscita audio stanno nel centro di controllo: scorri su dal bordo in basso)
   np_shuffle = ctrl(np, &icons_18, IC_SHUFFLE, shuffle_cb, -96, Y_CTRL - 9);
   ctrl(np, &icons_22, IC_PREV, prev_cb, -50, Y_CTRL - 11);
   np_play = ui_box(np);
@@ -501,14 +327,8 @@ void ui_nowplaying_build(lv_obj_t *scr) {
   lv_obj_t *pi = ui_icon(np_play, &icons_22, IC_PLAY, C_BLACK);
   lv_obj_center(pi);
   ctrl(np, &icons_22, IC_NEXT, next_cb, 50, Y_CTRL - 11);
-  // uscita audio: altoparlante / cuffie (verde se cuffie); apre dispositivo + volume
-  np_audio = ctrl(np, &icons_18, IC_SPEAKER, nullptr, 96, Y_CTRL - 9);
-  lv_obj_add_event_cb(np_audio, audio_btn_cb, LV_EVENT_ALL, nullptr);
-  lv_obj_add_flag(np_audio, LV_OBJ_FLAG_PRESS_LOCK);              // continua a ricevere il dito anche fuori
-  lv_obj_remove_flag(np_audio, LV_OBJ_FLAG_GESTURE_BUBBLE);       // trascinare non chiude la schermata
-  lv_obj_remove_flag(np_audio, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_ext_click_area(np_audio, 14);
-  build_volume_popup();
+  lv_obj_t *qb = ctrl(np, &icons_18, IC_QUEUE, queue_cb, 96, Y_CTRL - 9);
+  lv_obj_set_ext_click_area(qb, 10);
 
   lv_obj_add_flag(np, LV_OBJ_FLAG_HIDDEN);
   build_queue(scr);
@@ -538,7 +358,6 @@ void ui_nowplaying_open() {
 }
 
 void ui_nowplaying_close() {
-  vp_hide();
   if (q_view && !lv_obj_has_flag(q_view, LV_OBJ_FLAG_HIDDEN)) slide(q_view, false);
   if (!np_open) return;
   np_open = false;
@@ -604,9 +423,6 @@ void ui_nowplaying_refresh(uint32_t what) {
   else lv_obj_add_flag(np_rep_ind, LV_OBJ_FLAG_HIDDEN);
   if (s.repeat == REPEAT_ONE) lv_obj_remove_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(np_rep_one, LV_OBJ_FLAG_HIDDEN);
-  bool hp = audio_out_active() == DEV_HEADPHONES;
-  lv_label_set_text(np_audio, audio_icon(audio_out_active(), audio_out_volume(audio_out_active())));
-  lv_obj_set_style_text_color(np_audio, hp ? C_GREEN : C_TEXT, 0);
   (void)what;
   ui_nowplaying_tick();
 }
