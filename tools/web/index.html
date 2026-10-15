@@ -124,7 +124,8 @@ input.miss{border-color:#f0a24c}
 .pics{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.pics figure{margin:0;font-size:11px;color:var(--sub);width:96px}
 .pics img{width:96px;height:96px;object-fit:cover;border-radius:6px;background:#333;display:block;margin-bottom:4px}
 .prog{height:4px;background:#333;border-radius:2px;overflow:hidden;margin:8px 0}.prog i{display:block;height:100%;width:0;background:var(--g);transition:width .2s}
-.atr{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:center;margin:4px 0}
+input.chg{border-color:var(--g)!important}
+.atr{display:grid;grid-template-columns:52px minmax(0,1.3fr) minmax(0,1fr);gap:8px;align-items:center;margin:4px 0}
 .atr input{margin-top:0!important}
 .cvbox{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin:6px 0 14px}
 .cvbox img,.cvbox .ph{width:180px;height:180px;border-radius:8px}
@@ -184,9 +185,10 @@ input.miss{border-color:#f0a24c}
 
  <section class="view" id="vLib">
   <div class="tools">
-   <label class="search"><svg viewBox="0 0 24 24"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5 6.313 6.313 5 9.5t1.313 3.188T9.5 14"/></svg><input id="lq" placeholder="Cerca titolo, artista, album, genere…" autocomplete="off"></label>
+   <label class="search" style="flex:1 1 100%"><svg viewBox="0 0 24 24"><path d="m19.6 21-6.3-6.3q-.75.6-1.725.95T9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l6.3 6.3zM9.5 14q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5 6.313 6.313 5 9.5t1.313 3.188T9.5 14"/></svg><input id="lq" placeholder="Cerca titolo, artista, album, genere…" autocomplete="off"></label>
    <button class="chip on" data-f="all">Tutti</button><button class="chip" data-f="miss" id="fMiss">Dati mancanti</button><button class="chip" data-f="nocv" id="fNocv">Senza copertina</button>
    <button class="btn" id="bFixCv" style="display:none">Sistema copertine</button>
+   <button class="btn" id="bAutoMB" style="display:none">Completa con MusicBrainz</button>
   </div>
   <div class="stats" id="lstats"></div>
   <div id="libl"></div>
@@ -420,6 +422,7 @@ function libRender(){
  A.forEach((a,ai)=>{if(!albCover(a)){nNo++;if(byAlb[ai].some(i=>T[i].pk))fix++}});
  $('fMiss').textContent='Dati mancanti'+(nMiss?' ('+nMiss+')':'');$('fNocv').textContent='Senza copertina'+(nNo?' ('+nNo+')':'');
  $('bFixCv').style.display=fix?'':'none';$('bFixCv').textContent='Sistema copertine ('+fix+')';
+ $('bAutoMB').style.display=nMiss||nNo?'':'none';
  $('lstats').textContent=T.length+' brani · '+A.length+' album · '+ldur(totMs)+' · '+fmt(totS)+(Object.keys(fmts).length?' · '+Object.entries(fmts).sort((a,b)=>b[1]-a[1]).map(([f,n])=>n+' × '+f).join(', '):'');
  const out=[];
  const order=A.map((a,i)=>i).sort((x,y)=>(A[x].a||'').localeCompare(A[y].a||'','it')||(A[x].t||'').localeCompare(A[y].t||'','it'));
@@ -506,46 +509,144 @@ async function trackEdit(i){
   delete edB.dataset.busy};
 }
 
+// ------------------------------------------------------------ MusicBrainz ---
+// Database libero della musica (musicbrainz.org) + Cover Art Archive per le
+// copertine. Le richieste partono dal browser (serve internet sul telefono/PC).
+const MB='https://musicbrainz.org/ws/2',CAA='https://coverartarchive.org';
+const MBKEYS=['MUSICBRAINZ_ALBUMID','MUSICBRAINZ_TRACKID','MUSICBRAINZ_RELEASETRACKID'];
+let mbLast=0;
+async function mbGet(path){ // al massimo una richiesta al secondo (regola di MusicBrainz)
+ const wait=mbLast+1100-Date.now();if(wait>0)await new Promise(r=>setTimeout(r,wait));mbLast=Date.now();
+ let r;try{r=await fetch(MB+path+(path.includes('?')?'&':'?')+'fmt=json')}catch(e){throw new Error('Serve internet: collega il lettore al Wi-Fi di casa')}
+ if(r.status===503)throw new Error('MusicBrainz è occupato, riprova tra poco');if(!r.ok)throw new Error('MusicBrainz: errore '+r.status);return r.json()}
+const credit=ac=>(ac||[]).map(c=>(c.name||'')+(c.joinphrase||'')).join('');
+const qesc=s=>(s||'').replace(/[\\"]/g,' ').trim();
+async function mbSearch(album,artist,n){
+ let q='release:"'+qesc(album)+'"';if(artist&&!/^(Artista sconosciuto|Artisti vari)$/.test(artist))q+=' AND artist:"'+qesc(artist)+'"';
+ const j=await mbGet('/release/?limit=15&query='+encodeURIComponent(q));
+ return (j.releases||[]).map(x=>({id:x.id,title:x.title,artist:credit(x['artist-credit']),date:x.date||'',country:x.country||'',n:x['track-count']||0,
+  fmt:[...new Set((x.media||[]).map(m=>m.format).filter(Boolean))].join(' + '),score:x.score||0,same:(x['track-count']||0)===n}))
+  .sort((a,b)=>(b.same-a.same)||(b.score-a.score))}
+async function mbRelease(id){
+ const r=await mbGet('/release/'+id+'?inc=recordings+artist-credits+genres+release-groups');
+ const rg=r['release-group']||{};
+ const genres=[...(r.genres||[]),...(rg.genres||[])].sort((a,b)=>(b.count||0)-(a.count||0));
+ const discs=(r.media||[]).length,tracks=[];
+ for(const m of r.media||[])for(const t of m.tracks||[])
+  tracks.push({disc:discs>1?m.position:0,n:t.position,title:t.title,artist:credit(t['artist-credit'])||credit(r['artist-credit']),ms:t.length||(t.recording||{}).length||0,tid:t.id,rid:(t.recording||{}).id});
+ return{id:r.id,title:r.title,artist:credit(r['artist-credit']),year:(rg['first-release-date']||r.date||'').slice(0,4),
+  genre:genres[0]?genres[0].name.replace(/^./,c=>c.toUpperCase()):'',tracks}}
+// Abbina i brani locali (in ordine) a quelli dell'edizione: per numero di traccia
+// se li hanno tutti, altrimenti nell'ordine. dt = differenza di durata in secondi.
+function mbMatch(T,rel){
+ const byNum=T.every(t=>t.n)&&new Set(T.map(t=>(t.d||0)*1000+t.n)).size===T.length;
+ return T.map((t,k)=>{const m=byNum?rel.tracks.find(x=>x.n===t.n&&(!x.disc||!t.d||x.disc===t.d)):rel.tracks[k];
+  return m?{m,dt:m.ms?Math.abs(m.ms-t.ms)/1000:null}:null})}
+const sure=(match)=>match.every(x=>x&&(x.dt===null||x.dt<=4));
+function mbRest(rest,rel,m){ // aggiunge gli ID di MusicBrainz agli altri tag
+ const out=rest.filter(l=>!MBKEYS.includes(l.slice(0,l.indexOf('=')).toUpperCase()));
+ out.push('MUSICBRAINZ_ALBUMID='+rel.id);if(m.rid)out.push('MUSICBRAINZ_TRACKID='+m.rid);if(m.tid)out.push('MUSICBRAINZ_RELEASETRACKID='+m.tid);return out}
+async function caaCover(ai,relId){
+ const r=await fetch(CAA+'/release/'+relId+'/front-500');if(!r.ok)throw new Error('nessuna copertina');await uploadCover(ai,await r.blob())}
+function candHtml(c){return '<button data-mb="'+c.id+'"><img loading="lazy" src="'+CAA+'/release/'+c.id+'/front-250" onerror="this.style.visibility=\'hidden\'">'+
+ '<b style="color:var(--tx)">'+esc(c.title)+'</b><br>'+esc(c.artist)+'<br>'+esc(dots([c.date.slice(0,4),c.country,c.fmt]))+'<br>'+(c.same?'<span style="color:var(--g)">✓ '+c.n+' brani</span>':c.n+' brani')+'</button>'}
+
 // ------------------------------------------------------------ album --------
 async function albumEdit(ai){
  const a=LIB.albums[ai];const idx=LIB.tracks.map((x,i)=>i).filter(i=>LIB.tracks[i].al===ai).sort((x,y)=>{const X=tr(x),Y=tr(y);return (X.d-Y.d)||(X.n-Y.n)||X.p.localeCompare(Y.p)});
  const T=idx.map(tr);
  const same=k=>{const v=T.map(t=>t[k]);return v.every(x=>x===v[0])?v[0]:null};
  const ga=same('a'),gg=same('g'),gy=same('y');
+ let mbRel=null,mbM=[];   // edizione scelta su MusicBrainz e abbinamento dei brani
  edOpen('<h3>Modifica album</h3><p>Lascia vuoto un campo per non cambiarlo. Le modifiche vengono scritte in tutti i '+T.length+' brani.</p>'+
+  '<div class="acts" style="justify-content:flex-start;margin:-4px 0 12px"><button class="btn" id="aMB">'+IC.dl+'Compila da MusicBrainz</button><button class="btn ghost" id="aNum">Numera i brani in ordine</button></div>'+
+  '<div id="mbBox"></div>'+
   '<div class="grid2"><div><label>Album</label><input id="aT" value="'+esc(a.t||'')+'"></div><div><label>Artista album</label><input id="aAA" value="'+esc(a.a||'')+'"></div>'+
   '<div><label>Artista (tutti i brani)</label><input id="aA" value="'+esc(ga&&ga!=='Artista sconosciuto'?ga:'')+'" placeholder="'+(ga?'':'diversi')+'"></div>'+
   '<div><label>Anno</label><input id="aY" value="'+(gy||'')+'" placeholder="'+(gy===null?'diversi':'')+'"></div>'+
-  '<div><label>Genere</label><input id="aG" value="'+esc(gg||'')+'" placeholder="'+(gg===null?'diversi':'')+'"></div>'+
-  '<div><label>&nbsp;</label><button class="btn ghost" id="aNum" style="margin-top:4px">Numera i brani in ordine</button></div></div>'+
-  '<label class="stats" style="display:block;margin:0 0 4px">Brani (numero e titolo)</label>'+
-  T.map((t,k)=>'<div class="atr"><input data-n="'+k+'" data-o="'+(t.n||'')+'" value="'+(t.n||'')+'" inputmode="numeric"><input data-ti="'+k+'" data-o="'+esc(t.t)+'" value="'+esc(t.t)+'"></div>').join('')+
+  '<div><label>Genere</label><input id="aG" value="'+esc(gg||'')+'" placeholder="'+(gg===null?'diversi':'')+'"></div></div>'+
+  '<label class="stats" style="display:block;margin:0 0 4px">Brani: numero, titolo, artista</label>'+
+  T.map((t,k)=>'<div class="atr"><input data-n="'+k+'" data-o="'+(t.n||'')+'" value="'+(t.n||'')+'" inputmode="numeric"><input data-ti="'+k+'" data-o="'+esc(t.t)+'" value="'+esc(t.t)+'"><input data-ar="'+k+'" data-o="'+esc(t.a)+'" value="'+esc(t.a)+'"></div><div class="stats" data-w="'+k+'" style="margin:-2px 0 4px 60px"></div>').join('')+
+  '<label class="chk" id="aCvL" style="display:none;margin:6px 0"><input type="checkbox" id="aCv">Salva anche la copertina di questa edizione</label>'+
   '<div class="prog" id="aP" style="display:none"><i></i></div><p class="stats" id="aMsg"></p>'+
   '<div class="acts"><button class="btn ghost" id="aX">Annulla</button><button class="btn pri" id="aS">Salva '+T.length+' brani</button></div>');
  $('aX').onclick=edClose;
  $('aNum').onclick=()=>edB.querySelectorAll('[data-n]').forEach((x,k)=>x.value=k+1);
+ const setv=(el,v)=>{if(v===undefined||v===null||v==='')return;el.value=v;el.classList.toggle('chg',el.value!==(el.dataset.o!==undefined?el.dataset.o:el.defaultValue))};
+ $('aMB').onclick=async()=>{
+  const box=$('mbBox');box.innerHTML='<p class="stats">Cerco «'+esc(a.t)+'» su MusicBrainz…</p>';
+  try{const c=await mbSearch(a.t,a.a||ga,T.length);
+   if(!c.length){box.innerHTML='<p class="stats">Nessun risultato. Correggi titolo dell\'album o artista e riprova.</p>';return}
+   box.innerHTML='<p class="stats" style="margin:0">Scegli l\'edizione giusta (in verde quelle con lo stesso numero di brani):</p><div class="res">'+c.slice(0,9).map(candHtml).join('')+'</div>';
+   box.querySelectorAll('[data-mb]').forEach(b=>b.onclick=async()=>{
+    box.querySelectorAll('[data-mb]').forEach(x=>x.classList.toggle('on',x===b));
+    try{const rel=await mbRelease(b.dataset.mb);mbRel=rel;mbM=mbMatch(T,rel);
+     setv($('aT'),rel.title);setv($('aAA'),rel.artist);setv($('aY'),rel.year);if(!$('aG').value)setv($('aG'),rel.genre);$('aA').value='';
+     mbM.forEach((x,k)=>{const w=edB.querySelector('[data-w="'+k+'"]');if(!x){w.textContent='⚠ nessun brano corrispondente in questa edizione';return}
+      setv(edB.querySelector('[data-n="'+k+'"]'),String(x.m.n));setv(edB.querySelector('[data-ti="'+k+'"]'),x.m.title);setv(edB.querySelector('[data-ar="'+k+'"]'),x.m.artist);
+      w.textContent=x.dt!==null&&x.dt>4?'⚠ durata diversa: '+dur(T[k].ms)+' qui, '+dur(x.m.ms)+' su MusicBrainz':''});
+     $('aCvL').style.display='';$('aCv').checked=!albCover(a);
+     toast(sure(mbM)?'Compilato: controlla e salva':'Compilato, ma alcuni brani non tornano: controlla')}
+    catch(e){toast(e.message,true)}})}
+  catch(e){box.innerHTML='<p class="stats">'+esc(e.message)+'</p>'}};
  $('aS').onclick=async()=>{
   const v=id=>$(id).value.trim();
   const common={ALBUM:v('aT'),ALBUMARTIST:v('aAA'),ARTIST:v('aA'),DATE:v('aY'),GENRE:v('aG')};
-  $('aS').disabled=true;$('aX').disabled=true;edB.dataset.busy=1;$('aP').style.display='';
+  $('aS').disabled=true;$('aX').disabled=true;$('aMB').disabled=true;edB.dataset.busy=1;$('aP').style.display='';
   let done=0,bad=[];
   for(let k=0;k<T.length;k++){
    const t=T[k];$('aMsg').textContent='Scrivo '+(k+1)+' di '+T.length+': '+t.t;
-   try{const m=await api('/api/meta',{p:t.p});const{std,rest}=splitTags(m.tags);
+   try{const m=await api('/api/meta',{p:t.p});let{std,rest}=splitTags(m.tags);
     for(const[key,val]of Object.entries(common))if(val)std[key]=val;
-    // numero e titolo solo se cambiati (es. "1/12" resta com'è se non lo tocchi)
-    const ni=edB.querySelector('[data-n="'+k+'"]'),tt=edB.querySelector('[data-ti="'+k+'"]');
-    if(ni.value.trim()&&ni.value.trim()!==ni.dataset.o)std.TRACKNUMBER=ni.value.trim();
-    if(tt.value.trim()&&tt.value.trim()!==tt.dataset.o)std.TITLE=tt.value.trim();
+    // numero, titolo e artista solo se cambiati (es. "1/12" resta com'è se non lo tocchi)
+    for(const[sel,key]of[['data-n','TRACKNUMBER'],['data-ti','TITLE'],['data-ar','ARTIST']]){
+     const el=edB.querySelector('['+sel+'="'+k+'"]');const val=el.value.trim();
+     if(val&&val!==el.dataset.o&&!(key==='ARTIST'&&common.ARTIST))std[key]=val}
+    const x=mbM[k];if(mbRel&&x){if(x.m.disc)std.DISCNUMBER=String(x.m.disc);rest=mbRest(rest,mbRel,x.m)}
     await saveTags(t.p,joinTags(std,rest.join('\n')));done++}
    catch(e){bad.push(t.t+': '+e.message)}
    $('aP').firstChild.style.width=((k+1)*100/T.length)+'%'}
+  if(mbRel&&$('aCv').checked){$('aMsg').textContent='Scarico la copertina…';try{await caaCover(ai,mbRel.id)}catch(e){bad.push('copertina: '+e.message)}}
   delete edB.dataset.busy;
   if(common.ALBUM)a.t=common.ALBUM;if(common.ALBUMARTIST)a.a=common.ALBUMARTIST;if(parseInt(common.DATE))a.y=parseInt(common.DATE);
   if(bad.length){$('aMsg').textContent='Errori: '+bad.join(' · ');$('aX').disabled=false;$('aX').textContent='Chiudi'}
   else{toast(done+' brani aggiornati');edClose()}
   libRender()};
 }
+
+// Tutta la libreria in automatico: solo dove la corrispondenza è sicura (stesso
+// numero di brani, durate che tornano) e solo i dati che mancano.
+$('bAutoMB').onclick=async()=>{
+ const T=LIB.tracks.map((x,i)=>tr(i));
+ const todo=LIB.albums.map((a,i)=>i).filter(ai=>T.some(t=>t.al===ai&&t.m)||!albCover(LIB.albums[ai]));
+ if(!todo.length)return toast('Non manca niente');
+ if(!await dialog({title:'Completa con MusicBrainz',text:'Per '+todo.length+' album cerco l\'edizione su MusicBrainz e aggiungo solo ciò che manca (titoli, numeri, anno, genere, copertina), senza toccare i dati che ci sono già. Gli album incerti li lascio a te. Serve internet e ci vuole circa un paio di secondi ad album.',ok:'Inizia'}))return;
+ edOpen('<h3>Completa con MusicBrainz</h3><div class="prog"><i></i></div><p class="stats" id="amMsg"></p><div id="amLog" style="font-size:13px;max-height:45vh;overflow:auto"></div><div class="acts" style="margin-top:12px"><button class="btn ghost" id="amX">Interrompi</button></div>');
+ let stop=false,okN=0,unsure=0;edB.dataset.busy=1;$('amX').onclick=()=>{stop=true;$('amX').disabled=true};
+ const log=(ic,txt)=>$('amLog').insertAdjacentHTML('beforeend','<div style="padding:3px 0">'+ic+' '+esc(txt)+'</div>');
+ for(let k=0;k<todo.length&&!stop;k++){
+  const ai=todo[k],a=LIB.albums[ai];$('amMsg').textContent=(k+1)+' di '+todo.length+': '+a.t;
+  const idx=LIB.tracks.map((x,i)=>i).filter(i=>LIB.tracks[i].al===ai).sort((x,y)=>{const X=tr(x),Y=tr(y);return (X.d-Y.d)||(X.n-Y.n)||X.p.localeCompare(Y.p)});
+  const AT=idx.map(tr);
+  try{
+   const cands=(await mbSearch(a.t,a.a,AT.length)).filter(c=>c.same&&c.score>=90).slice(0,2);
+   let rel=null,match=null;
+   for(const c of cands){const r=await mbRelease(c.id);const m=mbMatch(AT,r);if(sure(m)){rel=r;match=m;break}}
+   if(!rel){unsure++;log('?','«'+a.t+'»: nessuna edizione sicura, controllalo da «Modifica album»');continue}
+   let changed=0;
+   for(let j=0;j<AT.length;j++){
+    const t=AT[j],x=match[j].m;const m=await api('/api/meta',{p:t.p});let{std,rest}=splitTags(m.tags);const before=JSON.stringify([std,rest]);
+    const fill=(key,val)=>{if(val&&!(std[key]||'').trim())std[key]=String(val)};
+    fill('TITLE',x.title);fill('ARTIST',x.artist);fill('ALBUM',rel.title);fill('ALBUMARTIST',rel.artist);fill('TRACKNUMBER',x.n);
+    if(x.disc)fill('DISCNUMBER',x.disc);fill('DATE',rel.year);fill('GENRE',rel.genre);
+    if(!rest.some(l=>/^MUSICBRAINZ_ALBUMID=/i.test(l)))rest=mbRest(rest,rel,x);
+    if(JSON.stringify([std,rest])!==before){await saveTags(t.p,joinTags(std,rest.join('\n')));changed++}}
+   let cv='';if(!albCover(a)){try{await caaCover(ai,rel.id);cv=', copertina'}catch(e){cv=', copertina non disponibile'}}
+   okN++;log('✓','«'+rel.title+'» · '+rel.artist+': '+changed+' brani completati'+cv)}
+  catch(e){log('✕','«'+a.t+'»: '+e.message);if(/internet/.test(e.message))break}
+  edB.querySelector('.prog i').style.width=((k+1)*100/todo.length)+'%'}
+ delete edB.dataset.busy;$('amMsg').textContent=(stop?'Interrotto. ':'Fatto. ')+okN+' album completati'+(unsure?', '+unsure+' da controllare a mano':'')+'. Il lettore li mostra dopo «Aggiorna libreria».';
+ $('amX').disabled=false;$('amX').textContent='Chiudi';$('amX').onclick=edClose;libRender()};
 
 // --------------------------------------------------------- copertine -------
 async function toJpeg(blob,max=600){
@@ -576,14 +677,12 @@ async function coverEdit(ai){
  if($('cvEmb'))$('cvEmb').onclick=async()=>{try{const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[emb].p,i:0}));if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Immagine non leggibile',true)}};
  $('cvWeb').onclick=async()=>{
   const box=$('cvRes');box.innerHTML='<p class="stats">Cerco…</p>';
-  const q='release:"'+(a.t||'').replace(/"/g,'')+'"'+(a.a&&a.a!=='Artisti vari'?' AND artist:"'+a.a.replace(/"/g,'')+'"':'');
-  try{const r=await fetch('https://musicbrainz.org/ws/2/release/?fmt=json&limit=12&query='+encodeURIComponent(q));if(!r.ok)throw 0;const j=await r.json();
-   const rel=(j.releases||[]).filter(x=>x.id);
-   if(!rel.length){box.innerHTML='<p class="stats">Nessun risultato.</p>';return}
-   box.innerHTML='<div class="res">'+rel.map(x=>'<button data-id="'+x.id+'"><img loading="lazy" src="https://coverartarchive.org/release/'+x.id+'/front-250" onerror="this.parentNode.remove()">'+esc(x.title)+'<br>'+esc((x['artist-credit']||[]).map(c=>c.name).join(', '))+(x.date?' · '+x.date.slice(0,4):'')+'</button>').join('')+'</div>';
-   box.querySelectorAll('[data-id]').forEach(b=>b.onclick=async()=>{box.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
-    try{const r=await fetch('https://coverartarchive.org/release/'+b.dataset.id+'/front-500');if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Immagine non scaricabile',true)}})}
-  catch(e){box.innerHTML='<p class="stats">Serve internet: collega il lettore al Wi-Fi di casa (o usa il telefono con i dati) e riprova.</p>'}};
+  try{const c=await mbSearch(a.t,a.a,albumTracks(ai).length);
+   if(!c.length){box.innerHTML='<p class="stats">Nessun risultato.</p>';return}
+   box.innerHTML='<div class="res">'+c.slice(0,12).map(candHtml).join('')+'</div>';
+   box.querySelectorAll('[data-mb]').forEach(b=>b.onclick=async()=>{box.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    try{const r=await fetch(CAA+'/release/'+b.dataset.mb+'/front-500');if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Questa edizione non ha la copertina',true)}})}
+  catch(e){box.innerHTML='<p class="stats">'+esc(e.message)+'</p>'}};
  $('cvS').onclick=async()=>{$('cvS').disabled=true;$('cvS').textContent='Salvataggio…';edB.dataset.busy=1;
   try{await uploadCover(ai,chosen);toast('Copertina salvata');edClose();libRender()}catch(e){toast(e.message,true);$('cvS').disabled=false;$('cvS').textContent='Salva copertina'}
   delete edB.dataset.busy};

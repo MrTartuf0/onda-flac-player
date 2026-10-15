@@ -137,6 +137,19 @@ La scheda **Libreria** mostra tutti i brani raggruppati per album, con le inform
   salva come `cover.jpg` nella cartella dell'album (ha la precedenza su quella incorporata).
 - **Sistema copertine**: in un colpo converte le copertine incorporate che il lettore non sa
   leggere (PNG, JPEG progressivi) e le salva come `cover.jpg`.
+- **Compila da MusicBrainz** (in *Modifica album*): cerca l'album su
+  [MusicBrainz](https://musicbrainz.org), il database libero della musica, e ti mostra le
+  edizioni trovate con la copertina (in verde quelle con lo stesso numero di brani). Scelta
+  l'edizione, compila titoli, numeri, artisti (anche i "feat."), anno e genere, segnala i brani
+  con una durata diversa e può salvare anche la copertina: controlli e salvi tu.
+- **Completa con MusicBrainz** (in alto nella Libreria): lo fa da solo per tutti gli album con
+  dati mancanti o senza copertina, ma **solo quando la corrispondenza è sicura** (stesso numero
+  di brani e durate che tornano) e aggiunge **solo ciò che manca**, senza toccare i dati che ci
+  sono già. Gli album incerti li elenca, da sistemare con *Modifica album*.
+
+MusicBrainz e Cover Art Archive vengono interrogati dal browser, quindi serve internet sul
+telefono o sul computer (lettore sul Wi-Fi di casa, non in hotspot). Nei file vengono aggiunti
+anche gli identificativi `MUSICBRAINZ_*`, che riconoscono pure Picard e gli altri programmi.
 
 I tag vengono scritti **dentro il file FLAC** (commenti Vorbis standard), quindi li vedono anche
 gli altri lettori. L'audio non viene mai toccato: se nel file c'è spazio di riserva (quasi sempre)
