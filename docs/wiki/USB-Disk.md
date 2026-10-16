@@ -2,7 +2,7 @@ Connect the player to a computer with a USB-C cable and the microSD card shows u
 
 ## How to use it
 
-1. Open **Settings → Add music → USB disk**. When you plug the cable into a computer, a notice also appears for a few seconds: tap it to go straight there.
+1. Open **Settings → USB disk**, right under the timer. When you plug the cable into a computer, a notice also appears for a few seconds: tap it to go straight there.
 2. The music stops. As soon as the computer opens the card, the screen says **On your computer** and the card appears in Finder, Explorer or your file manager.
 3. Copy your files. A ring pulses around the icon while the computer reads or writes, and below it you see how much has been copied.
 4. When you are done, **eject the drive on the computer** (Finder: *Eject*; Windows: *Safely remove*; Linux: *Eject* or `umount`). The player sees it, restarts and updates the library with the new files. Then it is back on the song you were listening to, paused.
@@ -11,7 +11,7 @@ Connect the player to a computer with a USB-C cable and the microSD card shows u
 
 Good to know:
 
-- **Use a cable that carries data.** With a charge-only cable the screen stays on *Connect a computer*. In **Settings → Add music**, the line under *USB disk* turns green when the player sees a computer.
+- **Use a cable that carries data.** With a charge-only cable the screen stays on *Connect a computer*. In **Settings**, the line under *USB disk* turns green (*Computer connected*) when the player sees a computer.
 - **Done** leaves without ejecting. If the computer has written something, the player asks once more (*Leave anyway*): the last file copied could be incomplete, as with any flash drive pulled out too early.
 - If the computer goes to sleep or the cable comes out, the screen says *Disconnected*: plug it back in, or tap **Back to the music**.
 - The speed is that of USB full speed, about 1 MB/s, like the [Wi-Fi transfer](Web-Interface). For a whole library a card reader is faster.

@@ -78,13 +78,13 @@ When you unplug the headphones the music pauses, like on a phone (**Settings →
 | Section | What's there |
 |---|---|
 | Timer | Opens the timer screen; underneath, the time left (see [Session Timer and Clock](Session-Timer-and-Clock)) |
+| USB disk, File transfer | Right under the timer: the microSD on your computer over the cable ([USB Disk](USB-Disk)) or over Wi-Fi ([Web Interface](Web-Interface)) |
 | Battery | Level and voltage, charging status, estimated current draw |
 | Date and time | Date and where the time came from |
 | Audio | Output, headphone jack status, pause on unplug, invert jack detection |
 | Language | English / Italian |
 | Screen | Brightness, screen timeout, tap to wake |
 | BOOT button | What each click does, auto power-off, power off now |
-| Add music | [USB disk](USB-Disk) over the USB-C cable, [file transfer](Web-Interface) over Wi-Fi |
 | Library | Update library (reads every file and cover again), cache folder |
 | About | Version and supported formats |
 

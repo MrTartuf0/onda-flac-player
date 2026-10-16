@@ -49,7 +49,7 @@ Open the file transfer page once from a phone or computer, or connect the player
 
 ## The USB disk doesn't show up on the computer
 
-- Use a cable that carries data. In **Settings → Add music** the line under *USB disk* turns green when the player sees a computer; if it stays grey with the cable plugged in, the cable only charges.
+- Use a cable that carries data. In **Settings** the line under *USB disk* turns green (*Computer connected*) when the player sees a computer; if it stays grey with the cable plugged in, the cable only charges.
 - Plug the player directly into the computer rather than into a hub or a monitor.
 - *No microSD card*: the card isn't mounted; reinsert it and restart the player.
 - After the USB disk the serial monitor comes back when the player restarts. If uploads fail, press RESET once. See [USB Disk](USB-Disk).

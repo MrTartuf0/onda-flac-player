@@ -124,7 +124,6 @@ Spegni ora	Power off now
 Si riaccende col tasto BOOT	Turn it back on with the BOOT button
 Wi-Fi	Wi-Fi
 Trasferimento file	File transfer
-Carica e gestisci la musica dal browser	Upload and manage your music from a browser
 Libreria	Library
 %u brani \xE2\x80\xA2 %u album \xE2\x80\xA2 %u artisti	%u songs \xE2\x80\xA2 %u albums \xE2\x80\xA2 %u artists
 Aggiorna libreria	Update library
@@ -243,9 +242,8 @@ min	min
 sec	sec
 +1 min	+1 min
 1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\n3 clic: avvia o ferma il timer\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\n3 clicks: start or stop the timer\nHold: power off (press again to turn it on)
-Computer collegato: tocca qui	Computer connected: tap here
-Col cavo USB-C, come una chiavetta	Over the USB-C cable, like a flash drive
-Aggiungere musica	Add music
+Computer collegato	Computer connected
+Col cavo USB-C	Over the USB-C cable
 Disco USB	USB disk
 Nessuna microSD	No microSD card
 Inserisci la scheda e riprova	Insert the card and try again
@@ -274,3 +272,4 @@ Errore di lettura o scrittura della microSD	microSD read or write error
 %s ricevuti \xE2\x80\xA2 %s letti	%s received \xE2\x80\xA2 %s read
 %s letti	%s read
 Computer collegato: tocca qui per aprire la microSD come disco USB	Computer connected: tap here to open the microSD as a USB drive
+Dal browser, via Wi-Fi	In a browser, over Wi-Fi

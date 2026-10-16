@@ -46,7 +46,7 @@ class SettingsPage : public Page {
   // computer collegato o no: si vede subito se il cavo è quello giusto
   void usb_update() {
     bool host = usb_disk_host_present();
-    const char *t = host ? TR("Computer collegato: tocca qui") : TR("Col cavo USB-C, come una chiavetta");
+    const char *t = host ? TR("Computer collegato") : TR("Col cavo USB-C");
     if (strcmp(lv_label_get_text(usb_sub), t)) lv_label_set_text(usb_sub, t);
     lv_obj_set_style_text_color(usb_sub, host ? C_GREEN : C_SUB, 0);
   }
@@ -97,27 +97,33 @@ class SettingsPage : public Page {
     lv_obj_set_style_text_color(tm_sub, c, 0);
   }
 
-  void timer_build() {
+  // riga con l'icona colorata (le voci che si usano più spesso): ritorna il sottotitolo
+  lv_obj_t *tile_row(const char *title, const char *sub, lv_color_t bg, const char *icon, lv_event_cb_t cb) {
     lv_obj_t *r = ui_box(col);
     lv_obj_set_size(r, SCR_W, 60);
-    lv_obj_set_style_margin_top(r, 6, 0);
     ui_pressable(r);
-    lv_obj_add_event_cb(r, tm_open_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(r, cb, LV_EVENT_CLICKED, this);
     lv_obj_t *ic = ui_box(r);
     lv_obj_set_size(ic, 36, 36);
     lv_obj_set_style_radius(ic, 9, 0);
-    lv_obj_set_style_bg_color(ic, lv_color_hex(0xF5A623), 0);
+    lv_obj_set_style_bg_color(ic, bg, 0);
     lv_obj_set_style_bg_opa(ic, LV_OPA_COVER, 0);
     lv_obj_align(ic, LV_ALIGN_LEFT_MID, 14, 0);
-    lv_obj_center(ui_icon(ic, &icons_18, IC_STOPWATCH, C_BLACK));
-    lv_obj_t *t = ui_label(r, &font_r14, C_TEXT, TR("Timer"));
+    lv_obj_center(ui_icon(ic, &icons_18, icon, C_BLACK));
+    lv_obj_t *t = ui_label(r, &font_r14, C_TEXT, title);
     lv_obj_align(t, LV_ALIGN_LEFT_MID, 62, -9);
-    tm_sub = ui_label(r, &font_r12, C_SUB, "");
-    lv_obj_set_width(tm_sub, SCR_W - 62 - 36);
-    ui_dot(tm_sub);
-    lv_obj_align(tm_sub, LV_ALIGN_LEFT_MID, 62, 10);
+    lv_obj_t *sl = ui_label(r, &font_r12, C_SUB, sub);
+    lv_obj_set_width(sl, SCR_W - 62 - 36);
+    ui_dot(sl);
+    lv_obj_align(sl, LV_ALIGN_LEFT_MID, 62, 10);
     lv_obj_t *ch = ui_icon(r, &icons_14, IC_RIGHT, C_DIM);
     lv_obj_align(ch, LV_ALIGN_RIGHT_MID, -16, 0);
+    return sl;
+  }
+
+  void timer_build() {
+    tm_sub = tile_row(TR("Timer"), "", lv_color_hex(0xF5A623), IC_STOPWATCH, tm_open_cb);
+    lv_obj_set_style_margin_top(lv_obj_get_parent(tm_sub), 6, 0);
     timer_update();
   }
 
@@ -293,6 +299,11 @@ class SettingsPage : public Page {
 
     timer_build();
 
+    // subito sotto il timer: sono le voci che si usano più spesso
+    usb_sub = tile_row(TR("Disco USB"), "", lv_color_hex(0x4D9DF7), IC_LAPTOP, usb_cb);
+    usb_update();
+    tile_row(TR("Trasferimento file"), TR("Dal browser, via Wi-Fi"), C_GREEN, IC_WIFI, xfer_cb);
+
     section(TR("Batteria"));
     lv_obj_t *bl = row(TR("Livello"), "-", nullptr);
     bat_lvl = lv_obj_get_child(bl, 1);
@@ -365,13 +376,6 @@ class SettingsPage : public Page {
     row(TR("Spegni ora"), TR("Si riaccende col tasto BOOT"), poweroff_cb);
     power_labels();
 
-    section(TR("Aggiungere musica"));
-    lv_obj_t *ur = row(TR("Disco USB"), "-", usb_cb);
-    usb_sub = lv_obj_get_child(ur, 1);
-    lv_obj_set_width(usb_sub, SCR_W - 28);
-    usb_update();
-    lv_obj_t *xr = row(TR("Trasferimento file"), TR("Carica e gestisci la musica dal browser"), xfer_cb);
-    lv_obj_set_width(lv_obj_get_child(xr, 1), SCR_W - 28);
 
     section(TR("Libreria"));
     char buf[96];
