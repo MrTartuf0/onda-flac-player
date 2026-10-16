@@ -84,8 +84,8 @@ When you unplug the headphones the music pauses, like on a phone (**Settings →
 | Language | English / Italian |
 | Screen | Brightness, screen timeout, tap to wake |
 | BOOT button | What each click does, auto power-off, power off now |
-| Wi-Fi | File transfer |
-| Library | Update library, cache folder |
+| Add music | [USB disk](USB-Disk) over the USB-C cable, [file transfer](Web-Interface) over Wi-Fi |
+| Library | Update library (reads every file and cover again), cache folder |
 | About | Version and supported formats |
 
 The clock is in the top-right corner of Settings.

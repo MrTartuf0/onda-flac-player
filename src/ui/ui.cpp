@@ -350,7 +350,20 @@ void build_main() {
 }
 
 // -------------------------------------------------------------- toast ----
-void toast_hide_cb(lv_anim_t *a) { lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN); }
+void (*s_toast_tap)() = nullptr;   // avviso che si può toccare
+void toast_hide_cb(lv_anim_t *a) {
+  lv_obj_add_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag((lv_obj_t *)a->var, LV_OBJ_FLAG_CLICKABLE);
+  s_toast_tap = nullptr;
+}
+void toast_tap_cb(lv_event_t *) {
+  void (*f)() = s_toast_tap;
+  s_toast_tap = nullptr;
+  lv_anim_delete(s_toast, nullptr);
+  lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(s_toast, LV_OBJ_FLAG_CLICKABLE);
+  if (f) f();
+}
 void toast_opa_cb(void *o, int32_t v) { lv_obj_set_style_opa((lv_obj_t *)o, v, 0); }
 
 void refresh_visible(uint32_t what) {
@@ -406,13 +419,16 @@ static void edge_end(bool commit) {
 }
 
 static bool edge_excluded(int x, int y) {
+  if (ui_usbdisk_visible()) return true;   // col disco USB aperto niente gesti dal bordo
   if (ui_cc_visible()) return ui_cc_blocks_edge(x, y);
   return s_main_built && ui_nowplaying_blocks_edge(x, y);
 }
 
 // centro di controllo: dal bordo in basso, quando l'interfaccia è pronta e la
 // tastiera non occupa il fondo dello schermo
-static bool cc_allowed() { return s_main_built && s_chrome && !ui_cc_visible() && !ui_voice_visible(); }
+static bool cc_allowed() {
+  return s_main_built && s_chrome && !ui_cc_visible() && !ui_voice_visible() && !ui_usbdisk_visible();
+}
 
 lv_obj_t *ui_page_root() { return s_pages; }
 
@@ -457,6 +473,7 @@ void ui_pop() {
 }
 
 void ui_back() {
+  if (ui_usbdisk_back()) return;
   if (ui_cc_close()) return;
   if (ui_voice_close()) return;
   if (ui_timer_close()) return;
@@ -494,22 +511,28 @@ void ui_set_chrome_visible(bool vis) {
   update_mini_track();
 }
 
-void ui_toast(const char *msg) {
+static void toast_show(const char *msg, uint32_t ms, void (*on_tap)()) {
   lv_label_set_text(lv_obj_get_child(s_toast, 0), msg);
   lv_obj_remove_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_to_index(s_toast, -1);
   lv_anim_delete(s_toast, toast_opa_cb);
   lv_obj_set_style_opa(s_toast, LV_OPA_COVER, 0);
+  s_toast_tap = on_tap;
+  if (on_tap) lv_obj_add_flag(s_toast, LV_OBJ_FLAG_CLICKABLE);
+  else lv_obj_remove_flag(s_toast, LV_OBJ_FLAG_CLICKABLE);
   lv_anim_t a;
   lv_anim_init(&a);
   lv_anim_set_var(&a, s_toast);
   lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
-  lv_anim_set_delay(&a, 1800);
+  lv_anim_set_delay(&a, ms);
   lv_anim_set_duration(&a, 300);
   lv_anim_set_exec_cb(&a, toast_opa_cb);
   lv_anim_set_ready_cb(&a, toast_hide_cb);
   lv_anim_start(&a);
 }
+
+void ui_toast(const char *msg) { toast_show(msg, 1800, nullptr); }
+void ui_toast_action(const char *msg, void (*on_tap)()) { toast_show(msg, 5000, on_tap); }
 
 bool ui_is_playing() { return s_ps.playing; }
 int ui_current_track() { return s_ps.track; }
@@ -663,6 +686,7 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
   lv_obj_align(s_toast, LV_ALIGN_BOTTOM_MID, 0, -(NAV_H + MINI_H + 12));
   lv_obj_t *tl = ui_label(s_toast, &font_b12, C_BLACK, "");
   lv_obj_set_width(tl, lv_pct(100));
+  lv_obj_add_event_cb(s_toast, toast_tap_cb, LV_EVENT_CLICKED, nullptr);
   lv_obj_add_flag(s_toast, LV_OBJ_FLAG_HIDDEN);
 
   ui_cc_build();
@@ -682,6 +706,8 @@ void ui_init(RescanFn rescan, BrightnessFn bright) {
 
 void ui_tick() {
   ui_battery_tick();
+  // disco USB: la scheda è del computer, qui non si legge né si scrive niente
+  if (ui_usbdisk_tick()) return;
   // ---- stato libreria ----
   LibProgress lp = lib_progress();
   if (lp.state != LIB_READY) {
@@ -716,6 +742,7 @@ void ui_tick() {
   s_last_lib = lp.state;
 
   ui_transfer_tick();
+  ui_usbdisk_watch();
 
   // ---- eventi del player ----
   plat_where(0, 10);   // 10: eventi del player

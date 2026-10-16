@@ -16,3 +16,4 @@ void ui_power_off_screen();
 // alla pausa o al cambio brano (non scrive se il valore non è cambiato).
 void ui_pref_set(const char *key, int32_t v);
 void ui_crash_notice(bool resumed);   // avvio dopo un blocco: avvisa quando l'interfaccia è pronta
+bool ui_usbdisk_visible();   // schermata del disco USB aperta: la microSD non si tocca

@@ -14,6 +14,7 @@
 - Control center (swipe up from the bottom edge): output, volume, brightness, battery, Wi-Fi
 - Voice search on the device, without internet (experimental, off by default)
 - Timer set to the second (pasta, highline) or stopwatch, with beeps over the music
+- USB disk: over the USB-C cable the microSD shows up on your computer like a flash drive
 - Wi-Fi web page to upload music, edit tags, fix covers and build playlists, with MusicBrainz lookup
 - BOOT button works as a power button: screen off while the music keeps playing, play/pause, power off
 - Battery level, charge detection and runtime estimate on a 3.7 V LiPo
@@ -29,6 +30,7 @@
 | [SD Card and Library](SD-Card-and-Library) | How to organise the card, which tags are read, playlists, covers |
 | [Using the Player](Using-the-Player) | Screens, gestures, now playing, queue, control center |
 | [Battery and Power](Battery-and-Power) | BOOT button, screen timeout, auto power-off, charging, runtime |
+| [USB Disk](USB-Disk) | The microSD on your computer over the USB-C cable, without taking it out |
 | [Web Interface](Web-Interface) | File transfer, tag editor, covers, MusicBrainz, playlists |
 | [Voice Search](Voice-Search) | Searching your library by voice, offline (experimental, off by default) |
 | [Session Timer and Clock](Session-Timer-and-Clock) | The timer and where the time comes from |

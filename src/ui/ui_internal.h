@@ -126,6 +126,8 @@ bool ui_context_is_current(const PlayContext &ctx);
 bool ui_is_playing();
 int ui_current_track();
 void ui_toast(const char *msg);
+// avviso che si può toccare (es. "Computer collegato"): resta qualche secondo in più
+void ui_toast_action(const char *msg, void (*on_tap)());
 void ui_track_menu(int track);
 void ui_device_sheet();
 void ui_queue_open();
@@ -160,6 +162,12 @@ lv_obj_t *ui_battery_icon(lv_obj_t *parent, int w, int h);
 void ui_battery_icon_set(lv_obj_t *icon, int pct, lv_color_t c);
 const char *ui_battery_state_text(const BatteryInfo &b);
 void ui_fmt_minutes(int m, char *buf, size_t n);   // durata stimata arrotondata
+// Disco USB (src/ui/usb_disk_ui.cpp): la microSD sul computer col cavo USB-C
+void ui_usbdisk_open();
+bool ui_usbdisk_visible();
+bool ui_usbdisk_back();       // gesto/tasto indietro: col disco aperto non fa niente
+bool ui_usbdisk_tick();       // true = aperta: il resto dell'interfaccia lascia stare la scheda
+void ui_usbdisk_watch();      // computer appena collegato: lo propone con un avviso
 // Timer (src/ui/timer_ui.cpp): schermata dedicata, da Impostazioni
 void ui_timer_open();
 bool ui_timer_visible();

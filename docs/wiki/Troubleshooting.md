@@ -32,7 +32,7 @@ If the player crashes again within 20 seconds of restarting, it stops on the **S
 ## Songs or covers are missing
 
 - Only `.flac` files are played.
-- After copying files with a card reader, use **Settings → Update library** (or restart).
+- After copying files with a card reader, use **Settings → Update library** (or restart). With the [USB disk](USB-Disk) the library updates by itself when you eject the drive.
 - Covers in PNG or progressive JPEG are not shown on the device: use **Sistema copertine** in the web page's Library tab, or put a baseline `cover.jpg` in the album folder. See [SD Card and Library](SD-Card-and-Library).
 - Albums split in two usually have songs with different `ALBUM` or `ALBUMARTIST` values, or sit in different folders without `ALBUMARTIST`. Fix them with *Modifica album* in the web page.
 
@@ -46,6 +46,13 @@ If the player crashes again within 20 seconds of restarting, it stops on the **S
 ## The clock shows "Time not set"
 
 Open the file transfer page once from a phone or computer, or connect the player to your home Wi-Fi. See [Session Timer and Clock](Session-Timer-and-Clock).
+
+## The USB disk doesn't show up on the computer
+
+- Use a cable that carries data. In **Settings → Add music** the line under *USB disk* turns green when the player sees a computer; if it stays grey with the cable plugged in, the cable only charges.
+- Plug the player directly into the computer rather than into a hub or a monitor.
+- *No microSD card*: the card isn't mounted; reinsert it and restart the player.
+- After the USB disk the serial monitor comes back when the player restarts. If uploads fail, press RESET once. See [USB Disk](USB-Disk).
 
 ## Wi-Fi transfer is slow or won't connect
 

@@ -63,3 +63,4 @@ LV_FONT_DECLARE(icons_28);
 #define IC_STOPWATCH     "\xEF\x8B\xB2"
 #define IC_STOP          "\xEF\x81\x8D"
 #define IC_MIC           "\xEF\x84\xB0"
+#define IC_LAPTOP        "\xEF\x84\x89"

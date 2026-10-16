@@ -18,7 +18,7 @@
 namespace {
 
 constexpr uint32_t kDbMagic = 0x42444E4F;  // "ONDB"
-constexpr uint32_t kDbVersion = 3;
+constexpr uint32_t kDbVersion = 4;   // 4: data di modifica dei file (le versioni 3 si leggono ancora)
 
 // ------------------------------------------------------------- arena ----
 // Tutte le stringhe della libreria vivono qui (in PSRAM sull'ESP32).
@@ -54,6 +54,7 @@ struct Raw {   // record così come salvato nel database
   uint32_t size, dur_ms, pic_off, pic_size, sample_rate;
   uint16_t trackno, disc, year;
   uint8_t pic_kind, bits;
+  uint32_t mtime;   // data di modifica del file (0 = non nota: indice della versione 3)
 };
 
 struct Stat {
@@ -126,6 +127,7 @@ std::string title_from_file(const char *path) {
 struct FileEnt {
   const char *path;
   uint32_t size;
+  uint32_t mtime;   // cambia anche quando la dimensione resta uguale (tag riscritti nel padding)
 };
 
 struct CoverCand {
@@ -136,6 +138,7 @@ struct CoverCand {
 bool skip_dir(const char *name, const char *full) {
   if (name[0] == '.') return true;
   if (!strcasecmp(name, "System Volume Information")) return true;
+  if (!strcasecmp(name, "$RECYCLE.BIN")) return true;   // cestino di Windows (disco USB)
   if (!strcmp(full, APP_DIR)) return true;
   return false;
 }
@@ -179,7 +182,7 @@ void walk(const char *dir, int depth, std::vector<FileEnt> &flacs, std::vector<c
     if (n[0] == '.') continue;   // file nascosti (es. "._" di macOS)
     if (ieq_ext(n, ".flac")) {
       if (!have_st && stat(full, &st) != 0) continue;
-      flacs.push_back({tmp.dup(full), (uint32_t)st.st_size});
+      flacs.push_back({tmp.dup(full), (uint32_t)st.st_size, (uint32_t)st.st_mtime});
       if ((flacs.size() & 31) == 0) {
         set_prog(LIB_SCANNING, flacs.size(), 0, 0);
         plat_yield();
@@ -232,13 +235,14 @@ bool load_db(std::vector<Raw> &out, uint32_t &sig, DbExtra &ex, Arena &a) {
   if (!f) return false;
   setvbuf(f, nullptr, _IOFBF, 8192);
   uint32_t magic, ver, n;
-  bool ok = r32(f, magic) && r32(f, ver) && r32(f, sig) && r32(f, n) && magic == kDbMagic && ver == kDbVersion;
+  bool ok = r32(f, magic) && r32(f, ver) && r32(f, sig) && r32(f, n) && magic == kDbMagic &&
+            (ver == kDbVersion || ver == 3);
   for (uint32_t i = 0; ok && i < n; i++) {
     Raw r{};
     ok = rstr(f, a, r.path) && rstr(f, a, r.title) && rstr(f, a, r.artist) && rstr(f, a, r.album) &&
          rstr(f, a, r.albumartist) && rstr(f, a, r.genre) && r32(f, r.size) && r32(f, r.dur_ms) &&
          r32(f, r.pic_off) && r32(f, r.pic_size) && r32(f, r.sample_rate) && r16(f, r.trackno) &&
-         r16(f, r.disc) && r16(f, r.year) && r8(f, r.pic_kind) && r8(f, r.bits);
+         r16(f, r.disc) && r16(f, r.year) && r8(f, r.pic_kind) && r8(f, r.bits) && (ver < 4 || r32(f, r.mtime));
     if (ok) out.push_back(r);
   }
   uint32_t nc = 0;
@@ -283,6 +287,7 @@ void save_db(const std::vector<Raw> &raws, uint32_t sig) {
     w16(f, r.year);
     w8(f, r.pic_kind);
     w8(f, r.bits);
+    w32(f, r.mtime);
   }
   w32(f, g_albums.size());
   for (auto &al : g_albums) {
@@ -677,6 +682,8 @@ bool lib_scan(bool force) {
     sig = fnv1a(f.path, sig);
     sig ^= f.size;
     sig *= 16777619u;
+    sig ^= f.mtime;   // file riscritti dal computer (disco USB) con la stessa dimensione
+    sig *= 16777619u;
   }
   plat_log("[lib] %u file FLAC, %u playlist (%u ms)", (unsigned)files.size(), (unsigned)m3us.size(),
            (unsigned)(plat_millis() - t0));
@@ -689,6 +696,7 @@ bool lib_scan(bool force) {
 
   std::vector<Raw> raws;
   Arena rawarena;
+  std::unordered_set<std::string> changed_dirs;   // cartelle con brani riscritti
   bool changed = force || !have_db || old_sig != sig || any_stale();
   if (!changed) {
     raws = old;
@@ -701,13 +709,18 @@ bool lib_scan(bool force) {
       set_prog(LIB_SCANNING, i, files.size(), 1);
       plat_mark(1, "tag", files[i].path);
       auto it = prev.find(fnv1a(files[i].path));
-      if (it != prev.end() && it->second->size == files[i].size && !take_stale(fnv1a(files[i].path))) {
+      if (it != prev.end() && it->second->size == files[i].size &&
+          (!it->second->mtime || it->second->mtime == files[i].mtime) && !take_stale(fnv1a(files[i].path))) {
         raws.push_back(*it->second);
+        raws.back().mtime = files[i].mtime;
         continue;
       }
+      // un brano già noto ma cambiato: la copertina del suo album va rifatta
+      if (it != prev.end()) changed_dirs.insert(dir_of(files[i].path));
       Raw r{};
       r.path = files[i].path;
       r.size = files[i].size;
+      r.mtime = files[i].mtime;
       if (flac_read_meta(files[i].path, *m)) {
         r.title = rawarena.dup(m->title);
         r.artist = rawarena.dup(m->artist);
@@ -743,7 +756,9 @@ bool lib_scan(bool force) {
     Album &a = g_albums[i];
     set_prog(LIB_SCANNING, i, g_albums.size(), 2);
     plat_mark(1, "copertina", a.title);
-    bool fresh = take_art_stale(a.key);
+    // "Aggiorna libreria" rifà tutte le copertine; altrimenti solo quelle nuove o
+    // degli album con brani cambiati (es. sostituiti dal computer)
+    bool fresh = take_art_stale(a.key) || force || changed_dirs.count(a.dir);
     if (!fresh && a.art_state == 1 && art_has_cache(a.key)) continue;
     if (!fresh && a.art_state == 2 && !changed) continue;
     uint16_t col = 0;

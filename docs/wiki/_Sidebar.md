@@ -8,6 +8,7 @@
 **Use it**
 - [Using the Player](Using-the-Player)
 - [Battery and Power](Battery-and-Power)
+- [USB Disk](USB-Disk)
 - [Web Interface](Web-Interface)
 - [Voice Search](Voice-Search)
 - [Session Timer and Clock](Session-Timer-and-Clock)

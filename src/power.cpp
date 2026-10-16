@@ -40,6 +40,7 @@ void power_set_auto_off_min(int m) {
 #include "audio/audio_out.h"
 #include "audio/player.h"
 #include "net/xfer.h"
+#include "hal/usb_disk.h"
 
 namespace {
 
@@ -60,7 +61,7 @@ constexpr uint32_t kLongMs = 1200, kDoubleMs = 320, kDebounceMs = 25;
 
 uint32_t cpu_target() {
 #if SCREEN_OFF_CPU_MHZ > 0
-  if (s_off == ON || xfer_status().state != XF_OFF) return 240;
+  if (s_off == ON || xfer_status().state != XF_OFF || usb_disk_active()) return 240;
   // file oltre i 48 kHz: più lavoro per il decoder, si resta più alti
   PlayerStatus ps = player_status();
   return ps.sample_rate > 48000 ? 160 : SCREEN_OFF_CPU_MHZ;
@@ -138,7 +139,7 @@ void button_poll(uint32_t now) {
       session_toggle(true);   // timer: 1 bip = avviato, 2 bip = fermato
     } else if (s_clicks == 2) {
       plat_event("tasto: play/pausa");
-      player_toggle();
+      if (!ui_usbdisk_visible()) player_toggle();   // col disco USB la scheda è del computer
     } else if (s_off == ON) {
       screen_off(OFF_BUTTON);
     } else {
@@ -201,7 +202,8 @@ void power_poll() {
     screen_on();
   }
   bool playing = player_status().playing;
-  bool xfer = xfer_status().state != XF_OFF;
+  // Wi-Fi o disco USB aperto sul computer: si sta lavorando, schermo acceso e niente spegnimento
+  bool xfer = xfer_status().state != XF_OFF || usb_disk_status().state == UD_MOUNTED;
   if (playing || xfer) s_last_busy = now;
   lv_display_t *d = lv_display_get_default();
   uint32_t idle = lv_display_get_inactive_time(d);
@@ -239,6 +241,7 @@ void power_off(PowerOffReason r) {
     delay(5);
   }
   wait_release(15000);   // col tasto ancora premuto si riaccenderebbe subito
+  usb_disk_release();   // col disco USB: lo stacca e ridà la porta alla seriale
   if (r != PWR_BATTERY_BOOT) {
     xfer_stop();   // chiude upload e Wi-Fi prima di staccare la scheda
     audio_out_suspend();

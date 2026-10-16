@@ -11,6 +11,7 @@
 #include "../power.h"
 #include "../clock.h"
 #include "../session.h"
+#include "../hal/usb_disk.h"
 
 namespace {
 
@@ -22,6 +23,7 @@ class SettingsPage : public Page {
   lv_obj_t *scr_val = nullptr, *off_val = nullptr;
   lv_obj_t *clk = nullptr, *date_t = nullptr, *date_s = nullptr;
   lv_obj_t *tm_sub = nullptr;
+  lv_obj_t *usb_sub = nullptr;
 
   SettingsPage() { build(); }
   ~SettingsPage() override {
@@ -40,6 +42,14 @@ class SettingsPage : public Page {
     lv_timer_create([](lv_timer_t *) { plat_restart(); }, 700, nullptr);
   }
   static void xfer_cb(lv_event_t *) { ui_transfer_open(); }
+  static void usb_cb(lv_event_t *) { ui_usbdisk_open(); }
+  // computer collegato o no: si vede subito se il cavo è quello giusto
+  void usb_update() {
+    bool host = usb_disk_host_present();
+    const char *t = host ? TR("Computer collegato: tocca qui") : TR("Col cavo USB-C, come una chiavetta");
+    if (strcmp(lv_label_get_text(usb_sub), t)) lv_label_set_text(usb_sub, t);
+    lv_obj_set_style_text_color(usb_sub, host ? C_GREEN : C_SUB, 0);
+  }
   static void pause_cb(lv_event_t *e) {
     bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
     audio_out_set_pause_on_unplug(on);
@@ -55,6 +65,7 @@ class SettingsPage : public Page {
     p->bat_update();
     p->clock_update();
     p->timer_update();
+    p->usb_update();
   }
 
   // ---- timer: una riga che apre la sua schermata, con lo stato sotto
@@ -354,8 +365,13 @@ class SettingsPage : public Page {
     row(TR("Spegni ora"), TR("Si riaccende col tasto BOOT"), poweroff_cb);
     power_labels();
 
-    section(TR("Wi-Fi"));
-    row(TR("Trasferimento file"), TR("Carica e gestisci la musica dal browser"), xfer_cb);
+    section(TR("Aggiungere musica"));
+    lv_obj_t *ur = row(TR("Disco USB"), "-", usb_cb);
+    usb_sub = lv_obj_get_child(ur, 1);
+    lv_obj_set_width(usb_sub, SCR_W - 28);
+    usb_update();
+    lv_obj_t *xr = row(TR("Trasferimento file"), TR("Carica e gestisci la musica dal browser"), xfer_cb);
+    lv_obj_set_width(lv_obj_get_child(xr, 1), SCR_W - 28);
 
     section(TR("Libreria"));
     char buf[96];

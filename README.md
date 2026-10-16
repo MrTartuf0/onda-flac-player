@@ -8,7 +8,7 @@ onda plays FLAC files from the microSD card on the built-in speaker, or on headp
 
 The touch interface is inspired by Spotify and written with LVGL 9.5. Over Wi-Fi, a web page lets you upload music, fix tags and covers with MusicBrainz, and build playlists.
 
-**[Wiki](https://github.com/MrTartuf0/onda-flac-player/wiki)** · [Hardware](https://github.com/MrTartuf0/onda-flac-player/wiki/Hardware) · [Build](https://github.com/MrTartuf0/onda-flac-player/wiki/Building-and-Flashing) · [Web interface](https://github.com/MrTartuf0/onda-flac-player/wiki/Web-Interface)
+**[Wiki](https://github.com/MrTartuf0/onda-flac-player/wiki)** · [Hardware](https://github.com/MrTartuf0/onda-flac-player/wiki/Hardware) · [Build](https://github.com/MrTartuf0/onda-flac-player/wiki/Building-and-Flashing) · [USB disk](https://github.com/MrTartuf0/onda-flac-player/wiki/USB-Disk) · [Web interface](https://github.com/MrTartuf0/onda-flac-player/wiki/Web-Interface)
 
 <br clear="right">
 
@@ -20,6 +20,7 @@ The touch interface is inspired by Spotify and written with LVGL 9.5. Over Wi-Fi
 - **Control center** (swipe up from the bottom edge): output, volume, brightness, battery, Wi-Fi. A tap never sets the headphone volume above 75%
 - **Voice search** offline on the chip, with the board microphone (experimental, off by default)
 - **Automatic headphone switching** with a detect jack, separate volume for each output
+- **USB disk**: plug the USB-C cable into a computer and the microSD shows up like a flash drive, no need to take it out. Eject it and the library updates by itself
 - **Web interface over Wi-Fi**: upload music, edit tags inside the FLAC files, fix covers, build playlists, fill in missing data from MusicBrainz
 - **BOOT button as power button**: screen off while the music keeps playing, play/pause in your pocket, power off
 - **Battery**: level, charge detection, self-calibrating runtime estimate, safe shutdown when empty

@@ -20,6 +20,7 @@ git clone https://github.com/MrTartuf0/onda-flac-player.git FlacPlayer
    - PSRAM: **OPI PSRAM**
    - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**
    - USB CDC On Boot: **Enabled**
+   - USB Mode: **Hardware CDC and JTAG** (the default; the [USB disk](USB-Disk) switches the port by itself when you use it)
 3. Upload. The firmware is about 1.9 MB.
 
 ### With voice search

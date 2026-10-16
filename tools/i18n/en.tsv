@@ -243,3 +243,34 @@ min	min
 sec	sec
 +1 min	+1 min
 1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\n3 clic: avvia o ferma il timer\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\n3 clicks: start or stop the timer\nHold: power off (press again to turn it on)
+Computer collegato: tocca qui	Computer connected: tap here
+Col cavo USB-C, come una chiavetta	Over the USB-C cable, like a flash drive
+Aggiungere musica	Add music
+Disco USB	USB disk
+Nessuna microSD	No microSD card
+Inserisci la scheda e riprova	Insert the card and try again
+Chiudi	Close
+Un momento	Just a moment
+La libreria si sta aggiornando: riprova appena ha finito	The library is updating: try again once it has finished
+Collega il computer	Connect a computer
+Con un cavo USB-C che trasferisce dati: con uno solo da ricarica il computer non vede niente	Use a USB-C cable that carries data: with a charge-only cable the computer sees nothing
+Apertura in corso...	Opening...
+La microSD apparir\xC3\xA0 come un disco esterno	The microSD will show up as an external drive
+Quando hai finito espelli il disco dal computer	When you are done, eject the drive on the computer
+Fine	Done
+Aperta sul computer	On your computer
+Copia la musica nella microSD come su una chiavetta	Copy music to the microSD as you would to a flash drive
+Finito? Espelli il disco dal computer e il lettore torna da solo alla musica	Done? Eject the drive on the computer and the player goes back to the music by itself
+Computer scollegato	Disconnected
+Ricollega il cavo, oppure torna alla musica	Plug the cable back in, or go back to the music
+Torna alla musica	Back to the music
+Disco espulso	Drive ejected
+Puoi staccare il cavo. Torno alla musica...	You can unplug the cable. Back to the music...
+Torno alla musica...	Back to the music...
+La libreria si aggiorna con i file nuovi	The library picks up the new files
+Prima espelli il disco dal computer, o gli ultimi file copiati potrebbero rovinarsi	Eject the drive on the computer first, or the last files you copied could be damaged
+Esci lo stesso	Leave anyway
+Errore di lettura o scrittura della microSD	microSD read or write error
+%s ricevuti \xE2\x80\xA2 %s letti	%s received \xE2\x80\xA2 %s read
+%s letti	%s read
+Computer collegato: tocca qui per aprire la microSD come disco USB	Computer connected: tap here to open the microSD as a USB drive

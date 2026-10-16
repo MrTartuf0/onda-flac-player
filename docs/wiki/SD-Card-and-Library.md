@@ -4,13 +4,13 @@
 - Organise folders however you like, for example `Music/Artist/Album/01 - Title.flac`. The whole card is scanned.
 - Only `.flac` files are played. Playlists (`.m3u` / `.m3u8`) can be anywhere on the card.
 
-You can copy files with a card reader or over Wi-Fi from a browser (see [Web Interface](Web-Interface)).
+You can copy files with a card reader, with the USB-C cable as if the player were a flash drive (see [USB Disk](USB-Disk)), or over Wi-Fi from a browser (see [Web Interface](Web-Interface)).
 
 ## Indexing
 
-On the first start the player reads every file and shows a progress bar (looking for files, reading tags, preparing covers, saving the index). After that it starts in a moment: only new or changed files are read again.
+On the first start the player reads every file and shows a progress bar (looking for files, reading tags, preparing covers, saving the index). After that it starts in a moment: only new or changed files are read again. A file counts as changed when its size or its modification date is different, so tags rewritten on a computer are picked up too, and albums with changed songs get their cover rebuilt.
 
-If you add music with a card reader, the new files are picked up at the next start, or right away with **Settings → Update library**. After a Wi-Fi transfer the library is updated when you leave the transfer screen.
+If you add music with a card reader, the new files are picked up at the next start, or right away with **Settings → Update library**, which reads every file and every cover again. After a Wi-Fi transfer the library is updated when you leave the transfer screen, after the USB disk when the player restarts.
 
 The player keeps its index, cover thumbnails, likes and play counts in the hidden folder `/.onda` on the card. You can delete it at any time; it is rebuilt (but likes and play counts are lost).
 

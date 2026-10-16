@@ -9,6 +9,7 @@
  *  Impostazioni Arduino IDE (core esp32 3.x, testato con 3.2.0):
  *    Scheda: ESP32S3 Dev Module   PSRAM: OPI PSRAM   Flash: 4MB o più
  *    Partition Scheme: Huge APP (3MB No OTA/1MB SPIFFS)   USB CDC On Boot: Enabled
+ *    USB Mode: Hardware CDC and JTAG (predefinito: il disco USB cambia porta da solo)
  *  Librerie: nessuna da installare. LVGL 9.5 è incluso nello sketch (src/lvgl,
  *  configurazione in src/lv_conf.h) e non va in conflitto con una LVGL 8 installata.
  */

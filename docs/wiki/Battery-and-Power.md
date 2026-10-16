@@ -16,7 +16,7 @@ The screen turns off by itself after 30 seconds without a touch. Change it in **
 - If the screen went off by itself, a tap wakes it up (you can turn this off with **Tap to wake**).
 - If you turned it off with the button, touch stays locked and only the button wakes it, so nothing happens by accident in your pocket.
 - The tap that wakes the screen is not passed on to the interface.
-- During file transfer the screen stays on.
+- During file transfer, and while a computer has the [USB disk](USB-Disk) open, the screen stays on.
 
 With the screen off the display sleeps with the backlight off, LVGL stops drawing and the CPU drops to 80 MHz (160 MHz for files above 48 kHz; see `SCREEN_OFF_CPU_MHZ` in `src/config.h`). Playback is not affected.
 
