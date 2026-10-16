@@ -4,7 +4,7 @@ Say the name of an artist, album, playlist, genre or song and the player opens i
 
 <img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-voice.png" alt="The microphone in the search box, listening, a list of candidates, and a confident match that opens by itself">
 
-> Voice search is **experimental**. It needs the firmware flashed with the *ESP SR 16M* partition scheme (see [below](#setting-it-up)); without it the microphone simply doesn't appear.
+> Voice search is **experimental and switched off** in the firmware for now. To try it, set `VOICE_SEARCH` to `1` in `src/config.h` and flash with the *ESP SR 16M* partition scheme (see [below](#setting-it-up)); otherwise the microphone doesn't appear.
 
 ### Using it
 
@@ -38,6 +38,8 @@ Names are turned into sounds with **English pronunciation rules**, so:
 - names written only in other scripts (Japanese, Cyrillic…) can't be said.
 
 ### Setting it up
+
+First turn it on in the firmware: in `src/config.h` set `#define VOICE_SEARCH 1`.
 
 The speech models (about 3.3 MB) live in their own flash partition, so the board has to be flashed with a partition scheme that has one. The FNK0104B has 16 MB of flash, so there is room.
 

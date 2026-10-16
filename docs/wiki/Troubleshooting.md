@@ -55,7 +55,7 @@ Open the file transfer page once from a phone or computer, or connect the player
 
 ## Voice search: no microphone, or it doesn't understand
 
-The microphone appears only when the firmware was flashed with the *ESP SR 16M* partition scheme. Recognition is in English and limited to the names in your library. See [Voice Search](Voice-Search) for setup and for the `[voice]` lines in the serial log.
+Voice search is off by default. The microphone appears only when the firmware is built with `VOICE_SEARCH 1` and flashed with the *ESP SR 16M* partition scheme. Recognition is in English and limited to the names in your library. See [Voice Search](Voice-Search) for setup and for the `[voice]` lines in the serial log.
 
 ## Known limits
 

@@ -33,6 +33,14 @@ gen_txt font_b14 Figtree-Bold.ttf 14
 gen_txt font_b16 Figtree-Bold.ttf 16
 gen_txt font_b20 Figtree-ExtraBold.ttf 20
 gen_txt font_b26 Figtree-ExtraBold.ttf 26
+# cifre grandi per il timer (solo "0-9 : + -"), a larghezza fissa
+gen_digits() { # nome dimensione
+  lv_font_conv --font "$F/Figtree-Bold.ttf" -r "0x20,0x2B,0x2D,0x30-0x3A" --no-kerning --size $2 --bpp 4 --format lvgl --no-compress \
+    --lv-include ../lvgl/lvgl.h --lv-font-name "$1" -o "$OUT/$1.c"
+  python3 tabular_digits.py "$OUT/$1.c"
+}
+gen_digits font_d52 52
+gen_digits font_d36 36
 gen_ico icons_14 14
 gen_ico icons_18 18
 gen_ico icons_22 22

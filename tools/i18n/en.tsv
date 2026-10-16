@@ -25,9 +25,6 @@ piena tra %s	full in %s
 %d,%02d V	%d.%02d V
 Batteria	Battery
 non rilevata	not detected
-%d h	%d h
-%d h %d	%d h %d
-%d min	%d min
 Cuffie: oltre il 75% trascina	Headphones: drag past 75%
 AUTO	AUTO
 Ripetizione disattivata	Repeat off
@@ -136,7 +133,6 @@ Informazioni	About
 Lettore FLAC per Freenove ESP32-S3 Display	FLAC player for the Freenove ESP32-S3 Display
 Formati	Formats
 FLAC 8-32 bit, fino a 96 kHz (oltre: decimato)	FLAC 8-32 bit, up to 96 kHz (higher rates are decimated)
-Sessione: %u min	Session: %u min
 Dispositivo attuale	Current device
 Seleziona un dispositivo	Select a device
 Rilevamento non configurato	Detection not configured
@@ -204,15 +200,6 @@ Inserisci una scheda microSD\ncon i tuoi file .flac	Insert a microSD card\nwith 
 Si era bloccato all'avvio: non riprendo l'ultimo brano	It froze at startup: not resuming the last song
 Rete \"%s\" non raggiungibile: uso l'hotspot	\"%s\" is out of reach: using the hotspot
 Impossibile collegarsi a \"%s\": password errata?	Could not connect to \"%s\": wrong password?
-Limite superato	Limit reached
-In corso	Running
-Fermo \xE2\x80\xA2 l'ultima: %s	Stopped \xE2\x80\xA2 last one: %s
-Fermo	Stopped
-Timer della sessione	Session timer
-Avviso dopo	Remind me after
-Allo scadere: 3 bip sopra la musica, poi 2 bip ogni 5 minuti. In tasca: 3 clic sul tasto BOOT per avviarlo o fermarlo.	When time is up: 3 beeps over the music, then 2 beeps every 5 minutes. In your pocket: 3 clicks on the BOOT button start or stop it.
-1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\n3 clic: avvia o ferma il timer della sessione\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\n3 clicks: start or stop the session timer\nHold: power off (press again to turn it on)
-Nessun limite	No limit
 Genere	Genre
 Prova: \xE2\x80\x9C%s\xE2\x80\x9D	Try: \xE2\x80\x9C%s\xE2\x80\x9D
 Un attimo\xE2\x80\xA6	Just a moment\xE2\x80\xA6
@@ -232,3 +219,27 @@ Modello vocale inglese non trovato	English voice model not found
 Memoria insufficiente per la ricerca vocale	Not enough memory for voice search
 Modello vocale non compatibile	Incompatible voice model
 Il microfono non risponde	The microphone isn't responding
+Cosa vuoi ascoltare?	What to listen to?
+Fermo \xE2\x80\xA2 %s	Stopped \xE2\x80\xA2 %s
+Fermo \xE2\x80\xA2 cronometro	Stopped \xE2\x80\xA2 stopwatch
+Cronometro in pausa \xE2\x80\xA2 %s	Stopwatch paused \xE2\x80\xA2 %s
+Cronometro \xE2\x80\xA2 %s	Stopwatch \xE2\x80\xA2 %s
+Scaduto da %s	Time's up, %s ago
+In pausa \xE2\x80\xA2 %s rimasti	Paused \xE2\x80\xA2 %s left
+%s rimasti	%s left
+Timer	Timer
+Timer scaduto da %s	Timer went off %s ago
+Fine alle %s	Ends at %s
+Senza durata conta in avanti	With no time set it counts up
+Stop	Stop
+Riprendi	Resume
+Pausa	Pause
+In pausa	Paused
+Tempo scaduto	Time's up
+Cronometro	Stopwatch
+Timer di %s	%s timer
+ore	hours
+min	min
+sec	sec
++1 min	+1 min
+1 clic: schermo spento o acceso, la musica continua\n2 clic: play / pausa\n3 clic: avvia o ferma il timer\nTenuto premuto: spegne il lettore (si riaccende col tasto)	1 click: screen off or on, the music keeps playing\n2 clicks: play / pause\n3 clicks: start or stop the timer\nHold: power off (press again to turn it on)

@@ -1,6 +1,6 @@
 # onda
 
-<img src="docs/images/tour.gif" align="right" width="260" hspace="24" alt="A tour of the player: home, album, now playing, queue, control center, voice search and settings">
+<img src="docs/images/tour.gif" align="right" width="260" hspace="24" alt="A tour of the player: home, album, now playing, queue, control center, search, settings and the timer">
 
 **A pocket FLAC player for the Freenove ESP32-S3 Display (FNK0104B).**
 
@@ -18,12 +18,12 @@ The touch interface is inspired by Spotify and written with LVGL 9.5. Over Wi-Fi
 - **Library from your tags**: albums, artists, genres, `.m3u` playlists, Liked songs, play counts, instant accent-insensitive search
 - **Now playing** with album-coloured gradient, swipe to change song, queue with shuffle and repeat
 - **Control center** (swipe up from the bottom edge): output, volume, brightness, battery, Wi-Fi. A tap never sets the headphone volume above 75%
-- **Voice search**, offline on the chip: say the name of an artist, album, playlist or song from your library (experimental)
+- **Voice search** offline on the chip, with the board microphone (experimental, off by default)
 - **Automatic headphone switching** with a detect jack, separate volume for each output
 - **Web interface over Wi-Fi**: upload music, edit tags inside the FLAC files, fix covers, build playlists, fill in missing data from MusicBrainz
 - **BOOT button as power button**: screen off while the music keeps playing, play/pause in your pocket, power off
 - **Battery**: level, charge detection, self-calibrating runtime estimate, safe shutdown when empty
-- **Session timer** in Settings, with beeps over the music, for highlining or anything else you shouldn't overdo
+- **Timer** with its own screen: set it to the second (the pasta, a highline session) or use it as a stopwatch; beeps over the music when time's up
 - **Clock** set from your phone or from the internet
 - **Resumes** the same song at the same position after power-off, and even after a crash
 - **English and Italian** interface
@@ -60,7 +60,7 @@ Turn on Wi-Fi from the player and manage the card from any browser: upload music
 3. Open `FlacPlayer.ino` and set **Tools**: Board *ESP32S3 Dev Module*, PSRAM *OPI PSRAM*, Partition Scheme *Huge APP (3MB No OTA/1MB SPIFFS)*, USB CDC On Boot *Enabled*.
 4. Upload, insert the card and wait for the first library scan.
 
-For voice search, also set Flash Size *16MB* and Partition Scheme *ESP SR 16M* ([details](https://github.com/MrTartuf0/onda-flac-player/wiki/Voice-Search)).
+Voice search is off by default; to try it see the [Voice Search](https://github.com/MrTartuf0/onda-flac-player/wiki/Voice-Search) page.
 
 Pins and options are in [`src/config.h`](src/config.h).
 
@@ -74,8 +74,8 @@ Everything else is in the **[wiki](https://github.com/MrTartuf0/onda-flac-player
 - [Using the Player](https://github.com/MrTartuf0/onda-flac-player/wiki/Using-the-Player): screens and gestures
 - [Battery and Power](https://github.com/MrTartuf0/onda-flac-player/wiki/Battery-and-Power): BOOT button, screen timeout, charging, runtime
 - [Web Interface](https://github.com/MrTartuf0/onda-flac-player/wiki/Web-Interface): file transfer, tag editor, MusicBrainz, playlists
-- [Voice Search](https://github.com/MrTartuf0/onda-flac-player/wiki/Voice-Search): setup, what it understands, limits
-- [Session Timer and Clock](https://github.com/MrTartuf0/onda-flac-player/wiki/Session-Timer-and-Clock)
+- [Voice Search](https://github.com/MrTartuf0/onda-flac-player/wiki/Voice-Search): experimental, off by default
+- [Session Timer and Clock](https://github.com/MrTartuf0/onda-flac-player/wiki/Session-Timer-and-Clock): the timer screen, and where the time comes from
 - [Language and Translations](https://github.com/MrTartuf0/onda-flac-player/wiki/Language-and-Translations)
 - [Troubleshooting](https://github.com/MrTartuf0/onda-flac-player/wiki/Troubleshooting): crash reports, no sound, known limits
 - [Architecture](https://github.com/MrTartuf0/onda-flac-player/wiki/Architecture): how the firmware is organised

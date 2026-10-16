@@ -4,7 +4,7 @@
 //
 // Tasto BOOT:  1 clic        schermo spento / acceso (la musica continua)
 //              2 clic        play / pausa (anche a schermo spento, es. in tasca)
-//              3 clic        timer della sessione: avvia (1 bip) / ferma (2 bip)
+//              3 clic        timer: avvia con l'ultima durata (1 bip) / ferma (2 bip)
 //              tenuto 1,2 s  spegnimento completo; si riaccende premendolo di nuovo
 #pragma once
 #include <stdint.h>
@@ -20,6 +20,7 @@ void power_begin();                 // dopo display e interfaccia
 void power_poll();                  // dal loop, fuori da lv_timer_handler
 bool power_screen_on();
 void power_screen_set(bool on);     // accende/spegne lo schermo (la musica continua)
+void power_wake_for_alert();        // avviso (timer): riaccende lo schermo spento da solo, non quello bloccato col tasto
 void power_off(PowerOffReason r);   // spegnimento completo: non ritorna
 void power_off_later();             // dagli eventi LVGL: lo esegue power_poll
 bool power_woke_from_sleep();       // questo avvio è un risveglio dal tasto

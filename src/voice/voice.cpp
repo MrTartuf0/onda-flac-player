@@ -1,6 +1,22 @@
 // Ricerca vocale: elenco dei nomi dalla libreria + riconoscimento con ESP-SR.
 // Vedi voice.h. Sul PC (simulatore) c'è una finta implementazione a tempo.
+// Spenta di serie (VOICE_SEARCH in config.h): il firmware non include ESP-SR.
 #include "voice.h"
+#include "../config.h"
+
+#if !VOICE_SEARCH
+bool voice_supported() { return false; }
+void voice_listen() {}
+void voice_stop() {}
+void voice_cancel() {}
+VoiceStatus voice_status() { return VoiceStatus(); }
+void voice_library_changed() {}
+void voice_release() {}
+bool voice_phrase_text(const char *, bool, char *out, size_t cap) {
+  if (cap) out[0] = 0;
+  return false;
+}
+#else
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -677,3 +693,4 @@ VoiceStatus voice_status() {
 
 void voice_release() {}
 #endif
+#endif  // VOICE_SEARCH

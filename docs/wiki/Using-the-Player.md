@@ -28,7 +28,7 @@ Type in the search box for instant results across songs, albums and artists. Acc
 
 Without a query the page shows your library, with filters (**Playlist**, **Album**, **Artists**, **Genres**) and a sort button (recently played first, or alphabetical).
 
-The **microphone** in the search box starts a [voice search](Voice-Search): say the name of an artist, album, playlist or song (experimental, needs the *ESP SR 16M* partition scheme).
+With [voice search](Voice-Search) turned on (experimental, off by default), a **microphone** in the search box lets you say the name of an artist, album, playlist or song.
 
 ## Album, artist and playlist pages
 
@@ -63,7 +63,7 @@ Swipe up from the bottom edge. The panel follows your finger; close it by draggi
 - **Battery**: percentage, estimated runtime on battery or time to full while charging.
 - **Volume** and **Brightness**: tap a point to jump to that level (in 5% steps), or put your finger anywhere and drag up or down for fine control. Volume is the one of the output in use; each output remembers its own.
 
-The session timer is in **Settings**, see [Session Timer and Clock](Session-Timer-and-Clock).
+The timer has its own screen, from **Settings → Timer**: see [Session Timer and Clock](Session-Timer-and-Clock).
 
 > **Headphone safety**: with headphones, a tap never sets the volume above 75%. To go higher you have to drag.
 
@@ -77,7 +77,7 @@ When you unplug the headphones the music pauses, like on a phone (**Settings →
 
 | Section | What's there |
 |---|---|
-| Session timer | Elapsed time, start/stop, reminder after (see [Session Timer and Clock](Session-Timer-and-Clock)) |
+| Timer | Opens the timer screen; underneath, the time left (see [Session Timer and Clock](Session-Timer-and-Clock)) |
 | Battery | Level and voltage, charging status, estimated current draw |
 | Date and time | Date and where the time came from |
 | Audio | Output, headphone jack status, pause on unplug, invert jack detection |

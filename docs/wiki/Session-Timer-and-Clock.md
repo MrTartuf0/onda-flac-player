@@ -1,20 +1,36 @@
-## Session timer
+## Timer
 
-A stopwatch with a limit, made for not staying too long on a highline, but useful for any activity.
+A countdown timer you set to the second: 9 minutes for the pasta, 30 minutes on the highline. With no time set it works as a stopwatch.
 
-<p align="center"><img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-timer.png" alt="The session timer at the top of Settings, running" width="240"></p>
+<img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/player-timer.png" alt="The Timer row in Settings, setting 9:00, the countdown, and time's up">
 
-It is the first section of **Settings**:
+Open it from **Settings → Timer** (the first row; underneath it shows the time left while it runs).
 
-- the elapsed time, with *Running*, *Over the limit* or *Stopped* underneath (stopped, it also shows how long the last session lasted);
-- the round button starts and stops it;
-- **Remind me after**: tap it to cycle through 10, 15, 20, 30, 45 min, 1 h, 1 h 30, 2 h or no limit.
+### Setting the time
 
-When the limit is reached you hear **three beeps over the music** (or on their own if it is paused) and a notice appears. After that, two beeps every 5 minutes until you stop it.
+- Turn the three wheels: **hours**, **minutes**, **seconds**. Underneath you see when it will end (*Ends at 13:42*, once the clock is set).
+- Or tap one of the chips: the last times you used (until then 9:00, 30:00 and 5:00).
+- All wheels at zero: it becomes a **stopwatch** and counts up.
+- Tap the green **play** button.
 
-With the player in your pocket, **3 clicks on the BOOT button** start and stop the timer: 1 beep means started, 2 beeps mean stopped.
+### While it runs
 
-While the timer is running the player never powers off by itself.
+- The ring empties as the time runs out, with the time left in the middle and the end time below.
+- **Cancel** stops it, **+1 min** adds a minute, **Pause** / **Resume**.
+- Go back and use the player as usual: the timer keeps running. While this screen is open and the timer is running, the screen stays on.
+
+### Time's up
+
+- **Three beeps over the music** (or on their own if the music is paused).
+- The screen turns back on if it went off by itself, and the Timer screen opens on top of everything. If you locked the screen with the BOOT button (in your pocket) it stays off and you only hear the beeps.
+- The time turns red and counts how long ago it ended (*+0:23*). The beeps repeat every 30 seconds until you tap **Stop**.
+- Not ready yet? **+1 min** starts a new minute from now.
+
+### With the BOOT button
+
+With the player in your pocket, **3 clicks on BOOT** start the timer with the last time you set (1 beep) or stop it (2 beeps).
+
+While the timer is running (also when paused) the player never powers off by itself.
 
 ## Clock
 

@@ -6,7 +6,7 @@ The board's **BOOT** button (IO0) works as the power button, so no extra pin is 
 |---|---|
 | 1 click | Screen off / on. The music keeps playing |
 | 2 clicks | Play / pause, also with the screen off (for example in your pocket) |
-| 3 clicks | Session timer: start (1 beep) / stop (2 beeps) |
+| 3 clicks | [Timer](Session-Timer-and-Clock): start with the last time set (1 beep) / stop (2 beeps) |
 | Hold for about 1 s | Power off (deep sleep). Press it again to turn the player back on |
 
 ## Screen timeout

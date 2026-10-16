@@ -9,8 +9,8 @@ src/platform.*            settings (NVS), event log, crash and freeze detection,
 src/power.*               BOOT button, screen off, auto power-off, deep sleep, CPU clock
 src/clock.*               clock (time from the browser or NTP, time zone, date format)
 src/i18n.*, i18n_en.h     translations (see Language and Translations)
-src/session.h             session timer API (implemented in src/ui/session.cpp)
-src/voice/voice.*         voice search: names from the library, ESP-SR MultiNet in its own task
+src/session.h             timer API: countdown, pause, +1 min, alarms (implemented in src/ui/session.cpp)
+src/voice/voice.*         voice search: names from the library, ESP-SR MultiNet in its own task (VOICE_SEARCH, off)
 src/hal/display.*         ILI9341 via esp_lcd (SPI + DMA), FT6336U touch, LVGL display/input drivers
 src/hal/battery.*         battery voltage, percentage, charge detection, runtime estimate
 src/hal/edge_swipe.*      edge gestures: back (left edge) and control center (bottom edge)
@@ -23,7 +23,7 @@ src/lib/library.*         scan, index, albums/artists/genres/playlists, search, 
 src/lib/artwork.*         cover decoding (TJpgDec), thumbnail cache on SD and in RAM, album colour
 src/ui/                   LVGL pages: Home, Search, Settings, album/artist/collection pages,
                           Now playing and queue, control center, sheets, transfer, battery screens,
-                          voice search screen
+                          timer screen, voice search screen
 src/net/xfer.*            Wi-Fi (home network or hotspot), mDNS, HTTP server and JSON API
 src/net/web_index.h       the web page, generated from tools/web/index.html
 src/fonts/                generated fonts (Figtree + Font Awesome icons)
@@ -56,7 +56,7 @@ SD card ──► [flac] dr_flac decode ──► 1 MB ring buffer in PSRAM ─�
 - The ring buffer absorbs pauses from the SD card, the interface and flash writes, so the output task always has data ready.
 - Samples are 32-bit stereo on I2S. Mono files are duplicated to both channels, and files above 96 kHz are decimated (176.4/192 kHz → 88.2/96 kHz) in the decoder.
 - There is a single I2S port. For the headphones the BCK, LRCK and DOUT signals are copied to IO21/IO3/IO14 through the GPIO matrix; for the speaker those pins are detached and held low and the PCM5102 goes into standby. Switching output is instant.
-- Volume, fade in/out ramps (no clicks on pause, seek or track change) and session-timer beeps are applied in the output task.
+- Volume, fade in/out ramps (no clicks on pause, seek or track change) and timer beeps are applied in the output task.
 
 ## Library
 

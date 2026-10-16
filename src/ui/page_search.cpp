@@ -208,7 +208,9 @@ class SearchPage : public Page {
     lv_obj_add_event_cb(box, box_cb, LV_EVENT_CLICKED, this);
     lv_obj_t *ic = ui_icon(box, &icons_18, IC_SEARCH, lv_color_hex(0x121212));
     lv_obj_align(ic, LV_ALIGN_LEFT_MID, 10, 0);
-    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), TR("Cosa ascoltiamo?"));
+    // col microfono nella casella serve un testo più corto
+    const char *phs = voice_supported() ? TR("Cosa ascoltiamo?") : TR("Cosa vuoi ascoltare?");
+    lv_obj_t *ph = ui_label(box, &font_b14, lv_color_hex(0x535353), phs);
     lv_obj_align(ph, LV_ALIGN_LEFT_MID, 36, 0);
     if (voice_supported()) {
       lv_obj_t *mic = ui_icon_btn(box, &icons_18, IC_MIC, lv_color_hex(0x121212), mic_cb, this);
@@ -312,7 +314,7 @@ class SearchPage : public Page {
 
     ta = lv_textarea_create(top);
     lv_textarea_set_one_line(ta, true);
-    lv_textarea_set_placeholder_text(ta, TR("Cosa ascoltiamo?"));
+    lv_textarea_set_placeholder_text(ta, voice_supported() ? TR("Cosa ascoltiamo?") : TR("Cosa vuoi ascoltare?"));
     bool mic = voice_supported();
     lv_obj_set_size(ta, SCR_W - 90, 34);
     lv_obj_align(ta, LV_ALIGN_LEFT_MID, 8, 0);

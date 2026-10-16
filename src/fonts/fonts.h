@@ -11,6 +11,8 @@ LV_FONT_DECLARE(font_b12);
 LV_FONT_DECLARE(font_b14);
 LV_FONT_DECLARE(font_b16);
 LV_FONT_DECLARE(font_b20);
+LV_FONT_DECLARE(font_d52);   // solo cifre "0-9 : + -" a larghezza fissa (timer)
+LV_FONT_DECLARE(font_d36);
 LV_FONT_DECLARE(font_b26);
 LV_FONT_DECLARE(icons_14);
 LV_FONT_DECLARE(icons_18);

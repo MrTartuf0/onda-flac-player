@@ -135,7 +135,7 @@ void button_poll(uint32_t now) {
   if (!down && s_clicks && now - s_up_t > kDoubleMs) {
     if (s_clicks >= 3) {
       plat_event("tasto: timer sessione");
-      session_toggle(true);   // 1 bip = avviato, 2 bip = fermato
+      session_toggle(true);   // timer: 1 bip = avviato, 2 bip = fermato
     } else if (s_clicks == 2) {
       plat_event("tasto: play/pausa");
       player_toggle();
@@ -156,6 +156,9 @@ bool power_screen_on() { return s_off == ON; }
 void power_screen_set(bool on) {
   if (on) screen_on();
   else screen_off(OFF_BUTTON);
+}
+void power_wake_for_alert() {
+  if (s_off == OFF_TIMEOUT) s_wake_req = true;   // lo accende power_poll; bloccato col tasto (in tasca) resta spento
 }
 
 void power_off_later() { s_off_req = true; }
@@ -270,6 +273,7 @@ void power_begin() {}
 void power_poll() {}
 bool power_screen_on() { return s_scr; }
 void power_screen_set(bool on) { s_scr = on; }
+void power_wake_for_alert() { s_scr = true; }
 void power_off(PowerOffReason) {}
 void power_off_later() {}
 bool power_woke_from_sleep() { return false; }

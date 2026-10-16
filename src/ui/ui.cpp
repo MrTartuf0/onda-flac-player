@@ -459,6 +459,7 @@ void ui_pop() {
 void ui_back() {
   if (ui_cc_close()) return;
   if (ui_voice_close()) return;
+  if (ui_timer_close()) return;
   if (ui_transfer_back()) return;
   if (!s_main_built) return;
   if (ui_sheet_close()) return;

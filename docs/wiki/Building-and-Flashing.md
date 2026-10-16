@@ -20,11 +20,11 @@ git clone https://github.com/MrTartuf0/onda-flac-player.git FlacPlayer
    - PSRAM: **OPI PSRAM**
    - Partition Scheme: **Huge APP (3MB No OTA/1MB SPIFFS)**
    - USB CDC On Boot: **Enabled**
-3. Upload. The firmware is about 2.7 MB.
+3. Upload. The firmware is about 1.9 MB.
 
 ### With voice search
 
-[Voice search](Voice-Search) needs its speech models in a flash partition of their own. Change two settings:
+[Voice search](Voice-Search) is experimental and off by default. To try it, set `VOICE_SEARCH` to `1` in `src/config.h` (the firmware grows to about 2.7 MB) and change two settings, because the speech models need a flash partition of their own:
 
 - Flash Size: **16MB (128Mb)**
 - Partition Scheme: **ESP SR 16M (3MB APP/6MB SPIFFS/3.9MB MODEL)** (core 3.2.0: *ESP SR 16M (3MB APP/7MB SPIFFS/2.9MB MODEL)*)
@@ -57,6 +57,7 @@ Everything you might want to change is in `src/config.h`:
 | `HP_DETECT_PLUGGED` | 0 | Level read when headphones are plugged in |
 | `PAUSE_ON_UNPLUG_DEFAULT` | true | Pause when headphones are unplugged (also in Settings) |
 | `I2S_PIN_DIN` | 6 | Data from the codec: the microphone, for voice search |
+| `VOICE_SEARCH` | 0 | Voice search (experimental): `1` to build it in; needs the *ESP SR 16M* scheme |
 | `BAT_ADC_PIN` | 9 | Battery voltage pin, `-1` to disable battery support |
 | `BAT_OFFSET_MV` | 0 | Correction if the displayed voltage differs from a multimeter |
 | `BAT_CAPACITY_MAH`, `BAT_CHARGE_MA` | 1100, 300 | Used for the time-to-full estimate |
