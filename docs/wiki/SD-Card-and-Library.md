@@ -12,6 +12,8 @@ On the first start the player reads every file and shows a progress bar (looking
 
 If you add music with a card reader, the new files are picked up at the next start, or right away with **Settings → Update library**, which reads every file and every cover again. After a Wi-Fi transfer the library is updated when you leave the transfer screen, after the USB disk when the player restarts.
 
+The player remembers in which scan each file first appeared: that is the order of **Recently added** on the Home screen. Files that were already on the card before this was introduced are ordered by their modification date. Renaming or moving a file makes it count as new.
+
 The player keeps its index, cover thumbnails, likes and play counts in the hidden folder `/.onda` on the card. You can delete it at any time; it is rebuilt (but likes and play counts are lost).
 
 ## Tags

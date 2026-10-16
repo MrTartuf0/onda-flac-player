@@ -90,6 +90,8 @@ class SearchPage : public Page {
       case CTX_PLAYLIST: return lib_ctx_playlist(e.index);
       case CTX_GENRE: return lib_ctx_genre(e.index);
       case CTX_LIKED: return lib_ctx_liked();
+      case CTX_NEW: return lib_ctx_new();
+      case CTX_UNPLAYED: return lib_ctx_unplayed();
       default: return lib_ctx_all();
     }
   }
@@ -101,6 +103,8 @@ class SearchPage : public Page {
       case CTX_PLAYLIST: return lib_playlists()[e.index].name;
       case CTX_GENRE: return lib_genres()[e.index].name;
       case CTX_LIKED: return TR("Brani che ti piacciono");
+      case CTX_NEW: return TR("Aggiunti di recente");
+      case CTX_UNPLAYED: return TR("Mai ascoltati");
       default: return TR("Tutti i brani");
     }
   }
@@ -110,6 +114,8 @@ class SearchPage : public Page {
     bool all = filter == F_NONE;
     if (all || filter == F_PLAYLIST) {
       lib_items.push_back({CTX_LIKED, 0});
+      lib_items.push_back({CTX_NEW, 0});
+      if (lib_unplayed_count()) lib_items.push_back({CTX_UNPLAYED, 0});
       for (size_t i = 0; i < lib_playlists().size(); i++) lib_items.push_back({CTX_PLAYLIST, (int)i});
     }
     if (all) lib_items.push_back({CTX_ALL, 0});
@@ -120,11 +126,14 @@ class SearchPage : public Page {
     if (filter == F_GENRE)
       for (size_t i = 0; i < lib_genres().size(); i++) lib_items.push_back({CTX_GENRE, (int)i});
 
-    // "Brani che ti piacciono" resta sempre in cima
-    auto pinned = [](const Entry &e) { return e.type == CTX_LIKED; };
+    // le playlist automatiche (Mi piace, Aggiunti di recente, Mai ascoltati) restano sempre in cima
+    auto pin = [](const Entry &e) {
+      return e.type == CTX_LIKED ? 0 : e.type == CTX_NEW ? 1 : e.type == CTX_UNPLAYED ? 2 : 3;
+    };
+    auto pinned = [&](const Entry &e) { return pin(e) < 3; };
     if (alpha) {
       std::stable_sort(lib_items.begin(), lib_items.end(), [&](const Entry &a, const Entry &b) {
-        if (pinned(a) != pinned(b)) return pinned(a);
+        if (pinned(a) || pinned(b)) return pin(a) < pin(b);
         char fa[96], fb[96];
         lib_fold(name_of(a), fa, sizeof fa);
         lib_fold(name_of(b), fb, sizeof fb);
@@ -133,7 +142,7 @@ class SearchPage : public Page {
     } else {
       auto &rec = lib_recents();
       auto rank = [&](const Entry &e) {
-        if (pinned(e)) return -1;
+        if (pinned(e)) return pin(e) - 3;
         PlayContext c = ctx_of(e);
         for (size_t i = 0; i < rec.size(); i++)
           if (rec[i].type == c.type && rec[i].key == c.key) return (int)i;
@@ -178,6 +187,14 @@ class SearchPage : public Page {
         if (lib_liked().size() == 1) snprintf(sub, sizeof sub, "%s", TR("Playlist \xE2\x80\xA2 1 brano"));
         else snprintf(sub, sizeof sub, TR("Playlist \xE2\x80\xA2 %u brani"), (unsigned)lib_liked().size());
         break;
+      case CTX_NEW:
+      case CTX_UNPLAYED: {
+        std::vector<uint16_t> tr;
+        lib_context_tracks(ctx_of(e), tr);
+        ui_cover_set(p.cover, e.type == CTX_NEW ? COVER_NEW : COVER_UNPLAYED, 0);
+        snprintf(sub, sizeof sub, TR("Playlist \xE2\x80\xA2 %u brani"), (unsigned)tr.size());
+        break;
+      }
       default:
         ui_cover_set(p.cover, COVER_ALL, 0);
         snprintf(sub, sizeof sub, TR("%u brani"), (unsigned)lib_tracks().size());

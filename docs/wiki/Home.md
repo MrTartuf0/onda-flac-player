@@ -9,7 +9,7 @@
 ## What it does
 
 - Lossless FLAC playback, 8–32 bit, up to 96 kHz (176.4/192 kHz files are decimated to 88.2/96 kHz)
-- Library built from your tags: albums, artists, genres, `.m3u` playlists, Liked songs, play counts
+- Library built from your tags: albums, artists, genres, `.m3u` playlists, Liked songs, play counts, recently added and never played
 - Headphones switch on by themselves when you plug them in, and the music pauses when you unplug them
 - Control center (swipe up from the bottom edge): output, volume, brightness, battery, Wi-Fi
 - Voice search on the device, without internet (experimental, off by default)

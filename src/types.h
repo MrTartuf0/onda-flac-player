@@ -5,7 +5,9 @@
 enum RepeatMode : uint8_t { REPEAT_OFF = 0, REPEAT_ALL = 1, REPEAT_ONE = 2 };
 
 enum CtxType : uint8_t {
-  CTX_NONE = 0, CTX_ALBUM, CTX_ARTIST, CTX_PLAYLIST, CTX_LIKED, CTX_GENRE, CTX_ALL, CTX_SEARCH
+  CTX_NONE = 0, CTX_ALBUM, CTX_ARTIST, CTX_PLAYLIST, CTX_LIKED, CTX_GENRE, CTX_ALL, CTX_SEARCH,
+  CTX_NEW,        // "Aggiunti di recente": gli ultimi album arrivati sulla scheda
+  CTX_UNPLAYED,   // "Mai ascoltati": i brani che non sono mai partiti
 };
 
 struct PlayContext {

@@ -87,6 +87,8 @@ void restore_session() {
     case CTX_GENRE: if ((i = lib_genre_by_key(c.key)) >= 0) c = lib_ctx_genre(i); break;
     case CTX_LIKED: c = lib_ctx_liked(); break;
     case CTX_ALL: c = lib_ctx_all(); break;
+    case CTX_NEW: c = lib_ctx_new(); break;
+    case CTX_UNPLAYED: c = lib_ctx_unplayed(); break;
     default: return;
   }
   if (!lib_ctx_valid(c)) return;
@@ -597,7 +599,9 @@ const char *ctx_type_label(CtxType t) {
     case CTX_ALBUM: return TR("ALBUM");
     case CTX_ARTIST: return TR("ARTISTA");
     case CTX_PLAYLIST: return TR("PLAYLIST");
-    case CTX_LIKED: return TR("PLAYLIST");
+    case CTX_LIKED:
+    case CTX_NEW:
+    case CTX_UNPLAYED: return TR("PLAYLIST");
     case CTX_GENRE: return TR("GENERE");
     case CTX_ALL: return TR("LA TUA LIBRERIA");
     case CTX_SEARCH: return TR("RICERCA");

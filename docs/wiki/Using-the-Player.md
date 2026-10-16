@@ -20,7 +20,12 @@ The interface has three tabs at the bottom (**Home**, **Search**, **Settings**),
 
 - **Liked songs** and **All songs** are always the first two tiles. Tap to open them; long press to start them in shuffle right away.
 - The other tiles are what you played recently: albums, artists, playlists, genres.
-- Below: **Most played**, **Rediscover your albums**, **Your artists** and genres.
+- Below:
+  - **Recently added**: the albums that arrived last on the card, newest first. The first card, **New songs**, plays them all (whole albums, up to about 100 songs).
+  - **Most played**.
+  - **Not played yet**: the **Never played** playlist (every song that has never started), then the albums you haven't listened to, newest first.
+  - **Rediscover your albums**, **Your artists** and genres.
+- *Recently added* and *Never played* are also in **Search**, pinned under *Liked songs*.
 
 ## Search
 

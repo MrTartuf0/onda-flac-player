@@ -196,6 +196,20 @@ void ui_cover_set(lv_obj_t *c, CoverKind kind, int index) {
       lv_label_set_text(ic, IC_SHUFFLE);
       lv_obj_set_style_text_color(ic, C_TEXT, 0);
       break;
+    case COVER_NEW:
+      lv_obj_set_style_bg_color(c, lv_color_hex(0xC2330A), 0);
+      lv_obj_set_style_bg_grad_color(c, lv_color_hex(0xF5A623), 0);
+      lv_obj_set_style_bg_grad_dir(c, LV_GRAD_DIR_VER, 0);
+      lv_label_set_text(ic, IC_PLUS);
+      lv_obj_set_style_text_color(ic, C_TEXT, 0);
+      break;
+    case COVER_UNPLAYED:
+      lv_obj_set_style_bg_color(c, lv_color_hex(0x0B5D63), 0);
+      lv_obj_set_style_bg_grad_color(c, lv_color_hex(0x2DD4BF), 0);
+      lv_obj_set_style_bg_grad_dir(c, LV_GRAD_DIR_VER, 0);
+      lv_label_set_text(ic, IC_HEADPHONES);
+      lv_obj_set_style_text_color(ic, C_TEXT, 0);
+      break;
     default: lv_label_set_text(ic, IC_MUSIC); break;
   }
   lv_obj_center(ic);
@@ -327,5 +341,19 @@ void VList::refresh(bool force) {
       bound[i] = -1;
       lv_obj_add_flag(pool[i], LV_OBJ_FLAG_HIDDEN);
     }
+  }
+}
+
+CoverKind ui_ctx_cover(const PlayContext &c, int *index) {
+  *index = -1;
+  switch (c.type) {
+    case CTX_ALBUM: *index = lib_album_by_key(c.key); return COVER_ALBUM;
+    case CTX_ARTIST: *index = lib_artist_by_key(c.key); return COVER_ARTIST;
+    case CTX_PLAYLIST: *index = lib_playlist_by_key(c.key); return COVER_PLAYLIST;
+    case CTX_GENRE: *index = lib_genre_by_key(c.key); return COVER_GENRE;
+    case CTX_LIKED: return COVER_LIKED;
+    case CTX_NEW: return COVER_NEW;
+    case CTX_UNPLAYED: return COVER_UNPLAYED;
+    default: return COVER_ALL;
   }
 }

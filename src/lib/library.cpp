@@ -18,7 +18,9 @@
 namespace {
 
 constexpr uint32_t kDbMagic = 0x42444E4F;  // "ONDB"
-constexpr uint32_t kDbVersion = 4;   // 4: data di modifica dei file (le versioni 3 si leggono ancora)
+constexpr uint32_t kDbVersion = 5;   // 4: data di modifica dei file, 5: scansione in cui è comparso
+                                     // (le versioni 3 e 4 si leggono ancora)
+constexpr size_t kNewTracks = 100;   // "Aggiunti di recente": album interi fino a questi brani
 
 // ------------------------------------------------------------- arena ----
 // Tutte le stringhe della libreria vivono qui (in PSRAM sull'ESP32).
@@ -55,6 +57,7 @@ struct Raw {   // record così come salvato nel database
   uint16_t trackno, disc, year;
   uint8_t pic_kind, bits;
   uint32_t mtime;   // data di modifica del file (0 = non nota: indice della versione 3)
+  uint32_t added;   // scansione in cui è comparso il file (0 = già c'era: indice prima della versione 5)
 };
 
 struct Stat {
@@ -236,13 +239,14 @@ bool load_db(std::vector<Raw> &out, uint32_t &sig, DbExtra &ex, Arena &a) {
   setvbuf(f, nullptr, _IOFBF, 8192);
   uint32_t magic, ver, n;
   bool ok = r32(f, magic) && r32(f, ver) && r32(f, sig) && r32(f, n) && magic == kDbMagic &&
-            (ver == kDbVersion || ver == 3);
+            ver >= 3 && ver <= kDbVersion;
   for (uint32_t i = 0; ok && i < n; i++) {
     Raw r{};
     ok = rstr(f, a, r.path) && rstr(f, a, r.title) && rstr(f, a, r.artist) && rstr(f, a, r.album) &&
          rstr(f, a, r.albumartist) && rstr(f, a, r.genre) && r32(f, r.size) && r32(f, r.dur_ms) &&
          r32(f, r.pic_off) && r32(f, r.pic_size) && r32(f, r.sample_rate) && r16(f, r.trackno) &&
-         r16(f, r.disc) && r16(f, r.year) && r8(f, r.pic_kind) && r8(f, r.bits) && (ver < 4 || r32(f, r.mtime));
+         r16(f, r.disc) && r16(f, r.year) && r8(f, r.pic_kind) && r8(f, r.bits) && (ver < 4 || r32(f, r.mtime)) &&
+         (ver < 5 || r32(f, r.added));
     if (ok) out.push_back(r);
   }
   uint32_t nc = 0;
@@ -288,6 +292,7 @@ void save_db(const std::vector<Raw> &raws, uint32_t sig) {
     w8(f, r.pic_kind);
     w8(f, r.bits);
     w32(f, r.mtime);
+    w32(f, r.added);
   }
   w32(f, g_albums.size());
   for (auto &al : g_albums) {
@@ -365,6 +370,8 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
     t.trackno = r.trackno;
     t.disc = r.disc;
     t.year = r.year;
+    t.added = r.added;
+    t.mtime = r.mtime;
     snprintf(fold, sizeof fold, "%s %s %s", t.title, t.artist, t.album_tag);
     char folded[400];
     lib_fold(fold, folded, sizeof folded);
@@ -697,6 +704,15 @@ bool lib_scan(bool force) {
   std::vector<Raw> raws;
   Arena rawarena;
   std::unordered_set<std::string> changed_dirs;   // cartelle con brani riscritti
+  // "Aggiunti di recente": ogni file si porta dietro la scansione in cui è comparso (anche dopo
+  // "Aggiorna libreria", che rilegge tutto); quelli nuovi prendono la scansione successiva
+  std::unordered_map<uint32_t, uint32_t> old_added;
+  uint32_t gen = 0;
+  for (auto &r : old) {
+    old_added[fnv1a(r.path)] = r.added;
+    gen = std::max(gen, r.added);
+  }
+  gen++;
   bool changed = force || !have_db || old_sig != sig || any_stale();
   if (!changed) {
     raws = old;
@@ -721,6 +737,8 @@ bool lib_scan(bool force) {
       r.path = files[i].path;
       r.size = files[i].size;
       r.mtime = files[i].mtime;
+      auto oa = old_added.find(fnv1a(files[i].path));
+      r.added = oa != old_added.end() ? oa->second : gen;
       if (flac_read_meta(files[i].path, *m)) {
         r.title = rawarena.dup(m->title);
         r.artist = rawarena.dup(m->artist);
@@ -847,6 +865,28 @@ PlayContext lib_ctx_playlist(int p) { return mkctx(CTX_PLAYLIST, g_playlists[p].
 PlayContext lib_ctx_genre(int g) { return mkctx(CTX_GENRE, g_genres[g].key, g_genres[g].name); }
 PlayContext lib_ctx_liked() { return mkctx(CTX_LIKED, 1, TR("Brani che ti piacciono")); }
 PlayContext lib_ctx_all() { return mkctx(CTX_ALL, 2, TR("Tutti i brani")); }
+PlayContext lib_ctx_new() { return mkctx(CTX_NEW, 3, TR("Aggiunti di recente")); }
+PlayContext lib_ctx_unplayed() { return mkctx(CTX_UNPLAYED, 4, TR("Mai ascoltati")); }
+
+namespace {
+uint64_t rec_key(const Track &t) { return (uint64_t)t.added << 32 | t.mtime; }
+}  // namespace
+
+void lib_albums_by_added(std::vector<int> &out) {
+  std::vector<uint64_t> key(g_albums.size(), 0);
+  for (size_t a = 0; a < g_albums.size(); a++)
+    for (auto t : g_albums[a].tracks) key[a] = std::max(key[a], rec_key(g_tracks[t]));
+  out.resize(g_albums.size());
+  for (size_t i = 0; i < out.size(); i++) out[i] = i;
+  std::stable_sort(out.begin(), out.end(), [&](int a, int b) { return key[a] > key[b]; });
+}
+
+size_t lib_unplayed_count() {
+  size_t n = 0;
+  for (size_t t = 0; t < g_tracks.size(); t++)
+    if (!lib_play_count(t)) n++;
+  return n;
+}
 
 bool lib_ctx_valid(const PlayContext &c) {
   switch (c.type) {
@@ -856,6 +896,8 @@ bool lib_ctx_valid(const PlayContext &c) {
     case CTX_GENRE: return lib_genre_by_key(c.key) >= 0;
     case CTX_LIKED:
     case CTX_ALL: return true;
+    case CTX_NEW:
+    case CTX_UNPLAYED: return !g_tracks.empty();
     default: return false;
   }
 }
@@ -878,6 +920,19 @@ void lib_context_tracks(const PlayContext &c, std::vector<uint16_t> &out) {
       break;
     case CTX_LIKED: out = g_liked; break;
     case CTX_ALL: out = g_all; break;
+    case CTX_NEW: {   // album interi, dal più recente, finché si arriva a kNewTracks brani
+      std::vector<int> al;
+      lib_albums_by_added(al);
+      for (int a : al) {
+        if (out.size() >= kNewTracks) break;
+        out.insert(out.end(), g_albums[a].tracks.begin(), g_albums[a].tracks.end());
+      }
+      break;
+    }
+    case CTX_UNPLAYED:   // in ordine di libreria (artista, album, traccia)
+      for (auto t : g_all)
+        if (!lib_play_count(t)) out.push_back(t);
+      break;
     default: break;
   }
 }

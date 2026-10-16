@@ -36,17 +36,7 @@ bool fits(const char *txt, const lv_font_t *f, int w) {
   return all.y <= 2 * lv_font_get_line_height(f);
 }
 
-CoverKind kind_for(const PlayContext &c, int *index) {
-  *index = -1;
-  switch (c.type) {
-    case CTX_ALBUM: *index = lib_album_by_key(c.key); return COVER_ALBUM;
-    case CTX_ARTIST: *index = lib_artist_by_key(c.key); return COVER_ARTIST;
-    case CTX_PLAYLIST: *index = lib_playlist_by_key(c.key); return COVER_PLAYLIST;
-    case CTX_GENRE: *index = lib_genre_by_key(c.key); return COVER_GENRE;
-    case CTX_LIKED: return COVER_LIKED;
-    default: return COVER_ALL;
-  }
-}
+CoverKind kind_for(const PlayContext &c, int *index) { return ui_ctx_cover(c, index); }
 
 class HomePage : public Page {
  public:
@@ -179,7 +169,7 @@ class HomePage : public Page {
     return row;
   }
 
-  void card(lv_obj_t *row, const PlayContext &c, const char *sub, bool round) {
+  void card(lv_obj_t *row, const PlayContext &c, const char *sub, bool round, const char *title = nullptr) {
     int idx;
     CoverKind k = kind_for(c, &idx);
     const int W = 100;
@@ -194,7 +184,7 @@ class HomePage : public Page {
     lv_obj_add_flag(cd, LV_OBJ_FLAG_SCROLL_CHAIN_HOR);
     lv_obj_t *cv = ui_cover(cd, W, round ? LV_RADIUS_CIRCLE : 4);
     ui_cover_set(cv, k, idx);
-    lv_obj_t *t = ui_label(cd, &font_b12, C_TEXT, c.name);
+    lv_obj_t *t = ui_label(cd, &font_b12, C_TEXT, title ? title : c.name);
     lv_obj_set_style_margin_top(t, 6, 0);   // margine, non padding: l'altezza della riga resta intera
     ui_dot(t);
     lv_obj_set_width(t, W);
@@ -235,6 +225,19 @@ class HomePage : public Page {
     }
     grid();
 
+    // aggiunti di recente: la playlist con tutti i brani nuovi, poi gli album dal più nuovo
+    std::vector<int> fresh;
+    lib_albums_by_added(fresh);
+    char n[32];
+    {
+      lv_obj_t *row = section(TR("Aggiunti di recente"));
+      std::vector<uint16_t> tr;
+      lib_context_tracks(lib_ctx_new(), tr);
+      snprintf(n, sizeof n, TR("%u brani"), (unsigned)tr.size());
+      card(row, lib_ctx_new(), n, false, TR("Brani nuovi"));
+      for (size_t i = 0; i < fresh.size() && i < 9; i++) card(row, lib_ctx_album(fresh[i]), albums[fresh[i]].artist, false);
+    }
+
     // ascoltati di recente: album ordinati per ultimo ascolto
     std::vector<int> played;
     for (size_t a = 0; a < albums.size(); a++)
@@ -244,6 +247,20 @@ class HomePage : public Page {
       lv_obj_t *row = section(TR("I più ascoltati"));
       for (size_t i = 0; i < played.size() && i < 10; i++)
         card(row, lib_ctx_album(played[i]), albums[played[i]].artist, false);
+    }
+
+    // ancora da ascoltare: i brani mai partiti, poi gli album mai ascoltati (i più nuovi prima)
+    size_t unplayed = lib_unplayed_count();
+    if (unplayed) {
+      lv_obj_t *row = section(TR("Ancora da ascoltare"));
+      snprintf(n, sizeof n, TR("%u brani"), (unsigned)unplayed);
+      card(row, lib_ctx_unplayed(), n, false);
+      int k = 0;
+      for (int a : fresh)
+        if (k < 9 && lib_album_plays(a) == 0) {
+          card(row, lib_ctx_album(a), albums[a].artist, false);
+          k++;
+        }
     }
 
     // "Riscopri": album in ordine casuale

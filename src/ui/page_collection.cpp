@@ -33,6 +33,8 @@ class CollectionPage : public Page {
     else if (ctx.type == CTX_GENRE) color = genre_color(lib_genre_by_key(ctx.key));
     else if (ctx.type == CTX_PLAYLIST && !tracks.empty()) color = album_color(lib_tracks()[tracks[0]].album);
     else if (ctx.type == CTX_ALL) color = lv_color_hex(0x1E3264);
+    else if (ctx.type == CTX_NEW) color = lv_color_hex(0xA8400F);
+    else if (ctx.type == CTX_UNPLAYED) color = lv_color_hex(0x0B5D63);
     build();
   }
 
@@ -106,6 +108,8 @@ class CollectionPage : public Page {
       k = COVER_GENRE;
       sidx = lib_genre_by_key(ctx.key);
     } else if (ctx.type == CTX_ALL) k = COVER_ALL;
+    else if (ctx.type == CTX_NEW) k = COVER_NEW;
+    else if (ctx.type == CTX_UNPLAYED) k = COVER_UNPLAYED;
     else if (ctx.type == CTX_PLAYLIST) {
       k = tracks.empty() ? COVER_PLAYLIST : COVER_ALBUM;
       sidx = tracks.empty() ? -1 : T[tracks[0]].album;
@@ -169,8 +173,9 @@ class CollectionPage : public Page {
 
     if (tracks.empty()) {
       lv_obj_t *e = ui_label(r, &font_r14, C_SUB,
-                             ctx.type == CTX_LIKED ? TR("I brani a cui metti \"Mi piace\" compariranno qui.")
-                                                   : TR("Nessun brano."));
+                             ctx.type == CTX_LIKED      ? TR("I brani a cui metti \"Mi piace\" compariranno qui.")
+                             : ctx.type == CTX_UNPLAYED ? TR("Hai ascoltato tutto: i brani nuovi compariranno qui.")
+                                                        : TR("Nessun brano."));
       lv_obj_set_width(e, SCR_W - 40);
       lv_obj_set_pos(e, 20, y + 10);
     }

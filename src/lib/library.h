@@ -27,6 +27,8 @@ struct Track {
   uint8_t bits;
   uint8_t pic_kind;
   uint8_t miss;            // tag mancanti (LIB_MISS_*): per la pagina web
+  uint32_t added;          // scansione in cui è comparso (0 = c'era già prima che lo si contasse)
+  uint32_t mtime;          // data di modifica del file
 };
 
 enum : uint8_t {
@@ -107,6 +109,11 @@ PlayContext lib_ctx_playlist(int p);
 PlayContext lib_ctx_genre(int g);
 PlayContext lib_ctx_liked();
 PlayContext lib_ctx_all();
+PlayContext lib_ctx_new();        // "Aggiunti di recente" (i brani degli ultimi album arrivati)
+PlayContext lib_ctx_unplayed();   // "Mai ascoltati"
+// Album dal più recente sulla scheda (ultima scansione in cui sono comparsi, poi data del file)
+void lib_albums_by_added(std::vector<int> &out);
+size_t lib_unplayed_count();
 bool lib_ctx_valid(const PlayContext &c);
 
 // Preferiti ("Brani che ti piacciono")

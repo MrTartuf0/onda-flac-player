@@ -45,7 +45,12 @@ void ui_chip_set(lv_obj_t *chip, bool on);
 void ui_pressable(lv_obj_t *o);                      // effetto pressione standard
 void ui_dot(lv_obj_t *label);                        // una riga con "..."
 
-enum CoverKind : uint8_t { COVER_ALBUM, COVER_LIKED, COVER_ARTIST, COVER_PLAYLIST, COVER_GENRE, COVER_ALL };
+enum CoverKind : uint8_t {
+  COVER_ALBUM, COVER_LIKED, COVER_ARTIST, COVER_PLAYLIST, COVER_GENRE, COVER_ALL,
+  COVER_NEW,        // "Aggiunti di recente"
+  COVER_UNPLAYED,   // "Mai ascoltati"
+};
+CoverKind ui_ctx_cover(const PlayContext &c, int *index);   // copertina adatta a un contesto
 lv_obj_t *ui_cover(lv_obj_t *parent, int size, int radius);
 void ui_cover_set(lv_obj_t *cover, CoverKind kind, int index);       // index = album/genere
 

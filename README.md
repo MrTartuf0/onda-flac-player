@@ -16,6 +16,7 @@ The touch interface is inspired by Spotify and written with LVGL 9.5. Over Wi-Fi
 
 - **Lossless playback**: FLAC 8–32 bit up to 96 kHz (176.4/192 kHz files are decimated to 88.2/96 kHz), gapless within the same sample rate, no clicks on pause or seek
 - **Library from your tags**: albums, artists, genres, `.m3u` playlists, Liked songs, play counts, instant accent-insensitive search
+- **Recently added** and **Never played**: what just arrived on the card and what you haven't listened to yet, on the Home screen and as playlists
 - **Now playing** with album-coloured gradient, swipe to change song, queue with shuffle and repeat
 - **Control center** (swipe up from the bottom edge): output, volume, brightness, battery, Wi-Fi. A tap never sets the headphone volume above 75%
 - **Voice search** offline on the chip, with the board microphone (experimental, off by default)
