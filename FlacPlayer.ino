@@ -143,11 +143,14 @@ static void load_probe(uint32_t *sig, int *ma) {
   OutputDev d = audio_out_active();
   bool playing = player_status().playing;
   bool wifi = xfer_status().state != XF_OFF;
-  uint8_t br = display_brightness();
+  uint8_t br = display_brightness();   // quella vera, anche attenuata
+  // Firma dei salti di consumo (la batteria li vede come salti di tensione): ci
+  // entrano schermo, volume, uscita e Wi-Fi. Processore (cambia a ogni tocco) e
+  // attenuazione no: valgono pochi mV e la stima si fermerebbe ogni volta.
+  uint8_t br_sig = br ? display_brightness_setting() : 0;
   *sig = (playing ? 1u : 0u) | (uint32_t)d << 1 | (uint32_t)(audio_out_volume(d) / 8) << 2 |
-         (uint32_t)wifi << 7 | (uint32_t)(br / 10) << 8;
+         (uint32_t)wifi << 7 | (uint32_t)(br_sig / 10) << 8;
   uint32_t mhz = getCpuFrequencyMhz();
-  *sig |= (mhz / 80) << 12;
   float m = 30 + 40 * mhz / 240.0f;   // ESP32-S3 (70 mA a 240 MHz) con PSRAM, logica del display, touch
   if (playing) m += 12;          // decodifica FLAC e letture dalla microSD
   m += 4 + 0.66f * br;           // retroilluminazione (~70 mA al massimo)

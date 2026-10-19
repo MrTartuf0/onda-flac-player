@@ -25,6 +25,10 @@ void power_off(PowerOffReason r);   // spegnimento completo: non ritorna
 void power_off_later();             // dagli eventi LVGL: lo esegue power_poll
 bool power_woke_from_sleep();       // questo avvio è un risveglio dal tasto
 
+// Dal driver del display: c'è molto da ridisegnare (pagina nuova, scorrimento):
+// processore a 240 MHz per un po'
+void power_cpu_boost();
+
 // Dal driver del touch, a ogni lettura:
 bool power_touch_needed();          // false = schermo bloccato: non serve nemmeno leggere il touch
 bool power_touch_filter(bool down); // false = tocco da non passare all'interfaccia

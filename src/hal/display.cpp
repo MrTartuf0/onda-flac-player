@@ -50,6 +50,12 @@ const InitCmd kInit[] = {
 
 volatile bool s_dma_busy = false;
 
+// Quanto si ridisegna: oltre kBoostPx pixel in 200 ms (pagina nuova, scorrimento,
+// animazioni) il processore torna a 240 MHz; la barra di avanzamento e l'orario
+// che cambiano ogni secondo restano molto sotto
+constexpr uint32_t kBoostPx = 15000;
+uint32_t s_px = 0, s_px_t = 0;
+
 // Chiamata dall'interrupt SPI (anche con la cache flash disattivata, es. durante
 // scritture NVS): qui NON si può chiamare codice in flash come LVGL.
 bool IRAM_ATTR flush_done(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_data_t *, void *) {
@@ -67,6 +73,13 @@ void wait_cb(lv_display_t *) {
 void flush_cb(lv_display_t *, const lv_area_t *a, uint8_t *px) {
   // LVGL produce RGB565 little-endian, l'ILI9341 vuole big-endian
   uint32_t n = (a->x2 - a->x1 + 1) * (a->y2 - a->y1 + 1);
+  uint32_t now = millis();
+  if (now - s_px_t > 200) {
+    s_px_t = now;
+    s_px = 0;
+  }
+  s_px += n;
+  if (s_px > kBoostPx) power_cpu_boost();
   lv_draw_sw_rgb565_swap(px, n);
   uint8_t ca[4] = {(uint8_t)(a->x1 >> 8), (uint8_t)a->x1, (uint8_t)(a->x2 >> 8), (uint8_t)a->x2};
   uint8_t ra[4] = {(uint8_t)(a->y1 >> 8), (uint8_t)a->y1, (uint8_t)(a->y2 >> 8), (uint8_t)a->y2};
@@ -109,16 +122,46 @@ uint32_t tick_cb() { return millis(); }
 
 }  // namespace
 
-static uint8_t s_bright = 0;
+static uint8_t s_bright = 0;    // luminosità scelta
+static uint8_t s_cur = 0;       // quella che c'è davvero (attenuata, in dissolvenza...)
+static bool s_dim = false;
+static uint32_t s_fade_t = 0;
 static bool s_panel_on = true;
+
+static void bl_write(uint8_t pct) {
+  s_cur = pct;
+  if (s_panel_on) ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
+}
+
+// attenuata: un quarto della luminosità scelta, almeno il 5%
+static uint8_t bl_target() {
+  if (!s_dim) return s_bright;
+  uint8_t d = s_bright / 4;
+  if (d < 5) d = 5;
+  return d < s_bright ? d : s_bright;
+}
 
 void display_set_brightness(uint8_t pct) {
   if (pct < 5) pct = 5;
   s_bright = pct;
-  if (s_panel_on) ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
+  s_dim = false;
+  bl_write(pct);
 }
 
-uint8_t display_brightness() { return s_panel_on ? s_bright : 0; }
+void display_dim(bool on) {
+  if (on == s_dim) return;
+  s_dim = on;
+  if (!on) bl_write(s_bright);   // si torna subito; si attenua piano (display_tick)
+}
+
+void display_tick(uint32_t now) {
+  uint8_t want = bl_target();
+  if (!s_panel_on || s_cur == want || now - s_fade_t < 12) return;
+  s_fade_t = now;
+  bl_write(s_cur > want ? s_cur - 1 : s_cur + 1);
+}
+
+uint8_t display_brightness() { return s_panel_on ? s_cur : 0; }
 uint8_t display_brightness_setting() { return s_bright; }
 
 void display_panel(bool on) {

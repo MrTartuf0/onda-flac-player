@@ -17,3 +17,4 @@ void ui_power_off_screen();
 void ui_pref_set(const char *key, int32_t v);
 void ui_crash_notice(bool resumed);   // avvio dopo un blocco: avvisa quando l'interfaccia è pronta
 bool ui_usbdisk_visible();   // schermata del disco USB aperta: la microSD non si tocca
+bool ui_voice_visible();     // ricerca vocale aperta (il riconoscimento vuole il processore a 240 MHz)

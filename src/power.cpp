@@ -41,6 +41,7 @@ void power_set_auto_off_min(int m) {
 #include "audio/player.h"
 #include "net/xfer.h"
 #include "hal/usb_disk.h"
+#include "lib/library.h"
 
 namespace {
 
@@ -59,9 +60,23 @@ int s_clicks = 0;
 
 constexpr uint32_t kLongMs = 1200, kDoubleMs = 320, kDebounceMs = 25;
 
+// Processore veloce solo quando serve: mentre tocchi lo schermo, quando c'è molto
+// da ridisegnare (pagina nuova, scorrimento, animazioni) e per kBoostMs dopo.
+// Il resto del tempo, anche a schermo acceso, basta la frequenza bassa: la
+// musica e il ridisegno della barra di avanzamento ci stanno larghi.
+// Fra 80, 160 e 240 MHz il bus delle periferiche resta a 80 MHz: SPI dello
+// schermo, I2S e microSD non se ne accorgono, il cambio è istantaneo.
+constexpr uint32_t kBoostMs = 1500;
+uint32_t s_boost_until = 0;
+
+bool boosted(uint32_t now) { return (int32_t)(s_boost_until - now) > 0; }
+
 uint32_t cpu_target() {
 #if SCREEN_OFF_CPU_MHZ > 0
-  if (s_off == ON || xfer_status().state != XF_OFF || usb_disk_active()) return 240;
+  // Wi-Fi, disco USB, ricerca vocale e scansione della libreria (copertine): sempre veloci
+  if (xfer_status().state != XF_OFF || usb_disk_active() || ui_voice_visible() || lib_state() == LIB_SCANNING)
+    return 240;
+  if (s_off == ON && boosted(millis())) return 240;
   // file oltre i 48 kHz: più lavoro per il decoder, si resta più alti
   PlayerStatus ps = player_status();
   return ps.sample_rate > 48000 ? 160 : SCREEN_OFF_CPU_MHZ;
@@ -73,10 +88,21 @@ uint32_t cpu_target() {
 void apply_cpu() {
   uint32_t want = cpu_target();
   if (getCpuFrequencyMhz() == want) return;
-  setCpuFrequencyMhz(want);
-  char b[8];
-  snprintf(b, sizeof b, "%u", (unsigned)want);
-  plat_event("cpu MHz", b);
+  setCpuFrequencyMhz(want);   // niente plat_event: cambia a ogni tocco e riempirebbe il registro
+}
+
+// Attenuazione: dopo SCREEN_DIM_S senza tocchi, se poi lo schermo si spegne
+// abbastanza tardi (o mai) da valerne la pena; mai col codice QR del Wi-Fi
+bool want_dim(uint32_t idle, bool xfer) {
+#if SCREEN_DIM_S > 0
+  if (s_off != ON || xfer) return false;
+  if (s_timeout_s > 0 && s_timeout_s < SCREEN_DIM_S + 10) return false;
+  return idle > (uint32_t)SCREEN_DIM_S * 1000;
+#else
+  (void)idle;
+  (void)xfer;
+  return false;
+#endif
 }
 
 void screen_off(OffBy by) {
@@ -94,6 +120,7 @@ void screen_off(OffBy by) {
 void screen_on() {
   if (s_off == ON) return;
   s_off = ON;
+  s_boost_until = millis() + kBoostMs;
   apply_cpu();   // prima si torna veloci, poi si ridisegna
   display_panel(true);
   lv_display_t *d = lv_display_get_default();
@@ -180,12 +207,23 @@ bool power_touch_needed() {
   return s_off == ON || s_swallow || (s_off == OFF_TIMEOUT && s_touch_wake);
 }
 
+void power_cpu_boost() {
+  s_boost_until = millis() + kBoostMs;
+  if (s_off == ON) apply_cpu();
+}
+
 bool power_touch_filter(bool down) {
   if (s_swallow) {
     if (!down) s_swallow = false;
     return false;
   }
-  if (s_off == ON) return true;
+  if (s_off == ON) {
+    if (down) {
+      power_cpu_boost();   // prima del ridisegno che il tocco provocherà
+      display_dim(false);
+    }
+    return true;
+  }
   if (down && s_off == OFF_TIMEOUT && s_touch_wake) {
     s_wake_req = true;
     s_swallow = true;
@@ -211,6 +249,11 @@ void power_poll() {
 
   // schermo spento dopo un po' (non durante il trasferimento file: c'è il codice QR)
   if (s_off == ON && s_timeout_s > 0 && !xfer && idle > (uint32_t)s_timeout_s * 1000) screen_off(OFF_TIMEOUT);
+  // prima ancora si attenua; un tocco (o il tasto) lo riporta subito alla luminosità scelta
+  if (s_off == ON) {
+    display_dim(want_dim(idle, xfer));
+    display_tick(now);
+  }
 
   // in pausa e a batteria da troppo tempo: spegnimento completo
   if (s_auto_off_min > 0 && !playing && !xfer && !session_running() &&
@@ -218,8 +261,9 @@ void power_poll() {
     power_off(PWR_AUTO);
 
   // la frequenza giusta può cambiare col brano (es. un file a 96 kHz a schermo spento)
+  // e finita la spinta si torna bassi
   static uint32_t last_cpu = 0;
-  if (now - last_cpu > 1000) {
+  if (now - last_cpu > 250) {
     last_cpu = now;
     apply_cpu();
   }
@@ -279,6 +323,7 @@ void power_screen_set(bool on) { s_scr = on; }
 void power_wake_for_alert() { s_scr = true; }
 void power_off(PowerOffReason) {}
 void power_off_later() {}
+void power_cpu_boost() {}
 bool power_woke_from_sleep() { return false; }
 bool power_touch_needed() { return true; }
 bool power_touch_filter(bool) { return true; }

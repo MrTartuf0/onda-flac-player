@@ -83,9 +83,15 @@
 #define BAT_BOOT_MIN_MV      3400  // all'accensione: sotto questa tensione non parte
 
 // ---------------------------------------------------------------- Energia ----
-//  A schermo spento il processore rallenta (la musica continua): 80 MHz bastano
-//  per i FLAC fino a 48 kHz, sopra si usa 160. Metti 0 per lasciarlo a 240 MHz.
+//  Quando non serve, il processore rallenta (la musica continua): a schermo
+//  spento e anche a schermo acceso se non lo stai usando. 80 MHz bastano per i
+//  FLAC fino a 48 kHz, sopra si usa 160. Torna a 240 MHz appena tocchi lo
+//  schermo o c'è molto da ridisegnare. Metti 0 per lasciarlo sempre a 240 MHz.
 #define SCREEN_OFF_CPU_MHZ   80
+//  Dopo tanti secondi senza toccarlo lo schermo si attenua (un quarto della
+//  luminosità) finché non lo tocchi. Solo se si spegne dopo almeno 20 s o mai.
+//  0 = mai attenuato.
+#define SCREEN_DIM_S         10
 
 // ------------------------------------------------------------- Orologio ----
 //  Fuso orario in formato POSIX (Italia: CET/CEST con ora legale automatica).

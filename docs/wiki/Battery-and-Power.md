@@ -18,7 +18,14 @@ The screen turns off by itself after 30 seconds without a touch. Change it in **
 - The tap that wakes the screen is not passed on to the interface.
 - During file transfer, and while a computer has the [USB disk](USB-Disk) open, the screen stays on.
 
-With the screen off the display sleeps with the backlight off, LVGL stops drawing and the CPU drops to 80 MHz (160 MHz for files above 48 kHz; see `SCREEN_OFF_CPU_MHZ` in `src/config.h`). Playback is not affected.
+With the screen off the display sleeps with the backlight off and LVGL stops drawing.
+
+## Saving power with the screen on
+
+- **Dimming.** After 10 seconds without a touch the screen fades to a quarter of its brightness. A touch or the BOOT button brings it back at once, and that touch works as usual. It only dims when the screen timeout is 20 s or longer (or Never); with 15 s it simply turns off. Set the delay with `SCREEN_DIM_S` in `src/config.h` (`0` = never dim).
+- **CPU clock.** The CPU runs at 240 MHz only while you touch the screen, while there is a lot to redraw (a new page, scrolling, animations) and for 1.5 s after. The rest of the time, screen on or off, it runs at 80 MHz (160 MHz for files above 48 kHz): the music and the progress bar need far less. It stays at 240 MHz during file transfer, USB disk, voice search and library scans. `SCREEN_OFF_CPU_MHZ` in `src/config.h` sets the low clock; `0` keeps 240 MHz all the time. Playback is not affected: between 80, 160 and 240 MHz the peripheral bus stays at 80 MHz, so the display, the I2S and the microSD don't notice the switch.
+
+What uses the most, with the typical values of the current model: the CPU (about 70 mA at 240 MHz, 45 mA at 80 MHz), the backlight (up to about 70 mA at full brightness) and the speaker at high volume (well over 100 mA). Headphones through the PCM5102 take about 12 mA. For the longest runtime: headphones, screen off with one click of BOOT, moderate brightness.
 
 ## Auto power-off
 

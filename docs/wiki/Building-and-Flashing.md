@@ -63,7 +63,8 @@ Everything you might want to change is in `src/config.h`:
 | `BAT_OFFSET_MV` | 0 | Correction if the displayed voltage differs from a multimeter |
 | `BAT_CAPACITY_MAH`, `BAT_CHARGE_MA` | 1100, 300 | Used for the time-to-full estimate |
 | `BAT_SHUTDOWN_MV` | 3300 | Below this, on battery for 30 s, the player saves and goes to standby |
-| `SCREEN_OFF_CPU_MHZ` | 80 | CPU clock with the screen off (160 is used above 48 kHz); `0` keeps 240 MHz |
+| `SCREEN_OFF_CPU_MHZ` | 80 | CPU clock when you are not using the screen, on or off (160 is used above 48 kHz); `0` keeps 240 MHz |
+| `SCREEN_DIM_S` | 10 | Seconds without a touch before the screen dims to a quarter; `0` never dims |
 | `TIME_ZONE` | Italy (`CET-1CEST,M3.5.0,M10.5.0/3`) | POSIX time zone string for the clock |
 | `UI_LANG_DEFAULT` | 1 | Language on first start: 0 Italian, 1 English |
 | `APP_NAME` | `onda` | Name shown in the interface, used for `onda.local` and the `onda-XXXX` hotspot |
