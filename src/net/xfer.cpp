@@ -21,9 +21,11 @@
 #include <string>
 #include <algorithm>
 #include <ctype.h>
+#include <lwip/sockets.h>
 #include "../config.h"
 #include "../platform.h"
 #include "web_index.h"
+#include "captive_dns.h"
 #include "../clock.h"
 #include "../i18n.h"
 #include "../lib/library.h"
@@ -181,8 +183,89 @@ void changed() {
   locked([](XferStatus &s) { s.changes++; });
 }
 
+// ---------------------------------------------------- captive portal ----
+// Con l'hotspot il lettore fa anche da DNS e risponde a ogni nome col proprio
+// indirizzo; le pagine che il telefono usa per controllare internet (e qualunque
+// indirizzo sconosciuto) rimandano alla pagina del lettore: telefoni e computer
+// la aprono da soli appena collegati. Con la rete di casa niente di tutto questo.
+volatile bool s_captive = false;
+char s_home_url[32] = "";       // "http://192.168.4.1/"
+char s_ip_txt[16] = "";
+int s_dns = -1;
+uint8_t s_dns_ip[4];
+uint8_t *s_dns_buf = nullptr;   // domanda + risposta, in PSRAM solo finché c'è l'hotspot
+constexpr size_t kDnsMax = 512;
+
+void dns_stop() {
+  s_captive = false;
+  if (s_dns >= 0) close(s_dns);
+  s_dns = -1;
+  heap_caps_free(s_dns_buf);
+  s_dns_buf = nullptr;
+}
+
+void dns_start(IPAddress ip) {
+  dns_stop();
+  for (int i = 0; i < 4; i++) s_dns_ip[i] = ip[i];
+  snprintf(s_ip_txt, sizeof s_ip_txt, "%s", ip.toString().c_str());
+  snprintf(s_home_url, sizeof s_home_url, "http://%s/", s_ip_txt);
+  s_captive = true;   // il rimando delle pagine funziona anche se il DNS non parte
+  s_dns_buf = (uint8_t *)heap_caps_malloc(2 * kDnsMax + 16, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!s_dns_buf) return;
+  int sk = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (sk < 0) return;
+  struct sockaddr_in a = {};
+  a.sin_family = AF_INET;
+  a.sin_port = htons(53);
+  a.sin_addr.s_addr = htonl(INADDR_ANY);
+  if (bind(sk, (struct sockaddr *)&a, sizeof a) != 0) {
+    close(sk);
+    plat_log("[xfer] DNS dell'hotspot non avviato");
+    return;
+  }
+  fcntl(sk, F_SETFL, O_NONBLOCK);
+  s_dns = sk;
+}
+
+// Risponde alle domande arrivate (dal task del Wi-Fi, ogni 20 ms con l'hotspot)
+void dns_poll() {
+  if (s_dns < 0) return;
+  uint8_t *q = s_dns_buf, *r = s_dns_buf + kDnsMax;
+  for (int i = 0; i < 16; i++) {
+    struct sockaddr_in from;
+    socklen_t fl = sizeof from;
+    int n = recvfrom(s_dns, q, kDnsMax, 0, (struct sockaddr *)&from, &fl);
+    if (n <= 0) break;
+    size_t m = captive_dns_reply(q, n, r, kDnsMax + 16, s_dns_ip);
+    if (m) sendto(s_dns, r, m, 0, (struct sockaddr *)&from, fl);
+  }
+}
+
+esp_err_t redirect_home(httpd_req_t *req) {
+  httpd_resp_set_status(req, "302 Found");
+  httpd_resp_set_hdr(req, "Location", s_home_url);
+  httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+  return httpd_resp_send(req, nullptr, 0);
+}
+
+// La richiesta è per il lettore (192.168.4.1, onda.local) e non per un altro sito?
+bool own_host(httpd_req_t *req) {
+  char h[64];
+  if (httpd_req_get_hdr_value_str(req, "Host", h, sizeof h) != ESP_OK) return true;   // senza Host: è per noi
+  if (char *c = strchr(h, ':')) *c = 0;
+  return !strcmp(h, s_ip_txt) || !strcasecmp(h, APP_NAME) || !strcasecmp(h, APP_NAME ".local");
+}
+
+// Indirizzi sconosciuti: con l'hotspot si va alla pagina del lettore (è così che il
+// telefono capisce che c'è una pagina da aprire), altrimenti il solito 404
+esp_err_t h_404(httpd_req_t *req, httpd_err_code_t err) {
+  if (s_captive && strncmp(req->uri, "/api/", 5) != 0) return redirect_home(req);
+  return httpd_resp_send_err(req, err, nullptr);
+}
+
 // ---------------------------------------------------------- handler ----
 esp_err_t h_index(httpd_req_t *req) {
+  if (s_captive && !own_host(req)) return redirect_home(req);   // es. http://captive.apple.com/
   httpd_resp_set_type(req, "text/html; charset=utf-8");
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
   return httpd_resp_send(req, kWebIndex, strlen(kWebIndex));
@@ -766,6 +849,7 @@ void http_start() {
     u.handler = r.h;
     httpd_register_uri_handler(s_http, &u);
   }
+  httpd_register_err_handler(s_http, HTTPD_404_NOT_FOUND, h_404);
 }
 
 void http_stop() {
@@ -793,6 +877,7 @@ void mdns_restart() {
 void start_ap(const char *why) {
   char ssid[33], pass[16];
   ap_credentials(ssid, sizeof ssid, pass, sizeof pass);
+  dns_stop();
   WiFi.disconnect(true);
   WiFi.mode(WIFI_AP);
   bool okk = WiFi.softAP(ssid, pass);
@@ -805,6 +890,7 @@ void start_ap(const char *why) {
   });
   set_note(why ? why : "");
   if (okk) {
+    dns_start(ip);
     mdns_restart();
     http_start();
   }
@@ -826,6 +912,7 @@ bool start_sta(const char *ssid, const char *pass) {
     s.ip[0] = 0;
   });
   set_note("");
+  dns_stop();
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
@@ -898,7 +985,8 @@ void xfer_task(void *) {
   WiFi.setHostname(APP_NAME);
   for (;;) {
     Cmd c;
-    if (xQueueReceive(s_q, &c, pdMS_TO_TICKS(500)) != pdTRUE) continue;
+    dns_poll();
+    if (xQueueReceive(s_q, &c, pdMS_TO_TICKS(s_dns >= 0 ? 20 : 500)) != pdTRUE) continue;
     if (c.k == K_STOP) break;
     switch (c.k) {
       case K_START:
@@ -929,6 +1017,7 @@ void xfer_task(void *) {
         break;
     }
   }
+  dns_stop();
   http_stop();
   clock_ntp_stop();
   MDNS.end();

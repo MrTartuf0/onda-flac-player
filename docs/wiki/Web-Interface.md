@@ -11,7 +11,7 @@ The player has a small web server for managing the microSD card from a browser o
 Open **Settings → File transfer** (or tap Wi-Fi in the control center).
 
 - **Home network**: pick your network on the player and type the password with the on-screen keyboard. The page is then at `http://onda.local` or at the IP address shown, with a QR code.
-- **Hotspot**: with no saved network, or if it can't be reached, the player creates its own network `onda-XXXX`. Scan the QR code with your phone to join it, then open `http://192.168.4.1`.
+- **Hotspot**: with no saved network, or if it can't be reached, the player creates its own network `onda-XXXX`. Scan the QR code with your phone to join it: the page opens by itself, like the login page of a hotel Wi-Fi (or open `http://192.168.4.1`). That small window can't download files; for that, open `http://192.168.4.1` in the browser.
 
 Music is paused during the transfer: Wi-Fi and the audio output don't fit in the chip's internal RAM together. Typical speed is 0.5–1 MB/s.
 
@@ -49,7 +49,7 @@ Change album, album artist, artist, year and genre for all songs at once, plus n
 - **Usa quella incorporata**: use the picture embedded in the file.
 - **Cerca su internet**: search MusicBrainz / Cover Art Archive (the player must be on your home Wi-Fi).
 
-The browser converts the image to a 600 px JPEG and the player saves it as `cover.jpg` in the album folder, where it takes priority over embedded pictures.
+The browser converts the image to a 600 px JPEG and the player saves it as `cover.jpg` in the album folder, where it takes priority over embedded pictures. When the folder holds songs from several albums (for example loose files in the root of the card) it is saved next to the album's first song with the same name (`Song.flac` → `Song.jpg`), so each album keeps its own cover.
 
 **Sistema copertine** (fix covers) does this in one go for every embedded cover the player can't read (PNG, progressive JPEG).
 
@@ -100,7 +100,7 @@ The page talks to the player through a small JSON API, handy for scripts:
 | `/api/tags?p=` | POST | Replace the tags of one file (URL-encoded `KEY=value` lines) |
 | `/api/pic?p=&i=` | GET | An embedded picture |
 | `/api/thumb?k=` | GET | Album thumbnail (`k` = album key from `/api/lib`) |
-| `/api/cover?k=` | POST | Save `cover.jpg` in an album folder |
+| `/api/cover?k=` | POST | Save an album cover (`cover.jpg`, or `<song>.jpg` in a shared folder) |
 | `/api/time` | POST | Set the clock |
 
 The handlers are in `src/net/xfer.cpp`.
