@@ -689,21 +689,36 @@ esp_err_t h_pic(httpd_req_t *req) {
   int idx = pic_index(req, fi);
   if (idx < 0 || idx >= (int)fi.pictures.size()) return fail(req, "404 Not Found", "Nessuna immagine");
   const auto &p = fi.pictures[idx];
-  FILE *f = fopen(full.c_str(), "rb");
-  if (!f) return fail(req, "404 Not Found", "File non trovato");
+  int fd = open(full.c_str(), O_RDONLY);
+  if (fd < 0) return fail(req, "404 Not Found", "File non trovato");
+  // RAM interna e letture da inizio settore: la SD legge più settori per volta in DMA
+  // (da un buffer in PSRAM leggerebbe un settore alla volta: un PNG da 1,5 MB = 3000 letture)
+  size_t cap = 16384;
+  char *buf = (char *)heap_caps_malloc(cap, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+  if (!buf) {
+    cap = 4096;
+    buf = (char *)heap_caps_malloc(cap, MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+  }
+  if (!buf) {
+    close(fd);
+    return fail(req, "500 Internal Server Error", "Memoria insufficiente");
+  }
   httpd_resp_set_type(req, p.mime.empty() ? "application/octet-stream" : p.mime.c_str());
   httpd_resp_set_hdr(req, "Cache-Control", "no-store");
-  fseek(f, p.data_off, SEEK_SET);
-  std::string buf(8192, '\0');
+  long off = p.data_off;
   uint32_t left = p.data_len;
-  esp_err_t r = ESP_OK;
+  esp_err_t r = lseek(fd, off, SEEK_SET) == off ? ESP_OK : ESP_FAIL;
   while (left && r == ESP_OK) {
-    size_t n = fread(&buf[0], 1, std::min<uint32_t>(left, buf.size()), f);
-    if (!n) break;
+    size_t k = std::min<size_t>(left, cap);
+    if (off % 512) k = std::min<size_t>(k, 512 - off % 512);
+    ssize_t n = read(fd, buf, k);
+    if (n <= 0) break;
     left -= n;
-    r = httpd_resp_send_chunk(req, buf.data(), n);
+    off += n;
+    r = httpd_resp_send_chunk(req, buf, n);
   }
-  fclose(f);
+  close(fd);
+  heap_caps_free(buf);
   return r == ESP_OK ? httpd_resp_send_chunk(req, nullptr, 0) : r;
 }
 

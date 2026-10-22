@@ -690,11 +690,11 @@ $('bFixCv').onclick=async()=>{
 const todo=LIB.albums.map((a,i)=>i).filter(ai=>!albCover(LIB.albums[ai])&&albumTracks(ai).some(i=>LIB.tracks[i].pk));
 if(!todo.length)return;
 edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere e le rimetto al loro posto dentro i file FLAC, brano per brano. L\'audio non viene toccato. Di solito basta un attimo; se nel file non c\'è spazio lo ricopio, e ci vuole qualche secondo.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
-edB.dataset.busy=1;let ok=0,bad=0;
+edB.dataset.busy=1;let ok=0,bad=0;const t0=Date.now();
 for(let k=0;k<todo.length;k++){const ai=todo[k];const a=LIB.albums[ai];$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t;
 try{await embedFix(ai,t=>$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t+' · '+t.t);ok++}catch(e){bad++}
 edB.querySelector('.prog i').style.width=((k+1)*100/todo.length)+'%'}
-delete edB.dataset.busy;$('fxMsg').textContent=ok+' copertine sistemate'+(bad?', '+bad+' non riuscite':'')+'. Il lettore le userà dopo «Aggiorna libreria».';$('fxX').disabled=false;$('fxX').onclick=edClose;libRender()};
+delete edB.dataset.busy;$('fxMsg').textContent=ok+' copertine sistemate in '+Math.round((Date.now()-t0)/1000)+' s'+(bad?', '+bad+' non riuscite':'')+'. Il lettore le userà dopo «Aggiorna libreria».';$('fxX').disabled=false;$('fxX').onclick=edClose;libRender()};
 // =============================================================== playlist ====
 let PL=null; // [{n,p,tr:[path]}]
 function plInit(){if(PL)return;PL=LIB.playlists.map(x=>({n:x.n,p:x.p,tr:x.tr.map(i=>LIB.tracks[i]&&LIB.tracks[i].p).filter(Boolean)}))}

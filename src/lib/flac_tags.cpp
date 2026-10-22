@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <algorithm>
 #include "../platform.h"
 
 namespace {
@@ -90,15 +93,87 @@ bool read_comments(FILE *f, const FlacInfo::Block &b, uint32_t max_field, std::s
   return true;
 }
 
-// Copia `len` byte da in (posizione corrente) a out
-bool copy_bytes(FILE *in, FILE *out, uint64_t len, uint8_t *buf, size_t cap) {
-  while (len) {
-    size_t k = len < cap ? (size_t)len : cap;
-    if (fread(buf, 1, k, in) != k) return false;
-    if (fwrite(buf, 1, k, out) != k) return false;
+// ------------------------------------------------- I/O veloce sulla SD ----
+// Tutto passa da un buffer in RAM interna e va su disco a pezzi grandi che
+// cominciano a inizio settore: così il driver legge e scrive più settori per volta
+// in DMA. Con stdio (buffer da 128 byte) o da un buffer in PSRAM lavorerebbe un
+// settore (512 byte) alla volta, e in scrittura rileggendolo pure: era questo a
+// rendere lenta la sostituzione delle copertine (il PNG vecchio, più di 1 MB, va
+// riempito di zeri).
+constexpr long kSector = 512;
+
+uint8_t *alloc_io(size_t &cap) {
+  for (; cap >= 2048; cap /= 2)
+    if (uint8_t *b = (uint8_t *)plat_alloc_fast(cap)) return b;
+  return nullptr;
+}
+
+struct SdWriter {
+  int fd = -1;
+  uint8_t *buf = nullptr;
+  size_t cap = 16384, n = 0;
+  long pos = 0;   // posizione nel file del primo byte di buf
+  bool ok = false;
+  bool begin(int f, long at) {
+    fd = f;
+    pos = at;
+    buf = alloc_io(cap);
+    ok = fd >= 0 && buf && lseek(fd, at, SEEK_SET) == at;
+    return ok;
+  }
+  // scrive fino a inizio settore, poi solo settori interi (tutto, se all)
+  void drain(bool all) {
+    while (ok && n) {
+      size_t k = pos % kSector ? std::min(n, (size_t)(kSector - pos % kSector)) : (all ? n : n - n % kSector);
+      if (!k) break;
+      ok = write(fd, buf, k) == (ssize_t)k;
+      memmove(buf, buf + k, n - k);
+      n -= k;
+      pos += k;
+    }
+  }
+  void put(const void *p, size_t len) {
+    const uint8_t *s = (const uint8_t *)p;
+    while (ok && len) {
+      size_t k = std::min(cap - n, len);
+      memcpy(buf + n, s, k);
+      n += k;
+      s += k;
+      len -= k;
+      if (n == cap) drain(false);
+    }
+  }
+  void zeros(size_t len) {
+    while (ok && len) {
+      size_t k = std::min(cap - n, len);
+      memset(buf + n, 0, k);
+      n += k;
+      len -= k;
+      if (n == cap) drain(false);
+    }
+  }
+  bool finish() {   // scrive il resto e chiude
+    drain(true);
+    if (fd >= 0 && close(fd) != 0) ok = false;
+    fd = -1;
+    plat_free(buf);
+    buf = nullptr;
+    return ok;
+  }
+};
+
+// Copia len byte da `in` (dalla posizione off) nel writer, leggendo a settori interi
+bool copy_fd(int in, long off, uint64_t len, SdWriter &w, uint8_t *rb, size_t rcap) {
+  if (lseek(in, off, SEEK_SET) != off) return false;
+  while (len && w.ok) {
+    size_t k = (size_t)std::min<uint64_t>(len, rcap);
+    if (off % kSector) k = std::min(k, (size_t)(kSector - off % kSector));
+    if (read(in, rb, k) != (ssize_t)k) return false;
+    w.put(rb, k);
+    off += k;
     len -= k;
   }
-  return true;
+  return w.ok;
 }
 
 // Ricontrollo dopo una scrittura: i blocchi si leggono ancora, l'audio ha la stessa
@@ -164,24 +239,24 @@ bool put_block(const char *path, const FlacInfo &fi, int idx, uint8_t type, cons
     }
   }
   if (fits) {
-    FILE *w = fopen(path, "r+b");
-    if (!w) {
-      err = "Impossibile scrivere il file";
+    SdWriter w;
+    if (!w.begin(open(path, O_RDWR), reg_off)) {
+      err = w.buf ? "Impossibile scrivere il file" : "Memoria insufficiente";
+      if (w.fd >= 0) close(w.fd);
+      plat_free(w.buf);
       return false;
     }
-    bool ok = fseek(w, reg_off, SEEK_SET) == 0;
     uint8_t h[4];
     long rest = reg_len - need;
     block_header(h, type, rest == 0 && reg_last, N);
-    ok = ok && fwrite(h, 1, 4, w) == 4 && fwrite(data.data(), 1, N, w) == N;
-    if (ok && rest) {
+    w.put(h, 4);
+    w.put(data.data(), N);
+    if (rest) {
       block_header(h, 1, reg_last, (uint32_t)(rest - 4));
-      ok = fwrite(h, 1, 4, w) == 4;
-      static const uint8_t zero[256] = {0};
-      for (long z = rest - 4; ok && z > 0; z -= 256) ok = fwrite(zero, 1, z < 256 ? z : 256, w) == (size_t)(z < 256 ? z : 256);
+      w.put(h, 4);
+      w.zeros(rest - 4);
     }
-    ok = (fclose(w) == 0) && ok;
-    if (!ok) {
+    if (!w.finish()) {
       err = "Errore di scrittura sulla SD";
       return false;
     }
@@ -190,47 +265,46 @@ bool put_block(const char *path, const FlacInfo &fi, int idx, uint8_t type, cons
 
   // 2) non c'è posto: si ricopia il file con 8 KB di riserva (audio identico)
   std::string tmp = std::string(path) + ".tmp~";
-  FILE *in = fopen(path, "rb");
-  FILE *out = in ? fopen(tmp.c_str(), "wb") : nullptr;
-  if (!in || !out) {
-    if (in) fclose(in);
-    err = "Impossibile creare il file temporaneo";
-    return false;
-  }
-  constexpr size_t CAP = 16 * 1024;
-  uint8_t *buf = (uint8_t *)plat_alloc_fast(CAP);
-  if (!buf) {
-    fclose(in);
-    fclose(out);
-    remove(tmp.c_str());
-    err = "Memoria insufficiente";
+  int in = open(path, O_RDONLY);
+  SdWriter w;
+  size_t rcap = 8192;
+  uint8_t *rb = alloc_io(rcap);
+  if (in < 0 || !rb || !w.begin(open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0664), 0)) {
+    err = in < 0 ? "File non trovato" : (!rb || !w.buf) ? "Memoria insufficiente" : "Impossibile creare il file temporaneo";
+    if (in >= 0) close(in);
+    plat_free(rb);
+    if (w.fd >= 0) {
+      close(w.fd);
+      remove(tmp.c_str());
+    }
+    plat_free(w.buf);
     return false;
   }
   constexpr uint32_t PAD = 8192;
-  bool ok = fseek(in, 0, SEEK_SET) == 0 && copy_bytes(in, out, fi.base, buf, CAP);   // tag ID3 iniziale (raro)
-  ok = ok && fwrite("fLaC", 1, 4, out) == 4;
-  for (size_t i = 0; i < fi.blocks.size(); i++) {
+  bool ok = copy_fd(in, 0, fi.base, w, rb, rcap);   // tag ID3 iniziale (raro)
+  w.put("fLaC", 4);
+  for (size_t i = 0; ok && i < fi.blocks.size(); i++) {
     const FlacInfo::Block &b = fi.blocks[i];
-    if (!ok) break;
     // via la riserva e il blocco sostituito (per i tag: anche eventuali doppioni)
     if (b.type == 1 || (int)i == idx || (type == 4 && b.type == 4)) continue;
     uint8_t h[4];
     block_header(h, b.type, false, b.len);
-    ok = fwrite(h, 1, 4, out) == 4 && fseek(in, b.off + 4, SEEK_SET) == 0 && copy_bytes(in, out, b.len, buf, CAP);
+    w.put(h, 4);
+    ok = copy_fd(in, b.off + 4, b.len, w, rb, rcap);
   }
   if (ok) {
     uint8_t h[4];
     block_header(h, type, false, N);
-    ok = fwrite(h, 1, 4, out) == 4 && fwrite(data.data(), 1, N, out) == N;
+    w.put(h, 4);
+    w.put(data.data(), N);
     block_header(h, 1, true, PAD);
-    ok = ok && fwrite(h, 1, 4, out) == 4;
-    memset(buf, 0, PAD < CAP ? PAD : CAP);
-    ok = ok && fwrite(buf, 1, PAD, out) == PAD;
+    w.put(h, 4);
+    w.zeros(PAD);
   }
-  ok = ok && fseek(in, fi.audio_off, SEEK_SET) == 0 && copy_bytes(in, out, fi.file_size - fi.audio_off, buf, CAP);
-  plat_free(buf);
-  fclose(in);
-  ok = (fclose(out) == 0) && ok;
+  ok = ok && copy_fd(in, fi.audio_off, fi.file_size - fi.audio_off, w, rb, rcap);
+  close(in);
+  plat_free(rb);
+  ok = w.finish() && ok;
   if (!ok) {
     remove(tmp.c_str());
     err = "Errore di scrittura sulla SD (scheda piena?)";
