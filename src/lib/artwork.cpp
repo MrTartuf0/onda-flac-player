@@ -251,10 +251,9 @@ bool art_build(const Album &a, uint16_t *color_out) {
     uint32_t off, len;
   } srcs[2];
   int ns = 0;
-  // cover.jpg nella cartella vince su quella incorporata: è quella scelta apposta
-  // (anche dalla pagina web); folder.jpg & co. vengono dopo l'incorporata
-  const char *base = a.art_file ? strrchr(a.art_file, '/') : nullptr;
-  bool cover_first = base && !strncasecmp(base + 1, "cover.", 6);
+  // "<nome del brano>.jpg" e cover.jpg vincono su quella incorporata: sono scelte
+  // apposta (anche dalla pagina web); folder.jpg & co. vengono dopo (vedi library.h)
+  bool cover_first = a.art_file && a.art_first;
   if (cover_first) srcs[ns++] = {a.art_file, 0, 0x7FFFFFFF};
   if (a.art_track >= 0) {
     const Track &t = tracks[a.art_track];

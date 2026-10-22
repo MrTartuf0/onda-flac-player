@@ -677,7 +677,7 @@ delete edB.dataset.busy};
 $('bFixCv').onclick=async()=>{
 const todo=LIB.albums.map((a,i)=>i).filter(ai=>!albCover(LIB.albums[ai])&&albumTracks(ai).some(i=>LIB.tracks[i].pk));
 if(!todo.length)return;
-edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere e le salvo come cover.jpg.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
+edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere. Le salvo come cover.jpg nella cartella dell\'album; se nella cartella ci sono brani di album diversi (per esempio sparsi nella radice), accanto al brano, con il suo stesso nome.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
 edB.dataset.busy=1;let ok=0,bad=0;
 for(let k=0;k<todo.length;k++){const ai=todo[k];const a=LIB.albums[ai];$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t;
 try{const ti=albumTracks(ai).find(i=>LIB.tracks[i].pk);const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[ti].p,i:0}));if(!r.ok)throw 0;await uploadCover(ai,await r.blob());ok++}catch(e){bad++}

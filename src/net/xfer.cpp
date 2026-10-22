@@ -658,7 +658,8 @@ esp_err_t h_thumb(httpd_req_t *req) {
   return httpd_resp_send(req, out.data(), out.size());
 }
 
-// Copertina nuova per un album (JPEG già preparato dal browser): cover.jpg nella cartella
+// Copertina nuova per un album (JPEG già preparato dal browser): cover.jpg nella
+// cartella, oppure "<nome del brano>.jpg" se la cartella ha brani di più album
 esp_err_t h_cover(httpd_req_t *req) {
   size_t ql = httpd_req_get_url_query_len(req);
   std::string q(ql + 1, '\0');
@@ -670,7 +671,7 @@ esp_err_t h_cover(httpd_req_t *req) {
   const Album &al = lib_albums()[ai];
   size_t len = req->content_len;
   if (len < 100 || len > 4 * 1024 * 1024) return fail(req, "400 Bad Request", "Immagine non valida");
-  std::string dst = std::string(al.dir) + "/cover.jpg", part = dst + ".part";
+  std::string dst = lib_album_cover_path(ai), part = dst + ".part";
   FILE *f = fopen(part.c_str(), "wb");
   if (!f) return fail(req, "500 Internal Server Error", "Impossibile scrivere nella cartella dell'album");
   std::string buf(8192, '\0');

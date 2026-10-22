@@ -2,6 +2,7 @@
 // playlist .m3u, preferiti, statistiche di ascolto e ricerca.
 #pragma once
 #include <stdint.h>
+#include <string>
 #include <vector>
 #include "../types.h"
 
@@ -40,13 +41,21 @@ struct Album {
   const char *title;
   const char *artist;
   const char *dir;         // cartella del primo brano (per cover.jpg)
-  const char *art_file;    // cover.jpg / folder.jpg ... oppure nullptr
+  // Immagine accanto ai brani, oppure nullptr:
+  //  - "<nome del brano>.jpg" di uno dei suoi brani (vince su tutto)
+  //  - cover.jpg / folder.jpg ... della cartella, solo se nella cartella c'è
+  //    soltanto questo album (cover.* vince sull'incorporata, le altre dopo)
+  const char *art_file;
   uint32_t key;
+  uint32_t art_sig;        // da dove viene la copertina: se cambia, la cache si rifà
   uint16_t artist_idx;
   uint16_t year;
   uint16_t color;          // colore dominante della copertina (RGB565)
   int16_t art_track;       // brano con copertina incorporata JPEG, -1 se nessuno
   uint8_t art_state;       // 0 = da verificare, 1 = ok, 2 = nessuna copertina
+  bool art_first;          // art_file prima dell'immagine incorporata
+  bool art_own;            // art_file è "<nome del brano>.jpg"
+  bool shared_dir;         // nella cartella ci sono brani di più album
   uint32_t total_ms;
   std::vector<uint16_t> tracks;
 };
@@ -88,6 +97,10 @@ LibState lib_state();
 // anche se la dimensione del file è rimasta uguale.
 void lib_mark_stale(const char *path);
 void lib_mark_art_stale(uint32_t album_key);   // copertina nuova: rigenera la cache
+// Dove salvare una copertina nuova per l'album (percorso completo sulla SD):
+// cover.jpg nella sua cartella, oppure "<nome del primo brano>.jpg" se la cartella
+// è condivisa con altri album (es. brani sparsi nella radice) o se l'album ne ha già una
+std::string lib_album_cover_path(int album);
 
 const std::vector<Track> &lib_tracks();
 const std::vector<Album> &lib_albums();

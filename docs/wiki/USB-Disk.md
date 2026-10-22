@@ -21,7 +21,7 @@ Good to know:
 
 At the restart the player reads again every file that is new or changed. It compares size and modification date, so tags edited on the computer are picked up even when the file size doesn't change. Albums with changed songs get their cover rebuilt.
 
-If you only replaced a `cover.jpg`, use **Settings → Update library**: it reads every file again and rebuilds all the covers.
+Cover images you add, remove or replace (`cover.jpg`, `<song>.jpg`...) are noticed at the restart too, and those albums get their cover rebuilt.
 
 ## How it works
 

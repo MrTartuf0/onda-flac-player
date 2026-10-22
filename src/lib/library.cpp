@@ -18,8 +18,8 @@
 namespace {
 
 constexpr uint32_t kDbMagic = 0x42444E4F;  // "ONDB"
-constexpr uint32_t kDbVersion = 5;   // 4: data di modifica dei file, 5: scansione in cui è comparso
-                                     // (le versioni 3 e 4 si leggono ancora)
+constexpr uint32_t kDbVersion = 6;   // 4: data di modifica dei file, 5: scansione in cui è comparso,
+                                     // 6: provenienza della copertina (le versioni dalla 3 si leggono ancora)
 constexpr size_t kNewTracks = 100;   // "Aggiunti di recente": album interi fino a questi brani
 
 // ------------------------------------------------------------- arena ----
@@ -136,7 +136,27 @@ struct FileEnt {
 struct CoverCand {
   const char *path;
   int prio;
+  uint32_t size, mtime;   // per accorgersi di un'immagine sostituita col computer
 };
+
+// Immagini trovate sulla scheda
+struct Covers {
+  // cartella -> immagine "di cartella" migliore (cover.jpg, folder.jpg, ...)
+  std::unordered_map<std::string, CoverCand> dir;
+  // "cartella/nome del brano" in minuscolo -> "<nome del brano>.jpg" accanto al FLAC
+  std::unordered_map<std::string, CoverCand> track;
+};
+
+std::string ascii_lower(std::string s) {
+  for (auto &c : s) c = tolower((uint8_t)c);
+  return s;
+}
+
+// nome senza estensione ("03 - Titolo.flac" -> "03 - Titolo")
+std::string stem_of(const char *name) {
+  const char *dot = strrchr(name, '.');
+  return dot ? std::string(name, dot - name) : std::string(name);
+}
 
 bool skip_dir(const char *name, const char *full) {
   if (name[0] == '.') return true;
@@ -157,11 +177,13 @@ int cover_prio(const char *name) {
 }
 
 void walk(const char *dir, int depth, std::vector<FileEnt> &flacs, std::vector<const char *> &m3us,
-          std::unordered_map<std::string, CoverCand> &covers, Arena &tmp) {
+          Covers &covers, Arena &tmp) {
   if (depth > 10) return;
   DIR *d = opendir(dir);
   if (!d) return;
   std::vector<std::string> subdirs;
+  std::vector<std::string> jpgs;               // si smistano a cartella finita
+  std::unordered_set<std::string> stems;       // nomi dei FLAC (minuscolo, senza estensione)
   struct dirent *e;
   char full[512];
   unsigned n_ent = 0;
@@ -186,21 +208,37 @@ void walk(const char *dir, int depth, std::vector<FileEnt> &flacs, std::vector<c
     if (ieq_ext(n, ".flac")) {
       if (!have_st && stat(full, &st) != 0) continue;
       flacs.push_back({tmp.dup(full), (uint32_t)st.st_size, (uint32_t)st.st_mtime});
+      stems.insert(ascii_lower(stem_of(n)));
       if ((flacs.size() & 31) == 0) {
         set_prog(LIB_SCANNING, flacs.size(), 0, 0);
         plat_yield();
       }
     } else if (ieq_ext(n, ".m3u") || ieq_ext(n, ".m3u8")) {
       m3us.push_back(tmp.dup(full));
-    } else {
-      int p = cover_prio(n);
-      if (p > 0) {
-        auto &c = covers[dir];
-        if (p > c.prio) c = {tmp.dup(full), p};
-      }
+    } else if (cover_prio(n) > 0) {
+      jpgs.push_back(n);
     }
   }
   closedir(d);
+  // "<nome del brano>.jpg" è la copertina di quel brano (e del suo album), non della
+  // cartella: nella radice con brani sparsi ognuno ha la sua
+  for (auto &j : jpgs) {
+    snprintf(full, sizeof full, "%s/%s", dir, j.c_str());
+    struct stat st;
+    uint32_t sz = 0, mt = 0;
+    if (stat(full, &st) == 0) {
+      sz = st.st_size;
+      mt = st.st_mtime;
+    }
+    std::string s = ascii_lower(stem_of(j.c_str()));
+    if (stems.count(s)) {
+      covers.track[ascii_lower(std::string(dir) + "/") + s] = {tmp.dup(full), 100, sz, mt};
+      continue;
+    }
+    int p = cover_prio(j.c_str());
+    auto &c = covers.dir[dir];
+    if (p > c.prio) c = {tmp.dup(full), p, sz, mt};
+  }
   std::sort(subdirs.begin(), subdirs.end());
   for (auto &s : subdirs) walk(s.c_str(), depth + 1, flacs, m3us, covers, tmp);
 }
@@ -229,8 +267,14 @@ bool rstr(FILE *f, Arena &a, const char *&out) {
 
 std::string db_path() { return std::string(APP_DIR) + "/library.db"; }
 
+struct AlbumExtra {
+  uint16_t color;
+  uint8_t art_state;
+  uint32_t art_sig;   // 0 = non nota (indice prima della versione 6)
+};
+
 struct DbExtra {
-  std::unordered_map<uint32_t, std::pair<uint16_t, uint8_t>> colors;  // album key -> colore, stato
+  std::unordered_map<uint32_t, AlbumExtra> albums;  // album key -> copertina
 };
 
 bool load_db(std::vector<Raw> &out, uint32_t &sig, DbExtra &ex, Arena &a) {
@@ -252,11 +296,11 @@ bool load_db(std::vector<Raw> &out, uint32_t &sig, DbExtra &ex, Arena &a) {
   uint32_t nc = 0;
   if (ok && r32(f, nc)) {
     for (uint32_t i = 0; i < nc; i++) {
-      uint32_t k;
+      uint32_t k, sg = 0;
       uint16_t c;
       uint8_t s;
-      if (!(r32(f, k) && r16(f, c) && r8(f, s))) break;
-      ex.colors[k] = {c, s};
+      if (!(r32(f, k) && r16(f, c) && r8(f, s) && (ver < 6 || r32(f, sg)))) break;
+      ex.albums[k] = {c, s, sg};
     }
   }
   fclose(f);
@@ -299,6 +343,7 @@ void save_db(const std::vector<Raw> &raws, uint32_t sig) {
     w32(f, al.key);
     w16(f, al.color);
     w8(f, al.art_state);
+    w32(f, al.art_sig);
   }
   fclose(f);
   remove(db_path().c_str());
@@ -328,8 +373,7 @@ bool take_art_stale(uint32_t key) {
 #define kUnknownArtist TR("Artista sconosciuto")
 #define kVarious TR("Artisti vari")
 
-void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, CoverCand> &covers,
-           const DbExtra &ex) {
+void build(const std::vector<Raw> &raws, const Covers &covers, const DbExtra &ex) {
   g_tracks.clear();
   g_albums.clear();
   g_artists.clear();
@@ -339,6 +383,9 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
   g_tracks.reserve(raws.size());
 
   std::unordered_map<uint32_t, int> album_map, genre_map;
+  std::unordered_map<std::string, int> dir_album;   // cartella -> primo album trovato lì
+  std::unordered_set<std::string> shared;           // cartelle con brani di più album
+  std::vector<const CoverCand *> cand;              // immagine scelta per ogni album
   char fold[400];
   for (auto &r : raws) {
     if (g_tracks.size() >= 0xFFF0) break;
@@ -389,16 +436,15 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
       a.dir = g_arena.dup(dir.c_str());
       a.key = key;
       a.art_track = -1;
-      auto c = covers.find(dir);
-      a.art_file = c != covers.end() ? g_arena.dup(c->second.path) : nullptr;
-      auto ce = ex.colors.find(key);
-      if (ce != ex.colors.end()) {
-        a.color = ce->second.first;
-        a.art_state = ce->second.second;
+      auto ce = ex.albums.find(key);
+      if (ce != ex.albums.end()) {
+        a.color = ce->second.color;
+        a.art_state = ce->second.art_state;
       }
       ai = g_albums.size();
       album_map[key] = ai;
       g_albums.push_back(a);
+      cand.push_back(nullptr);
     } else {
       ai = it->second;
     }
@@ -406,9 +452,48 @@ void build(const std::vector<Raw> &raws, const std::unordered_map<std::string, C
     Album &a = g_albums[ai];
     if (t.year && t.year > a.year) a.year = t.year;
     if (a.art_track < 0 && t.pic_kind == PIC_JPEG) a.art_track = g_tracks.size();
+    auto da = dir_album.emplace(dir, ai);
+    if (!da.second && da.first->second != ai) shared.insert(dir);
+    if (!a.art_own) {   // "<nome del brano>.jpg": vale il primo brano che ce l'ha
+      auto s = covers.track.find(ascii_lower(dir + "/" + stem_of(base_name(r.path))));
+      if (s != covers.track.end()) {
+        a.art_file = g_arena.dup(s->second.path);
+        a.art_own = a.art_first = true;
+        cand[ai] = &s->second;
+      }
+    }
     a.total_ms += t.dur_ms;
     a.tracks.push_back(g_tracks.size());
     g_tracks.push_back(t);
+  }
+
+  // Immagini "di cartella" (cover.jpg, folder.jpg, ...) solo se nella cartella c'è un
+  // album solo: con brani di album diversi (es. sparsi nella radice) sarebbero la
+  // copertina sbagliata per tutti tranne uno. Lì valgono "<nome del brano>.jpg" e
+  // l'immagine incorporata.
+  for (size_t i = 0; i < g_albums.size(); i++) {
+    Album &a = g_albums[i];
+    a.shared_dir = shared.count(a.dir) > 0;
+    if (!a.art_own && !a.shared_dir) {
+      auto c = covers.dir.find(a.dir);
+      if (c != covers.dir.end()) {
+        a.art_file = g_arena.dup(c->second.path);
+        // cover.jpg vince sull'incorporata: è quella scelta apposta (anche dalla pagina web)
+        a.art_first = !strncasecmp(base_name(c->second.path), "cover.", 6);
+        cand[i] = &c->second;
+      }
+    }
+    // impronta della provenienza: se cambia (immagine aggiunta, tolta o sostituita
+    // anche dal computer), la copertina in cache si rifà
+    uint32_t sg = 2166136261u;
+    if (const CoverCand *c = cand[i]) {
+      sg = fnv1a(c->path, sg);
+      sg = (sg ^ c->size) * 16777619u;
+      sg = (sg ^ c->mtime) * 16777619u;
+      sg = (sg ^ (a.art_first ? 1u : 2u)) * 16777619u;
+    }
+    if (a.art_track >= 0) sg = fnv1a(g_tracks[a.art_track].path, sg);
+    a.art_sig = sg ? sg : 1;   // 0 vuol dire "non nota"
   }
 
   // artista dell'album quando manca ALBUMARTIST
@@ -670,7 +755,7 @@ bool lib_scan(bool force) {
   Arena tmp;
   std::vector<FileEnt> files;
   std::vector<const char *> m3us;
-  std::unordered_map<std::string, CoverCand> covers;
+  Covers covers;
   DIR *probe = opendir(MUSIC_ROOT);
   if (!probe) {
     set_prog(LIB_NO_SD, 0, 0, 0);
@@ -776,7 +861,14 @@ bool lib_scan(bool force) {
     plat_mark(1, "copertina", a.title);
     // "Aggiorna libreria" rifà tutte le copertine; altrimenti solo quelle nuove o
     // degli album con brani cambiati (es. sostituiti dal computer)
-    bool fresh = take_art_stale(a.key) || force || changed_dirs.count(a.dir);
+    // e quelle la cui immagine è cambiata (aggiunta, tolta o sostituita, anche dal
+    // computer); con un indice vecchio, senza impronta, solo gli album in cartelle
+    // condivise: prima prendevano tutti la stessa immagine di cartella
+    auto ox = ex.albums.find(a.key);
+    uint32_t old_sig = ox != ex.albums.end() ? ox->second.art_sig : 0;
+    bool moved = old_sig ? old_sig != a.art_sig : (ox != ex.albums.end() && a.shared_dir);
+    if (old_sig != a.art_sig) art_changed = true;   // l'impronta nuova va salvata
+    bool fresh = take_art_stale(a.key) || force || changed_dirs.count(a.dir) || moved;
     if (!fresh && a.art_state == 1 && art_has_cache(a.key)) continue;
     if (!fresh && a.art_state == 2 && !changed) continue;
     uint16_t col = 0;
@@ -830,6 +922,15 @@ void lib_mark_art_stale(uint32_t album_key) {
 }
 const std::vector<Playlist> &lib_playlists() { return g_playlists; }
 const char *lib_track_path(int t) { return (t >= 0 && t < (int)g_tracks.size()) ? g_tracks[t].path : nullptr; }
+
+std::string lib_album_cover_path(int ai) {
+  if (ai < 0 || ai >= (int)g_albums.size()) return std::string();
+  const Album &a = g_albums[ai];
+  if (a.art_own && a.art_file) return a.art_file;   // si sostituisce quella che c'è già
+  if (!a.shared_dir || a.tracks.empty()) return std::string(a.dir) + "/cover.jpg";
+  const char *p = g_tracks[a.tracks[0]].path;
+  return dir_of(p) + "/" + stem_of(base_name(p)) + ".jpg";
+}
 
 int lib_album_by_key(uint32_t k) {
   for (size_t i = 0; i < g_albums.size(); i++)

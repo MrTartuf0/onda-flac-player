@@ -41,11 +41,16 @@ Missing tags are easy to fill in from the web page, by hand or automatically fro
 
 For each album the player uses, in this order:
 
-1. a `cover.jpg` in the album folder;
-2. the picture embedded in the FLAC files;
-3. another image in the folder: `folder.jpg`, `front.jpg`, `album.jpg`, `albumart.jpg`, then any `.jpg`.
+1. an image with the same name as one of its songs, next to it (`03 - Song.flac` → `03 - Song.jpg`);
+2. a `cover.jpg` in the album folder;
+3. the picture embedded in the FLAC files;
+4. another image in the folder: `folder.jpg`, `front.jpg`, `album.jpg`, `albumart.jpg`, then any `.jpg`.
 
-Covers must be **baseline JPEG**. PNG and progressive JPEG are not decoded on the device and show a placeholder instead. The web page fixes this in one go: **Libreria → Sistema copertine** (fix covers) converts unreadable embedded covers to a 600 px `cover.jpg` in each album folder.
+Folder images (2 and 4) count only when the folder holds a single album. In a folder with songs from several albums, such as loose files in the root of the card, one `cover.jpg` would be the wrong cover for all but one of them, so there only images named after a song and embedded pictures are used.
+
+Covers must be **baseline JPEG**. PNG and progressive JPEG are not decoded on the device and show a placeholder instead. The web page fixes this in one go: **Libreria → Sistema copertine** (fix covers) converts unreadable embedded covers to 600 px JPEGs: a `cover.jpg` in each album folder, or an image named after the song when the folder is shared by several albums.
+
+Adding, removing or replacing a cover image (also from the computer) is noticed at the next scan, and only that album's cover is rebuilt.
 
 The album colour used for the now-playing gradient is computed once from the cover and cached.
 
