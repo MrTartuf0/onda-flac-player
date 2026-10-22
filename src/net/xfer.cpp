@@ -668,21 +668,26 @@ esp_err_t h_tags(httpd_req_t *req) {
   return send_json(req, o);
 }
 
-// Immagine incorporata n. i (per mostrarla e convertirla nel browser)
+// Quale immagine incorporata: ?i=n, oppure ?c=1 per quella che il lettore usa come copertina
+int pic_index(httpd_req_t *req, const FlacInfo &fi) {
+  if (query_flag(req, "c")) return flac_cover_index(fi);
+  int idx = 0;
+  size_t ql = httpd_req_get_url_query_len(req);
+  std::string q(ql + 1, '\0');
+  char v[8];
+  if (httpd_req_get_url_query_str(req, &q[0], ql + 1) == ESP_OK && httpd_query_key_value(q.c_str(), "i", v, sizeof v) == ESP_OK)
+    idx = atoi(v);
+  return idx;
+}
+
+// Immagine incorporata (per mostrarla e convertirla nel browser)
 esp_err_t h_pic(httpd_req_t *req) {
   std::string full, rel;
   if (!query_path(req, "p", full, &rel)) return fail(req, "400 Bad Request", "Percorso non valido");
-  int idx = 0;
-  {
-    size_t ql = httpd_req_get_url_query_len(req);
-    std::string q(ql + 1, '\0');
-    char v[8];
-    if (httpd_req_get_url_query_str(req, &q[0], ql + 1) == ESP_OK && httpd_query_key_value(q.c_str(), "i", v, sizeof v) == ESP_OK)
-      idx = atoi(v);
-  }
   FlacInfo fi;
-  if (!flac_info(full.c_str(), fi) || idx < 0 || idx >= (int)fi.pictures.size())
-    return fail(req, "404 Not Found", "Nessuna immagine");
+  if (!flac_info(full.c_str(), fi)) return fail(req, "404 Not Found", "Nessuna immagine");
+  int idx = pic_index(req, fi);
+  if (idx < 0 || idx >= (int)fi.pictures.size()) return fail(req, "404 Not Found", "Nessuna immagine");
   const auto &p = fi.pictures[idx];
   FILE *f = fopen(full.c_str(), "rb");
   if (!f) return fail(req, "404 Not Found", "File non trovato");
@@ -700,6 +705,48 @@ esp_err_t h_pic(httpd_req_t *req) {
   }
   fclose(f);
   return r == ESP_OK ? httpd_resp_send_chunk(req, nullptr, 0) : r;
+}
+
+// Sostituisce un'immagine incorporata con un JPEG baseline preparato dal browser
+// (copertine PNG o JPEG progressive che il lettore non sa leggere): stesso tipo e
+// descrizione, l'audio non si tocca. Sul posto se c'è spazio, altrimenti si ricopia.
+esp_err_t h_pic_put(httpd_req_t *req) {
+  std::string full, rel;
+  if (!query_path(req, "p", full, &rel)) return fail(req, "400 Bad Request", "Percorso non valido");
+  size_t len = req->content_len;
+  if (len < 100 || len > 4 * 1024 * 1024) return fail(req, "400 Bad Request", "Immagine non valida");
+  uint8_t *img = (uint8_t *)plat_alloc_big(len);
+  if (!img) return fail(req, "500 Internal Server Error", "Memoria insufficiente");
+  size_t got = 0;
+  int timeouts = 0;
+  while (got < len) {
+    int r = httpd_req_recv(req, (char *)img + got, std::min<size_t>(16384, len - got));
+    if (r == HTTPD_SOCK_ERR_TIMEOUT && ++timeouts < 6) continue;
+    if (r <= 0) break;
+    got += r;
+  }
+  if (got < len) {
+    plat_free(img);
+    return fail(req, "400 Bad Request", "Ricezione interrotta");
+  }
+  FlacInfo fi;
+  int idx = flac_info(full.c_str(), fi) ? pic_index(req, fi) : -1;
+  std::string err;
+  bool rewrote = false;
+  uint32_t t0 = millis();
+  plat_event("web: copertina nel file", strrchr(rel.c_str(), '/') + 1);
+  bool good = idx >= 0 && flac_replace_picture(full.c_str(), idx, img, len, err, &rewrote);
+  plat_free(img);
+  if (!good) return fail(req, "500 Internal Server Error", err.empty() ? "Nessuna immagine nel file" : err.c_str());
+  lib_mark_stale(full.c_str());
+  for (auto &t : lib_tracks())   // la copertina del suo album va rifatta
+    if (!strcmp(t.path, full.c_str())) lib_mark_art_stale(lib_albums()[t.album].key);
+  changed();
+  std::string o = "{\"ok\":true";
+  kv_num(o, "rewrote", rewrote);
+  kv_num(o, "ms", millis() - t0);
+  o += "}";
+  return send_json(req, o);
 }
 
 // Miniatura dell'album (64x64) dalla cache del lettore, come BMP a 16 bit
@@ -840,7 +887,7 @@ void http_start() {
     {"/api/mv", HTTP_POST, h_mv},      {"/api/dl", HTTP_GET, h_dl},    {"/api/done", HTTP_POST, h_done},
     {"/api/time", HTTP_POST, h_time},  {"/api/lib", HTTP_GET, h_lib},   {"/api/meta", HTTP_GET, h_meta},
     {"/api/tags", HTTP_POST, h_tags},  {"/api/pic", HTTP_GET, h_pic},   {"/api/thumb", HTTP_GET, h_thumb},
-    {"/api/cover", HTTP_POST, h_cover},
+    {"/api/cover", HTTP_POST, h_cover}, {"/api/pic", HTTP_POST, h_pic_put},
   };
   for (auto &r : routes) {
     httpd_uri_t u = {};

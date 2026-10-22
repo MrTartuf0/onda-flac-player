@@ -5,7 +5,8 @@
 // blocchi. flac_write_comments riscrive i tag: se nel file c'è spazio di riserva
 // (il blocco PADDING che quasi tutti gli encoder lasciano) cambia solo l'intestazione,
 // in un attimo; altrimenti ricopia il file con 8 KB di riserva per le volte dopo.
-// L'audio non viene mai toccato.
+// flac_replace_picture fa lo stesso con un'immagine incorporata.
+// L'audio non viene mai toccato (e dopo ogni scrittura si ricontrolla).
 #pragma once
 #include <stdint.h>
 #include <string>
@@ -24,6 +25,7 @@ struct FlacInfo {
     uint32_t w = 0, h = 0, depth = 0;
     long data_off = 0;
     uint32_t data_len = 0;
+    int block = -1;      // indice in blocks
   };
   long base = 0;          // dove inizia "fLaC" (dopo un eventuale tag ID3v2 non standard)
   long audio_off = 0;     // primo frame audio
@@ -49,3 +51,16 @@ bool flac_info(const char *path, FlacInfo &fi, uint32_t max_field = 32768);
 // l'utente. rewrote = il file è stato ricopiato (non c'era spazio di riserva).
 bool flac_write_comments(const char *path, const std::vector<std::string> &comments, std::string &err,
                          bool *rewrote = nullptr, uint32_t max_field = 32768);
+
+// L'immagine che il lettore usa come copertina (come flac_read_meta): la frontale
+// (tipo 3), poi "altro" (0), poi la prima; -1 se non ce n'è.
+int flac_cover_index(const FlacInfo &fi);
+
+// Dimensioni di un JPEG che il lettore sa decodificare (baseline, 8 bit); false
+// se non lo è (progressivo, PNG, dati rovinati...).
+bool jpeg_baseline_size(const uint8_t *d, size_t n, uint32_t *w, uint32_t *h);
+
+// Sostituisce l'immagine fi.pictures[index] con un JPEG baseline, tenendone tipo e
+// descrizione (es. una copertina PNG che il lettore non legge, convertita dal browser).
+bool flac_replace_picture(const char *path, int index, const uint8_t *jpeg, size_t len, std::string &err,
+                          bool *rewrote = nullptr);

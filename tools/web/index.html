@@ -663,21 +663,32 @@ async function uploadCover(ai,blob){
  const a=LIB.albums[ai];const jpg=await toJpeg(blob);
  await api('/api/cover',{k:a.k},{method:'POST',body:jpg});a._cv=Date.now();a._url=URL.createObjectURL(jpg)}
 function albumTracks(ai){return LIB.tracks.map((x,i)=>i).filter(i=>LIB.tracks[i].al===ai)}
+// Copertine incorporate che il lettore non sa leggere (PNG, JPEG progressivi): ogni brano
+// la sua, convertita in JPEG (fino a 1000 px) e rimessa al suo posto dentro il file.
+// L'audio non si tocca. Ritorna quanti brani sono stati sistemati.
+async function embedFix(ai,onTrack){
+ let n=0,last=null,err=null;const tr=albumTracks(ai).filter(i=>LIB.tracks[i].pk);
+ for(const ti of tr){const t=LIB.tracks[ti];if(onTrack)onTrack(t);
+  try{const r=await fetch('/api/pic?'+new URLSearchParams({p:t.p,c:1}));if(!r.ok)throw new Error('immagine non leggibile');
+   const jpg=await toJpeg(await r.blob(),1000);await api('/api/pic',{p:t.p,c:1},{method:'POST',body:jpg});t.pk=1;n++;last=jpg}
+  catch(e){err=e}}
+ if(!n)throw err||new Error('nessuna immagine nei file');
+ const a=LIB.albums[ai];a._cv=Date.now();a._url=URL.createObjectURL(last);return n}
 async function coverEdit(ai){
- const a=LIB.albums[ai];const emb=albumTracks(ai).find(i=>LIB.tracks[i].pk);let chosen=null;
+ const a=LIB.albums[ai];const emb=albumTracks(ai).find(i=>LIB.tracks[i].pk);let chosen=null,fromEmb=false;
  const cur=a._url?'<img src="'+a._url+'">':albCover(a)?'<img src="/api/thumb?k='+a.k+'" onerror="this.outerHTML=PH">':PH;
  edOpen('<h3>Copertina</h3><p>'+esc(a.t)+' · '+esc(a.a||'')+'</p><div class="cvbox"><div id="cvPrev">'+cur+'</div><div class="cvopts">'+
   '<button class="btn" id="cvFile">'+IC.up+'Carica un\'immagine…</button>'+
   (emb!==undefined?'<button class="btn" id="cvEmb">'+IC.img+'Usa quella incorporata nel file</button>':'')+
   '<button class="btn" id="cvWeb">'+IC.dl+'Cerca su internet (MusicBrainz)</button>'+
-  '<p class="stats" style="margin:4px 0 0">Viene salvata come <b>cover.jpg</b> nella cartella dell\'album (JPEG 600 px, quello che il lettore legge meglio).</p></div></div>'+
+  '<p class="stats" style="margin:4px 0 0">'+(albCover(a)?'':'Quella incorporata, se il lettore non la legge, viene convertita in JPEG e rimessa dentro i file. ')+'Le altre immagini vengono salvate come <b>cover.jpg</b> nella cartella dell\'album (JPEG 600 px, quello che il lettore legge meglio), o accanto al brano se nella cartella ci sono più album.</p></div></div>'+
   '<div id="cvRes"></div><input type="file" id="cvIn" accept="image/*" hidden>'+
   '<div class="acts"><button class="btn ghost" id="cvX">Annulla</button><button class="btn pri" id="cvS" disabled>Salva copertina</button></div>');
- const pick=(blob)=>{chosen=blob;$('cvPrev').innerHTML='<img src="'+URL.createObjectURL(blob)+'">';$('cvS').disabled=false};
+ const pick=(blob,emb)=>{chosen=blob;fromEmb=!!emb;$('cvPrev').innerHTML='<img src="'+URL.createObjectURL(blob)+'">';$('cvS').disabled=false};
  $('cvX').onclick=edClose;
  $('cvFile').onclick=()=>$('cvIn').click();
  $('cvIn').onchange=e=>{const f=e.target.files[0];if(f)pick(f)};
- if($('cvEmb'))$('cvEmb').onclick=async()=>{try{const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[emb].p,i:0}));if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Immagine non leggibile',true)}};
+ if($('cvEmb'))$('cvEmb').onclick=async()=>{try{const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[emb].p,c:1}));if(!r.ok)throw 0;pick(await r.blob(),true)}catch(e){toast('Immagine non leggibile',true)}};
  $('cvWeb').onclick=async()=>{
   const box=$('cvRes');box.innerHTML='<p class="stats">Cerco…</p>';
   try{const c=await mbSearch(a.t,a.a,albumTracks(ai).length);
@@ -687,19 +698,20 @@ async function coverEdit(ai){
     try{const r=await fetch(CAA+'/release/'+b.dataset.mb+'/front-500');if(!r.ok)throw 0;pick(await r.blob())}catch(e){toast('Questa edizione non ha la copertina',true)}})}
   catch(e){box.innerHTML='<p class="stats">'+esc(e.message)+'</p>'}};
  $('cvS').onclick=async()=>{$('cvS').disabled=true;$('cvS').textContent='Salvataggio…';edB.dataset.busy=1;
-  try{await uploadCover(ai,chosen);toast('Copertina salvata');edClose();libRender()}catch(e){toast(e.message,true);$('cvS').disabled=false;$('cvS').textContent='Salva copertina'}
+  try{if(fromEmb&&!albCover(a)){const n=await embedFix(ai,t=>$('cvS').textContent='Salvataggio: '+t.t+'…');toast(n>1?'Copertina sistemata in '+n+' brani':'Copertina sistemata nel file')}
+   else{await uploadCover(ai,chosen);toast('Copertina salvata')}edClose();libRender()}catch(e){toast(e.message,true);$('cvS').disabled=false;$('cvS').textContent='Salva copertina'}
   delete edB.dataset.busy};
 }
 // tutte le copertine incorporate che il lettore non sa leggere (PNG, JPEG progressivi)
 $('bFixCv').onclick=async()=>{
  const todo=LIB.albums.map((a,i)=>i).filter(ai=>!albCover(LIB.albums[ai])&&albumTracks(ai).some(i=>LIB.tracks[i].pk));
  if(!todo.length)return;
- edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere. Le salvo come cover.jpg nella cartella dell\'album; se nella cartella ci sono brani di album diversi (per esempio sparsi nella radice), accanto al brano, con il suo stesso nome.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
+ edOpen('<h3>Sistema copertine</h3><p>Converto in JPEG le copertine incorporate che il lettore non riesce a leggere e le rimetto al loro posto dentro i file FLAC, brano per brano. L\'audio non viene toccato. Di solito basta un attimo; se nel file non c\'è spazio lo ricopio, e ci vuole qualche secondo.</p><div class="prog"><i></i></div><p class="stats" id="fxMsg"></p><div class="acts"><button class="btn ghost" id="fxX" disabled>Chiudi</button></div>');
  edB.dataset.busy=1;let ok=0,bad=0;
  for(let k=0;k<todo.length;k++){const ai=todo[k];const a=LIB.albums[ai];$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t;
-  try{const ti=albumTracks(ai).find(i=>LIB.tracks[i].pk);const r=await fetch('/api/pic?'+new URLSearchParams({p:LIB.tracks[ti].p,i:0}));if(!r.ok)throw 0;await uploadCover(ai,await r.blob());ok++}catch(e){bad++}
+  try{await embedFix(ai,t=>$('fxMsg').textContent=(k+1)+' di '+todo.length+': '+a.t+' · '+t.t);ok++}catch(e){bad++}
   edB.querySelector('.prog i').style.width=((k+1)*100/todo.length)+'%'}
- delete edB.dataset.busy;$('fxMsg').textContent=ok+' copertine sistemate'+(bad?', '+bad+' non leggibili':'')+'. Il lettore le userà dopo «Aggiorna libreria».';$('fxX').disabled=false;$('fxX').onclick=edClose;libRender()};
+ delete edB.dataset.busy;$('fxMsg').textContent=ok+' copertine sistemate'+(bad?', '+bad+' non riuscite':'')+'. Il lettore le userà dopo «Aggiorna libreria».';$('fxX').disabled=false;$('fxX').onclick=edClose;libRender()};
 
 // =============================================================== playlist ====
 let PL=null; // [{n,p,tr:[path]}]

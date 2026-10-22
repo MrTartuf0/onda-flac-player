@@ -46,12 +46,12 @@ Change album, album artist, artist, year and genre for all songs at once, plus n
 <img src="https://raw.githubusercontent.com/MrTartuf0/onda-flac-player/main/docs/images/web-cover.png" alt="Cover dialog">
 
 - Upload an image (PNG works too, also from a phone gallery).
-- **Usa quella incorporata**: use the picture embedded in the file.
+- **Usa quella incorporata**: use the picture embedded in the file. If the player can't read it (PNG, progressive JPEG), it is converted and put back inside the files instead.
 - **Cerca su internet**: search MusicBrainz / Cover Art Archive (the player must be on your home Wi-Fi).
 
 The browser converts the image to a 600 px JPEG and the player saves it as `cover.jpg` in the album folder, where it takes priority over embedded pictures. When the folder holds songs from several albums (for example loose files in the root of the card) it is saved next to the album's first song with the same name (`Song.flac` → `Song.jpg`), so each album keeps its own cover.
 
-**Sistema copertine** (fix covers) does this in one go for every embedded cover the player can't read (PNG, progressive JPEG).
+**Sistema copertine** (fix covers) does this in one go for every embedded cover the player can't read (PNG, progressive JPEG): each song's picture is converted to a baseline JPEG (up to 1000 px) and written back inside its FLAC file, in place of the old one. The audio is not touched, and after each write the player checks that the file still reads correctly.
 
 ### MusicBrainz
 
@@ -98,7 +98,8 @@ The page talks to the player through a small JSON API, handy for scripts:
 | `/api/lib` | GET | Library: tracks, albums, playlists, device language |
 | `/api/meta?p=` | GET | Full metadata of one file |
 | `/api/tags?p=` | POST | Replace the tags of one file (URL-encoded `KEY=value` lines) |
-| `/api/pic?p=&i=` | GET | An embedded picture |
+| `/api/pic?p=&i=` | GET | An embedded picture (`c=1` instead of `i`: the one the player uses as cover) |
+| `/api/pic?p=&c=1` | POST | Replace that picture with the baseline JPEG in the body (or `i=` for another one) |
 | `/api/thumb?k=` | GET | Album thumbnail (`k` = album key from `/api/lib`) |
 | `/api/cover?k=` | POST | Save an album cover (`cover.jpg`, or `<song>.jpg` in a shared folder) |
 | `/api/time` | POST | Set the clock |

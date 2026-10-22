@@ -101,6 +101,150 @@ bool copy_bytes(FILE *in, FILE *out, uint64_t len, uint8_t *buf, size_t cap) {
   return true;
 }
 
+// Ricontrollo dopo una scrittura: i blocchi si leggono ancora, l'audio ha la stessa
+// lunghezza e comincia dove deve (codice di sincronia del primo frame)
+bool same_audio(const char *path, const FlacInfo &before, std::string &err) {
+  FlacInfo now;
+  FILE *f = fopen(path, "rb");
+  bool ok = f != nullptr;
+  if (f) {
+    fseek(f, 0, SEEK_END);
+    now.file_size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    uint8_t sync[2] = {0, 0};
+    ok = read_blocks(f, now) && fseek(f, now.audio_off, SEEK_SET) == 0 && rd(f, sync, 2) && sync[0] == 0xFF &&
+         (sync[1] & 0xFE) == 0xF8;
+    fclose(f);
+  }
+  ok = ok && now.file_size - now.audio_off == before.file_size - before.audio_off &&
+       now.blocks[0].len == before.blocks[0].len;
+  if (!ok) err = "Dopo la scrittura il file non torna: controllalo";
+  return ok;
+}
+
+// Scrive `data` come blocco di tipo `type` al posto di fi.blocks[idx] (idx < 0: blocco
+// nuovo). fi: la struttura del file letta poco prima (read_blocks).
+bool put_block(const char *path, const FlacInfo &fi, int idx, uint8_t type, const std::string &data,
+               std::string &err, bool *rewrote) {
+  if (rewrote) *rewrote = false;
+  if (data.size() >= (1u << 24)) {
+    err = "Blocco troppo grande";
+    return false;
+  }
+  const uint32_t N = data.size();
+
+  // 1) sul posto: il nuovo blocco (+ eventuale riserva) occupa esattamente lo
+  //    spazio del vecchio blocco e del PADDING che lo segue (o di un PADDING)
+  long reg_off = -1, reg_len = 0;
+  bool reg_last = false;
+  if (idx >= 0) {
+    reg_off = fi.blocks[idx].off;
+    size_t j = idx;
+    reg_len = 4 + fi.blocks[j].len;
+    reg_last = fi.blocks[j].last;
+    while (j + 1 < fi.blocks.size() && fi.blocks[j + 1].type == 1 && fi.blocks[j + 1].off == reg_off + reg_len) {
+      j++;
+      reg_len += 4 + fi.blocks[j].len;
+      reg_last = fi.blocks[j].last;
+    }
+  }
+  long need = 4 + (long)N;
+  bool fits = reg_off >= 0 && (reg_len == need || reg_len - need >= 4);
+  if (!fits && idx < 0) {   // blocco nuovo: un PADDING abbastanza grande
+    for (auto &b : fi.blocks) {
+      if (b.type != 1) continue;
+      long rl = 4 + (long)b.len;
+      if (rl == need || rl - need >= 4) {
+        reg_off = b.off;
+        reg_len = rl;
+        reg_last = b.last;
+        fits = true;
+        break;
+      }
+    }
+  }
+  if (fits) {
+    FILE *w = fopen(path, "r+b");
+    if (!w) {
+      err = "Impossibile scrivere il file";
+      return false;
+    }
+    bool ok = fseek(w, reg_off, SEEK_SET) == 0;
+    uint8_t h[4];
+    long rest = reg_len - need;
+    block_header(h, type, rest == 0 && reg_last, N);
+    ok = ok && fwrite(h, 1, 4, w) == 4 && fwrite(data.data(), 1, N, w) == N;
+    if (ok && rest) {
+      block_header(h, 1, reg_last, (uint32_t)(rest - 4));
+      ok = fwrite(h, 1, 4, w) == 4;
+      static const uint8_t zero[256] = {0};
+      for (long z = rest - 4; ok && z > 0; z -= 256) ok = fwrite(zero, 1, z < 256 ? z : 256, w) == (size_t)(z < 256 ? z : 256);
+    }
+    ok = (fclose(w) == 0) && ok;
+    if (!ok) {
+      err = "Errore di scrittura sulla SD";
+      return false;
+    }
+    return same_audio(path, fi, err);
+  }
+
+  // 2) non c'è posto: si ricopia il file con 8 KB di riserva (audio identico)
+  std::string tmp = std::string(path) + ".tmp~";
+  FILE *in = fopen(path, "rb");
+  FILE *out = in ? fopen(tmp.c_str(), "wb") : nullptr;
+  if (!in || !out) {
+    if (in) fclose(in);
+    err = "Impossibile creare il file temporaneo";
+    return false;
+  }
+  constexpr size_t CAP = 16 * 1024;
+  uint8_t *buf = (uint8_t *)plat_alloc_fast(CAP);
+  if (!buf) {
+    fclose(in);
+    fclose(out);
+    remove(tmp.c_str());
+    err = "Memoria insufficiente";
+    return false;
+  }
+  constexpr uint32_t PAD = 8192;
+  bool ok = fseek(in, 0, SEEK_SET) == 0 && copy_bytes(in, out, fi.base, buf, CAP);   // tag ID3 iniziale (raro)
+  ok = ok && fwrite("fLaC", 1, 4, out) == 4;
+  for (size_t i = 0; i < fi.blocks.size(); i++) {
+    const FlacInfo::Block &b = fi.blocks[i];
+    if (!ok) break;
+    // via la riserva e il blocco sostituito (per i tag: anche eventuali doppioni)
+    if (b.type == 1 || (int)i == idx || (type == 4 && b.type == 4)) continue;
+    uint8_t h[4];
+    block_header(h, b.type, false, b.len);
+    ok = fwrite(h, 1, 4, out) == 4 && fseek(in, b.off + 4, SEEK_SET) == 0 && copy_bytes(in, out, b.len, buf, CAP);
+  }
+  if (ok) {
+    uint8_t h[4];
+    block_header(h, type, false, N);
+    ok = fwrite(h, 1, 4, out) == 4 && fwrite(data.data(), 1, N, out) == N;
+    block_header(h, 1, true, PAD);
+    ok = ok && fwrite(h, 1, 4, out) == 4;
+    memset(buf, 0, PAD < CAP ? PAD : CAP);
+    ok = ok && fwrite(buf, 1, PAD, out) == PAD;
+  }
+  ok = ok && fseek(in, fi.audio_off, SEEK_SET) == 0 && copy_bytes(in, out, fi.file_size - fi.audio_off, buf, CAP);
+  plat_free(buf);
+  fclose(in);
+  ok = (fclose(out) == 0) && ok;
+  if (!ok) {
+    remove(tmp.c_str());
+    err = "Errore di scrittura sulla SD (scheda piena?)";
+    return false;
+  }
+  // FAT: rename non sovrascrive; il vecchio file si toglie solo a copia riuscita
+  if (remove(path) != 0 || rename(tmp.c_str(), path) != 0) {
+    err = "Impossibile sostituire il file (la copia è in " + tmp + ")";
+    return false;
+  }
+  if (rewrote) *rewrote = true;
+  return same_audio(path, fi, err);
+}
+
 }  // namespace
 
 bool flac_info(const char *path, FlacInfo &fi, uint32_t max_field) {
@@ -149,6 +293,7 @@ bool flac_info(const char *path, FlacInfo &fi, uint32_t max_field) {
       p.depth = be32(d + 8);
       p.data_len = be32(d + 16);
       p.data_off = ftell(f);
+      p.block = (int)i;
       if (p.data_off + (long)p.data_len > b.off + 4 + (long)b.len) continue;
       fi.pictures.push_back(p);
     }
@@ -211,112 +356,88 @@ bool flac_write_comments(const char *path, const std::vector<std::string> &comme
     err = "Tag troppo grandi";
     return false;
   }
-  const uint32_t N = data.size();
+  return put_block(path, fi, vc, 4, data, err, rewrote);
+}
 
-  // 1) sul posto: il nuovo blocco (+ eventuale riserva) occupa esattamente lo
-  //    spazio del vecchio blocco dei tag e del PADDING che lo segue (o di un PADDING)
-  long reg_off = -1, reg_len = 0;
-  bool reg_last = false;
-  if (vc >= 0) {
-    reg_off = fi.blocks[vc].off;
-    size_t j = vc;
-    reg_len = 4 + fi.blocks[j].len;
-    reg_last = fi.blocks[j].last;
-    while (j + 1 < fi.blocks.size() && fi.blocks[j + 1].type == 1 && fi.blocks[j + 1].off == reg_off + reg_len) {
-      j++;
-      reg_len += 4 + fi.blocks[j].len;
-      reg_last = fi.blocks[j].last;
+int flac_cover_index(const FlacInfo &fi) {
+  int best = -1, best_rank = 3;
+  for (size_t i = 0; i < fi.pictures.size(); i++) {
+    const auto &p = fi.pictures[i];
+    int rank = p.type == 3 ? 0 : (p.type == 0 ? 1 : 2);
+    if (rank < best_rank && p.data_len > 0) {
+      best = (int)i;
+      best_rank = rank;
     }
   }
-  long need = 4 + (long)N;
-  bool fits = reg_off >= 0 && (reg_len == need || reg_len - need >= 4);
-  if (!fits) {   // niente tag (o non c'è posto lì): un PADDING abbastanza grande altrove
-    for (auto &b : fi.blocks) {
-      if (b.type != 1) continue;
-      long rl = 4 + (long)b.len;
-      if (vc >= 0) break;   // c'è già un blocco dei tag: non se ne fanno due
-      if (rl == need || rl - need >= 4) {
-        reg_off = b.off;
-        reg_len = rl;
-        reg_last = b.last;
-        fits = true;
-        break;
-      }
-    }
-  }
-  if (fits) {
-    FILE *w = fopen(path, "r+b");
-    if (!w) {
-      err = "Impossibile scrivere il file";
-      return false;
-    }
-    bool ok = fseek(w, reg_off, SEEK_SET) == 0;
-    uint8_t h[4];
-    long rest = reg_len - need;
-    block_header(h, 4, rest == 0 && reg_last, N);
-    ok = ok && fwrite(h, 1, 4, w) == 4 && fwrite(data.data(), 1, N, w) == N;
-    if (ok && rest) {
-      block_header(h, 1, reg_last, (uint32_t)(rest - 4));
-      ok = fwrite(h, 1, 4, w) == 4;
-      static const uint8_t zero[256] = {0};
-      for (long z = rest - 4; ok && z > 0; z -= 256) ok = fwrite(zero, 1, z < 256 ? z : 256, w) == (size_t)(z < 256 ? z : 256);
-    }
-    ok = (fclose(w) == 0) && ok;
-    if (!ok) err = "Errore di scrittura sulla SD";
-    return ok;
-  }
+  return best;
+}
 
-  // 2) non c'è posto: si ricopia il file con 8 KB di riserva (audio identico)
-  std::string tmp = std::string(path) + ".tmp~";
-  FILE *in = fopen(path, "rb");
-  FILE *out = in ? fopen(tmp.c_str(), "wb") : nullptr;
-  if (!in || !out) {
-    if (in) fclose(in);
-    err = "Impossibile creare il file temporaneo";
+bool jpeg_baseline_size(const uint8_t *d, size_t n, uint32_t *w, uint32_t *h) {
+  if (n < 4 || d[0] != 0xFF || d[1] != 0xD8) return false;
+  while (n > 4 && d[n - 1] == 0) n--;                      // zeri in coda (alcuni encoder)
+  if (d[n - 2] != 0xFF || d[n - 1] != 0xD9) return false;  // incompleto
+  size_t p = 2;
+  while (p + 4 <= n) {
+    if (d[p] != 0xFF) return false;
+    uint8_t m = d[p + 1];
+    if (m == 0xFF) {   // byte di riempimento
+      p++;
+      continue;
+    }
+    if (m == 0x01 || (m >= 0xD0 && m <= 0xD7)) {
+      p += 2;
+      continue;
+    }
+    if (m == 0xD8 || m == 0xD9 || m == 0xDA) return false;   // dati prima delle dimensioni
+    uint32_t L = (d[p + 2] << 8) | d[p + 3];
+    if (L < 2 || p + 2 + L > n) return false;
+    if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) {
+      // il decoder del lettore legge solo il baseline (SOF0) a 8 bit
+      if (m != 0xC0 || L < 8 || d[p + 4] != 8) return false;
+      *h = (d[p + 5] << 8) | d[p + 6];
+      *w = (d[p + 7] << 8) | d[p + 8];
+      return *w > 0 && *h > 0;
+    }
+    p += 2 + L;
+  }
+  return false;
+}
+
+bool flac_replace_picture(const char *path, int index, const uint8_t *jpeg, size_t len, std::string &err,
+                          bool *rewrote) {
+  if (rewrote) *rewrote = false;
+  uint32_t w = 0, h = 0;
+  if (!jpeg_baseline_size(jpeg, len, &w, &h)) {
+    err = "L'immagine non è un JPEG baseline";
     return false;
   }
-  constexpr size_t CAP = 16 * 1024;
-  uint8_t *buf = (uint8_t *)plat_alloc_fast(CAP);
-  if (!buf) {
-    fclose(in);
-    fclose(out);
-    remove(tmp.c_str());
-    err = "Memoria insufficiente";
+  FlacInfo fi;
+  if (!flac_info(path, fi)) {
+    err = "Non è un file FLAC valido";
     return false;
   }
-  constexpr uint32_t PAD = 8192;
-  bool ok = fseek(in, 0, SEEK_SET) == 0 && copy_bytes(in, out, fi.base, buf, CAP);   // tag ID3 iniziale (raro)
-  ok = ok && fwrite("fLaC", 1, 4, out) == 4;
-  for (auto &b : fi.blocks) {
-    if (!ok) break;
-    if (b.type == 1 || b.type == 4) continue;
-    uint8_t h[4];
-    block_header(h, b.type, false, b.len);
-    ok = fwrite(h, 1, 4, out) == 4 && fseek(in, b.off + 4, SEEK_SET) == 0 && copy_bytes(in, out, b.len, buf, CAP);
-  }
-  if (ok) {
-    uint8_t h[4];
-    block_header(h, 4, false, N);
-    ok = fwrite(h, 1, 4, out) == 4 && fwrite(data.data(), 1, N, out) == N;
-    block_header(h, 1, true, PAD);
-    ok = ok && fwrite(h, 1, 4, out) == 4;
-    memset(buf, 0, PAD < CAP ? PAD : CAP);
-    ok = ok && fwrite(buf, 1, PAD, out) == PAD;
-  }
-  ok = ok && fseek(in, fi.audio_off, SEEK_SET) == 0 && copy_bytes(in, out, fi.file_size - fi.audio_off, buf, CAP);
-  plat_free(buf);
-  fclose(in);
-  ok = (fclose(out) == 0) && ok;
-  if (!ok) {
-    remove(tmp.c_str());
-    err = "Errore di scrittura sulla SD (scheda piena?)";
+  if (index < 0 || index >= (int)fi.pictures.size()) {
+    err = "Immagine non trovata nel file";
     return false;
   }
-  // FAT: rename non sovrascrive; il vecchio file si toglie solo a copia riuscita
-  if (remove(path) != 0 || rename(tmp.c_str(), path) != 0) {
-    err = "Impossibile sostituire il file (la copia è in " + tmp + ")";
-    return false;
-  }
-  if (rewrote) *rewrote = true;
-  return true;
+  const FlacInfo::Picture &old = fi.pictures[index];
+  // blocco PICTURE: tipo, mime, descrizione, larghezza, altezza, profondità, colori, dati
+  std::string data;
+  auto put_be32 = [&](uint32_t v) {
+    for (int i = 3; i >= 0; i--) data += (char)((v >> (8 * i)) & 0xFF);
+  };
+  static const char kMime[] = "image/jpeg";
+  data.reserve(len + 64 + old.desc.size());
+  put_be32(old.type);
+  put_be32(sizeof kMime - 1);
+  data += kMime;
+  put_be32(old.desc.size());
+  data += old.desc;
+  put_be32(w);
+  put_be32(h);
+  put_be32(24);
+  put_be32(0);
+  put_be32(len);
+  data.append((const char *)jpeg, len);
+  return put_block(path, fi, old.block, 6, data, err, rewrote);
 }

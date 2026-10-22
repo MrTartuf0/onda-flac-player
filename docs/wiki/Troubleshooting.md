@@ -33,7 +33,7 @@ If the player crashes again within 20 seconds of restarting, it stops on the **S
 
 - Only `.flac` files are played.
 - After copying files with a card reader, use **Settings → Update library** (or restart). With the [USB disk](USB-Disk) the library updates by itself when you eject the drive.
-- Covers in PNG or progressive JPEG are not shown on the device: use **Sistema copertine** in the web page's Library tab, or put a baseline `cover.jpg` in the album folder. See [SD Card and Library](SD-Card-and-Library).
+- Covers in PNG or progressive JPEG are not shown on the device: use **Sistema copertine** in the web page's Library tab (it converts them inside the files), or put a baseline `cover.jpg` in the album folder. See [SD Card and Library](SD-Card-and-Library).
 - Albums split in two usually have songs with different `ALBUM` or `ALBUMARTIST` values, or sit in different folders without `ALBUMARTIST`. Fix them with *Modifica album* in the web page.
 
 ## Battery reading looks wrong

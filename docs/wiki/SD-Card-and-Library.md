@@ -48,7 +48,7 @@ For each album the player uses, in this order:
 
 Folder images (2 and 4) count only when the folder holds a single album. In a folder with songs from several albums, such as loose files in the root of the card, one `cover.jpg` would be the wrong cover for all but one of them, so there only images named after a song and embedded pictures are used.
 
-Covers must be **baseline JPEG**. PNG and progressive JPEG are not decoded on the device and show a placeholder instead. The web page fixes this in one go: **Libreria → Sistema copertine** (fix covers) converts unreadable embedded covers to 600 px JPEGs: a `cover.jpg` in each album folder, or an image named after the song when the folder is shared by several albums.
+Covers must be **baseline JPEG**. PNG and progressive JPEG are not decoded on the device and show a placeholder instead. The web page fixes this in one go: **Libreria → Sistema copertine** (fix covers) converts unreadable embedded covers to baseline JPEG (up to 1000 px) and puts them back inside the FLAC files, in place of the old ones, song by song. Type and description of the picture are kept and the audio is not touched. It usually takes a moment per song; when there isn't enough spare room in the file, the file is copied (a few seconds).
 
 Adding, removing or replacing a cover image (also from the computer) is noticed at the next scan, and only that album's cover is rebuilt.
 
