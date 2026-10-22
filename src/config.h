@@ -13,6 +13,12 @@
 #define LCD_PIN_CS       10
 #define LCD_PIN_DC       46
 #define LCD_PIN_BL       45
+// PWM della retroilluminazione sopra l'udibile. A 5 kHz gli impulsi di corrente dei
+// LED (MOSFET BSS138 sul catodo, alimentati dal 3,3 V) facevano "cantare" i
+// condensatori ceramici: fischio acuto, più forte nella scocca o premendo il bordo
+// basso dello schermo. 31,25 kHz = quarzo 40 MHz / 256 / 5, divisore intero.
+#define LCD_BL_PWM_HZ    31250
+#define LCD_BL_PWM_BITS  8
 #define LCD_SPI_HZ       (40 * 1000 * 1000)   // prova 80 MHz se il tuo pannello regge
 #define LCD_BUF_LINES    30                   // righe per buffer LVGL (x2, in DMA RAM)
 

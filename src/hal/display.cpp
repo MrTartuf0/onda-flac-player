@@ -130,7 +130,7 @@ static bool s_panel_on = true;
 
 static void bl_write(uint8_t pct) {
   s_cur = pct;
-  if (s_panel_on) ledcWrite(LCD_PIN_BL, (uint32_t)pct * 255 / 100);
+  if (s_panel_on) ledcWrite(LCD_PIN_BL, (uint32_t)pct * ((1u << LCD_BL_PWM_BITS) - 1) / 100);
 }
 
 // attenuata: un quarto della luminosità scelta, almeno il 5%
@@ -196,7 +196,9 @@ void display_sleep() {
 }
 
 bool display_begin() {
-  if (!ledcAttach(LCD_PIN_BL, 5000, 8)) Serial.println("[lcd] PWM retroilluminazione non disponibile");
+  // sopra i 20 kHz: niente fischio (vedi config.h). Al 100% il core tiene il pin
+  // sempre acceso (255 su 8 bit = pieno), quindi lì il PWM non c'è proprio.
+  if (!ledcAttach(LCD_PIN_BL, LCD_BL_PWM_HZ, LCD_BL_PWM_BITS)) Serial.println("[lcd] PWM retroilluminazione non disponibile");
   ledcWrite(LCD_PIN_BL, 0);
 
   spi_bus_config_t bus = {};
@@ -262,7 +264,7 @@ bool display_begin() {
     esp_lcd_panel_io_tx_color(s_io, 0x2C, b1, bsz * 2);
     delay(8);
   }
-  ledcWrite(LCD_PIN_BL, 200);
+  ledcWrite(LCD_PIN_BL, (1u << LCD_BL_PWM_BITS) * 3 / 4);
   Serial.println("[lcd] pannello inizializzato");
   s_disp = lv_display_create(LCD_W, LCD_H);
   lv_display_set_color_format(s_disp, LV_COLOR_FORMAT_RGB565);
