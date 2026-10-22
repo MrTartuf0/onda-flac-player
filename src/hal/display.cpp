@@ -37,7 +37,8 @@ const InitCmd kInit[] = {
   {0xC7, 1, {0xB7}, 0},                                  // VCOM 2
   {0x3A, 1, {0x55}, 0},                                  // 16 bit/pixel
   {0x36, 1, {0x48}, 0},                                  // MADCTL: MX | BGR (verticale)
-  {0xB1, 2, {0x00, 0x1A}, 0},
+  {0xB1, 2, {0x00, LCD_FRAME_RTNA}, 0},                  // frequenza del quadro (vedi config.h)
+  {0xB4, 1, {LCD_FRAME_INVERSION ? 0x07 : 0x02}, 0},     // inversione di quadro / di riga
   {0xB6, 3, {0x08, 0x82, 0x27}, 0},
   {0xF2, 1, {0x00}, 0},
   {0x26, 1, {0x01}, 0},

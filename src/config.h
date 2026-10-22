@@ -19,6 +19,16 @@
 // basso dello schermo. 31,25 kHz = quarzo 40 MHz / 256 / 5, divisore intero.
 #define LCD_BL_PWM_HZ    31250
 #define LCD_BL_PWM_BITS  8
+// Fischio del pannello. L'ILI9341 di serie usa l'inversione di riga: la tensione
+// comune del vetro cambia polarità a ogni riga, (73 Hz x 324 righe) / 2 = ~12 kHz,
+// e vetro e condensatori la fanno sentire (più forte premendo il bordo basso o
+// dentro la scocca). Con l'inversione di quadro cambia una volta per immagine,
+// ~60 Hz: niente fischio. Il quadro a 119 Hz tiene la polarità a 59,5 Hz (niente
+// sfarfallio) e porta tutto ciò che va a ritmo di riga a 38 kHz.
+// Se lo schermo sfarfalla: LCD_FRAME_INVERSION 0 (il fischio sale a ~19 kHz,
+// al limite dell'udibile); i valori originali erano 0 e 0x1A.
+#define LCD_FRAME_INVERSION  1
+#define LCD_FRAME_RTNA       0x10   // clock per riga: 0x10 = 119 Hz ... 0x1B = 70 Hz ... 0x1F = 61 Hz
 #define LCD_SPI_HZ       (40 * 1000 * 1000)   // prova 80 MHz se il tuo pannello regge
 #define LCD_BUF_LINES    30                   // righe per buffer LVGL (x2, in DMA RAM)
 
@@ -83,7 +93,7 @@
 #endif
 #define BAT_DIVIDER_X100     200   // tensione batteria = tensione letta * 2
 #define BAT_OFFSET_MV        0     // correzione se la tensione mostrata differisce dal tester
-#define BAT_CAPACITY_MAH     1100  // solo per stimare il tempo di ricarica
+#define BAT_CAPACITY_MAH     1500  // solo per stimare il tempo di ricarica
 #define BAT_CHARGE_MA        300   // corrente di carica (R_PROG 3,3k del TP4054)
 #define BAT_SHUTDOWN_MV      3300  // sotto (a batteria, per 30 s): salva e va in standby
 #define BAT_BOOT_MIN_MV      3400  // all'accensione: sotto questa tensione non parte
