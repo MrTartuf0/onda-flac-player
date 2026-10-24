@@ -16,6 +16,12 @@ namespace {
 esp_lcd_panel_io_handle_t s_io = nullptr;
 lv_display_t *s_disp = nullptr;
 
+// Verso di scrittura nella memoria del pannello (MADCTL). Girare di 180° vuol dire
+// invertire sia le colonne sia le righe: MX | BGR -> MY | BGR.
+constexpr uint8_t kMadctl = 0x48;       // MX | BGR: verticale, come Freenove
+constexpr uint8_t kMadctlFlip = 0x88;   // MY | BGR: girato di 180°
+bool s_flip = false;
+
 // Sequenza di init ILI9341 (variante "ILI9341_2" usata da Freenove con TFT_eSPI)
 struct InitCmd {
   uint8_t cmd;
@@ -36,7 +42,7 @@ const InitCmd kInit[] = {
   {0xC5, 2, {0x30, 0x30}, 0},                            // VCOM 1
   {0xC7, 1, {0xB7}, 0},                                  // VCOM 2
   {0x3A, 1, {0x55}, 0},                                  // 16 bit/pixel
-  {0x36, 1, {0x48}, 0},                                  // MADCTL: MX | BGR (verticale)
+  {0x36, 1, {kMadctl}, 0},                               // MADCTL: verticale (o girato: display_set_flip)
   {0xB1, 2, {0x00, LCD_FRAME_RTNA}, 0},                  // frequenza del quadro (vedi config.h)
   {0xB4, 1, {LCD_FRAME_INVERSION ? 0x07 : 0x02}, 0},     // inversione di quadro / di riga
   {0xB6, 3, {0x08, 0x82, 0x27}, 0},
@@ -102,7 +108,12 @@ bool tp_read(uint16_t &x, uint16_t &y) {
   if (n == 0 || n > 2) return false;
   x = ((d[1] & 0x0F) << 8) | d[2];
   y = ((d[3] & 0x0F) << 8) | d[4];
-  return x < LCD_W && y < LCD_H;
+  if (x >= LCD_W || y >= LCD_H) return false;
+  if (s_flip) {   // schermo girato: il touch resta com'è, le coordinate no
+    x = LCD_W - 1 - x;
+    y = LCD_H - 1 - y;
+  }
+  return true;
 }
 
 void touch_cb(lv_indev_t *, lv_indev_data_t *data) {
@@ -163,6 +174,21 @@ void display_tick(uint32_t now) {
 }
 
 uint8_t display_brightness() { return s_panel_on ? s_cur : 0; }
+
+void display_set_flip(bool on) {
+  if (on == s_flip) return;
+  s_flip = on;
+  if (!s_io) return;
+  for (int i = 0; i < 50 && s_dma_busy; i++) delay(1);
+  uint8_t m = on ? kMadctlFlip : kMadctl;
+  esp_lcd_panel_io_tx_param(s_io, 0x36, &m, 1);
+  // quello che è già sul pannello resta com'era: si ridisegna tutto nel verso nuovo
+  lv_obj_invalidate(lv_screen_active());
+  lv_obj_invalidate(lv_layer_top());
+  lv_obj_invalidate(lv_layer_sys());
+}
+
+bool display_flipped() { return s_flip; }
 uint8_t display_brightness_setting() { return s_bright; }
 
 void display_panel(bool on) {
@@ -236,6 +262,11 @@ bool display_begin() {
   for (auto &c : kInit) {
     esp_lcd_panel_io_tx_param(s_io, c.cmd, c.len ? c.data : nullptr, c.len);
     if (c.delay_ms) delay(c.delay_ms);
+  }
+  s_flip = plat_kv_get("flip", 0) != 0;   // girato di 180° (Impostazioni → Schermo)
+  if (s_flip) {
+    uint8_t m = kMadctlFlip;
+    esp_lcd_panel_io_tx_param(s_io, 0x36, &m, 1);
   }
 
   plat_mark(0, "display: touch");

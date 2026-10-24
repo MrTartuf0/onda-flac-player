@@ -12,6 +12,7 @@
 #include "../clock.h"
 #include "../session.h"
 #include "../hal/usb_disk.h"
+#include "../hal/display.h"
 
 namespace {
 
@@ -54,6 +55,12 @@ class SettingsPage : public Page {
     bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
     audio_out_set_pause_on_unplug(on);
     plat_kv_set("p_unpl", on);
+  }
+  // schermo girato di 180°: si vede subito, e resta così ai prossimi avvii
+  static void flip_cb(lv_event_t *e) {
+    bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
+    display_set_flip(on);
+    plat_kv_set("flip", on);
   }
   static void invert_cb(lv_event_t *e) {
     bool on = lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED);
@@ -361,6 +368,7 @@ class SettingsPage : public Page {
     lv_obj_t *so = row(TR("Spegni lo schermo"), "-", scr_cb);
     scr_val = lv_obj_get_child(so, 1);
     toggle(TR("Riattiva toccando"), TR("Se lo schermo si è spento da solo"), power_touch_wake(), touchwake_cb);
+    toggle(TR("Capovolgi lo schermo"), TR("Se lo agganci a testa in giù"), display_flipped(), flip_cb);
 
     section(TR("Tasto BOOT"));
     lv_obj_t *hint = ui_label(col, &font_r12, C_SUB,

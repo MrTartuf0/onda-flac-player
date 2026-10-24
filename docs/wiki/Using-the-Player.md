@@ -88,7 +88,7 @@ When you unplug the headphones the music pauses, like on a phone (**Settings →
 | Date and time | Date and where the time came from |
 | Audio | Output, headphone jack status, pause on unplug, invert jack detection |
 | Language | English / Italian |
-| Screen | Brightness, screen timeout, tap to wake |
+| Screen | Brightness, screen timeout, tap to wake, flip the screen 180° (for wearing it upside down) |
 | BOOT button | What each click does, auto power-off, power off now |
 | Library | Update library (reads every file and cover again), cache folder |
 | About | Version and supported formats |

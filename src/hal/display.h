@@ -10,3 +10,7 @@ void display_dim(bool on);             // attenua (dissolvenza con display_tick)
 void display_tick(uint32_t now_ms);    // dal loop: fa avanzare la dissolvenza
 void display_panel(bool on);           // spegne/riaccende pannello e retroilluminazione
 void display_sleep();                 // spegne retroilluminazione e pannello (prima del deep sleep)
+// Schermo girato di 180° (es. agganciato all'imbracatura a testa in giù): immagine e
+// touch. display_begin lo legge dalle impostazioni ("flip"); questa lo cambia subito.
+void display_set_flip(bool on);
+bool display_flipped();
