@@ -8,6 +8,7 @@ bool es8311_begin(uint32_t sample_rate, uint32_t mclk_hz);
 bool es8311_set_rate(uint32_t sample_rate, uint32_t mclk_hz);
 void es8311_set_dac_volume(uint8_t reg_value);   // 0xBF = 0 dB, passo 0.5 dB
 void es8311_mute(bool mute);
+void es8311_suspend();   // spegnimento completo; si riaccende con es8311_begin
 bool es8311_rate_supported(uint32_t sample_rate);
 // MCLK consigliato (multiplo di fs) per un dato sample-rate: 256 o 128
 uint32_t es8311_mclk_multiple(uint32_t sample_rate);

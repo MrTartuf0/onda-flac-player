@@ -158,6 +158,7 @@ void audio_out_suspend() {
   digitalWrite(AMP_PIN_EN, !AMP_ON_LEVEL);
   es8311_mute(true);
   mirror(false);
+  es8311_suspend();   // codec spento del tutto (MCLK ancora attivo, come vuole la sequenza)
   i2s_chan_handle_t t = s_tx;
   s_tx = nullptr;
   i2s_channel_disable(t);

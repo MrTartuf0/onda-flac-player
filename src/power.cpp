@@ -299,13 +299,18 @@ void power_off(PowerOffReason r) {
 
   // risveglio: sempre col tasto BOOT; con la batteria esaurita anche toccando lo
   // schermo (il touch abbassa INT). In tasca un tocco non deve riaccenderlo.
+  // Spento col tasto o da solo il touch non serve: va in ibernazione invece di
+  // restare a scandire il pannello per tutto il tempo.
   uint64_t mask = 1ULL << BTN_BOOT_PIN;
   if (battery) {
     for (uint32_t t0 = millis(); millis() - t0 < 3000 && digitalRead(TP_PIN_INT) == LOW;) delay(10);
     if (digitalRead(TP_PIN_INT) == HIGH) mask |= 1ULL << TP_PIN_INT;
+  } else {
+    display_touch_sleep();
   }
   esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);   // tiene le resistenze di pull-up
   for (int pin : {BTN_BOOT_PIN, TP_PIN_INT}) {
+    if (!(mask & (1ULL << pin))) continue;   // INT del touch ibernato: niente pull-up inutile
     rtc_gpio_pullup_en((gpio_num_t)pin);
     rtc_gpio_pulldown_dis((gpio_num_t)pin);
   }

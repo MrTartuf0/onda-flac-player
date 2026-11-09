@@ -116,6 +116,20 @@ bool tp_read(uint16_t &x, uint16_t &y) {
   return true;
 }
 
+}  // namespace
+
+// FT6336U in ibernazione (registro ID_G_PMODE 0xA5 = 3): da spento non serve, e in
+// attesa di un tocco resterebbe a scandire il pannello. Ne esce solo col reset
+// hardware che display_begin fa a ogni accensione.
+void display_touch_sleep() {
+  Wire.beginTransmission(TP_I2C_ADDR);
+  Wire.write(0xA5);
+  Wire.write(0x03);
+  Wire.endTransmission();
+}
+
+namespace {
+
 void touch_cb(lv_indev_t *, lv_indev_data_t *data) {
   uint16_t x = 0, y = 0;
   // a schermo spento col tasto il touch non si legge nemmeno; a schermo spento

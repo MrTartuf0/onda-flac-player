@@ -106,6 +106,29 @@ bool es8311_begin(uint32_t rate, uint32_t mclk) {
   return true;
 }
 
+// Spegnimento completo (sequenza di Espressif, esp_codec_dev es8311_suspend): DAC,
+// ADC, PGA e parte analogica (riferimenti, VMID) giù. Il solo mute lasciava tutta la
+// parte analogica accesa, anche nel deep sleep: il codec ha la sua alimentazione
+// (AU_VCC3V3), sempre presente finché c'è la batteria. Si riaccende con es8311_begin,
+// che parte da un reset.
+void es8311_suspend() {
+  wr(0x32, 0x00);   // volume DAC a zero
+  wr(0x17, 0x00);   // volume ADC a zero
+  wr(0x0E, 0xFF);   // PGA e ADC spenti
+  wr(0x12, 0x02);   // DAC spento
+  wr(0x14, 0x00);
+  wr(0x0D, 0xFA);   // analogico giù
+  wr(0x15, 0x00);
+  wr(0x02, 0x10);
+  wr(0x00, 0x00);
+  wr(0x00, 0x1F);   // logica in reset
+  wr(0x01, 0x30);
+  wr(0x01, 0x00);   // clock interni fermi
+  wr(0x45, 0x00);
+  wr(0x0D, 0xFC);   // tutto spento
+  wr(0x02, 0x00);
+}
+
 void es8311_set_dac_volume(uint8_t v) { wr(0x32, v); }
 
 void es8311_mute(bool mute) {

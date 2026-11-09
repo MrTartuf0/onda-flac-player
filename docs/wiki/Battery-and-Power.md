@@ -60,4 +60,6 @@ The percentage comes from a typical LiPo discharge curve, so it can move by a fe
 
 ### Storage
 
-Powered off (deep sleep) the board still draws a little current (regulator, display, touch, external DAC). If you won't use the player for a long time, disconnect the battery.
+When it powers off (deep sleep) the player also switches off the ES8311 codec, which otherwise kept its analog section on, and puts the touch controller into hibernation. With a flat battery the touch stays awake, so a tap can still wake the player once the charger is connected.
+
+What still draws current is hardware the firmware can't switch off: the board's RGB LED (powered straight from the battery), the PCM5102 module in standby, the microSD, the display in sleep mode and the two regulators. If you won't use the player for a long time, disconnect the battery or fit a switch on the battery wire.
